@@ -1,0 +1,95 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent"
+    android:layout_height="match_parent" android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    tools:context="de.conradowatz.jkgvertretung.activities.LoginActivity">
+
+    <ImageView
+        android:id="@+id/logo"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="20dp"
+        android:src="@drawable/logo"/>
+
+    <TextView
+        android:text="Bitte gib die notwendigen Benutzerdaten ein. Diese kannst du in der Schule bekommen."
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/primary_text"
+        android:textSize="18sp"
+        android:layout_marginTop="20dp"
+        android:id="@+id/welcome_text"
+        android:layout_below="@id/logo"/>
+
+    <EditText
+        android:layout_width="300dp"
+        android:layout_height="wrap_content"
+        android:inputType="textEmailAddress"
+        android:layout_centerHorizontal="true"
+        android:ems="10"
+        android:layout_marginTop="40dp"
+        android:layout_below="@id/welcome_text"
+        android:id="@+id/usernameEdit"
+        android:hint="Benutzername" />
+
+    <EditText
+        android:layout_width="300dp"
+        android:layout_height="wrap_content"
+        android:inputType="textPassword"
+        android:layout_below="@id/usernameEdit"
+        android:ems="10"
+        android:layout_marginTop="20dp"
+        android:id="@+id/passwordEdit"
+        android:layout_centerHorizontal="true"
+        android:hint="Passwort" />
+
+    <RelativeLayout
+        android:id="@+id/buttonLayout"
+        android:layout_width="90dp"
+        android:layout_height="50dp"
+        android:layout_below="@+id/passwordEdit"
+        android:layout_alignRight="@+id/passwordEdit"
+        android:layout_alignEnd="@+id/passwordEdit">
+
+        <com.pnikosis.materialishprogress.ProgressWheel
+            xmlns:wheel="http://schemas.android.com/apk/res-auto"
+            android:id="@+id/loginProgressWheel"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_centerVertical="true"
+            android:padding="5dp"
+            android:layout_centerHorizontal="true"
+            android:background="@color/accent"
+            android:visibility="invisible"
+            wheel:matProg_barColor="@color/white"
+            wheel:matProg_progressIndeterminate="true" />
+
+        <Button
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:text="Login"
+            android:background="@color/accent"
+            android:textColor="@color/white"
+            android:id="@+id/loginButton" />
+
+
+
+    </RelativeLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/warn_text"
+        android:layout_marginTop="10dp"
+        android:visibility="invisible"
+        android:text="FAILED TO LOGIN"
+        android:layout_below="@id/passwordEdit"
+        android:layout_alignLeft="@id/passwordEdit"
+        android:layout_toLeftOf="@id/buttonLayout"
+        android:layout_marginRight="10dp"
+        android:id="@+id/loginErrorText"/>
+
+</RelativeLayout>

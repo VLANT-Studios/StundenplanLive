@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+    <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="10dp">
+
+        <TextView
+            android:id="@+id/stundeText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="1."
+            android:layout_centerVertical="true"
+            android:textColor="@color/primary_text"
+            android:textSize="20sp" />
+
+        <TextView
+            android:id="@+id/fachText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="45dp"
+            android:text="MA"
+            android:textColor="@color/primary_text"
+            android:textSize="20sp" />
+
+        <TextView
+            android:id="@+id/raumText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentRight="true"
+            android:text="204"
+            android:textColor="@color/primary_text"
+            android:textSize="20sp" />
+
+        <TextView
+            android:id="@+id/infoText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/fachText"
+            android:layout_marginLeft="45dp"
+            android:text="Zimmer geändert"
+            android:textColor="@color/primary_text" />
+
+
+    </RelativeLayout>
