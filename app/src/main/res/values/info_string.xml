@@ -2,11 +2,11 @@
 <resources>
     <string name="infoDialog_text"><![CDATA[
         <h2>Infos</h2>
-        Diese App wird entwickelt von <b>Conrad Schmidt</b>. Sie greift auf den Online-Stundenplan Indiware mobil von Uwe Kannenberg zu, um die Daten zu bekommen.
+        Diese App wird entwickelt von <b>Conrad Schmidt</b>. Um an die erforderlichen Daten zu gelangen, greift die App auf den Online-Stundenplan Indiware mobil von Uwe Kannenberg zu.
         <br>Bei Problemen mit der App, oder bei anderen Anfragen zu der App, wendet euch bitte an meine E-Mail Adresse: <a href="mailto:info@conradowatz.de">info@conradowatz.de</a>.
         <br>
         <br>Da diese App Open-Source ist, könnt ihr den kompletten Source Code auf GitHub finden (wen es interessiert).
-            Der Link: <a href="LINK FOLGT>LINK FOLGT</a>
+            Der Link: <a href="https://github.com/Conradowatz/JKGVertretung-App>https://github.com/Conradowatz/JKGVertretung-App</a>
         <br>
         <h2>Lizenzen</h2>
         Diese App verwendet folgende Libarys:
@@ -14,10 +14,8 @@
         <br> • Async Http Client (Copyright © 2011-2014 James Smith [james@loopj.com])
         <br> • Material-ish Progress (Copyright © 2014 Nico Hormazábal)
         <br> • EventBus (von greenrobot)
-        <br> • FloatingActionButton (Copyright © 2014 Oleksandr Melnykov)
-        <br> • MaterialTabs (Copyright © 2015 Karim Frenn)
         <br>
-        <br>Die ersten 4 Libarys sind lizensiert unter der Apache License, Version 2.0:
+        <br>Alle 4 Libarys sind lizensiert unter der Apache License, Version 2.0:
         <br>
         <tt><br>Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License.
         <br>You may obtain a copy of the License at
@@ -29,20 +27,6 @@
         WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
         See the License for the specific language governing permissions and
         limitations under the License.</tt>
-        <br>
-        <br>Die letzten 2 Libarys sind lizensiert unter der MIT License (MIT):
-        <br>
-        <br><tt>Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"),
-        to deal in the Software without restriction, including without limitation the rights to use, copy,
-        modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
-        subject to the following conditions:
-        <br>
-        <br>The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-        <br>
-        <br>THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-        MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
-        FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-        WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</tt>
         <br>
         <br>Diese App verwendet Material Design Icons von Google, lizensiert unter <tt>Creative Commons BY 4.0 https://creativecommons.org/licenses/by/4.0/</tt>.
     ]]></string>

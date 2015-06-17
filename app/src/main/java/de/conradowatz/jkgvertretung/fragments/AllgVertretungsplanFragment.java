@@ -4,8 +4,6 @@ package de.conradowatz.jkgvertretung.fragments;
 import android.os.Bundle;
 import android.support.design.widget.TabLayout;
 import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentManager;
-import android.support.v4.app.FragmentStatePagerAdapter;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.util.Log;
@@ -15,19 +13,18 @@ import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import org.w3c.dom.Text;
-
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.activities.MainActivity;
 import de.conradowatz.jkgvertretung.tools.PreferenceReader;
-import de.conradowatz.jkgvertretung.variables.StuPlaKlasse;
-import de.conradowatz.jkgvertretung.variables.Stunde;
 import de.conradowatz.jkgvertretung.variables.Tag;
+import de.conradowatz.jkgvertretung.variables.Vertretung;
 
-public class StundenplanFragment extends Fragment {
+/**
+ * A simple {@link Fragment} subclass.
+ */
+public class AllgVertretungsplanFragment extends Fragment {
 
     private View contentView;
 
@@ -35,7 +32,7 @@ public class StundenplanFragment extends Fragment {
     private TabLayout tabs;
     private int dayCount = -1;
 
-    public StundenplanFragment() {
+    public AllgVertretungsplanFragment() {
         // Required empty public constructor
     }
 
@@ -51,9 +48,7 @@ public class StundenplanFragment extends Fragment {
         MainActivity mainActivity = (MainActivity) getActivity();
         if (mainActivity.vertretungsAPI==null) return contentView;
 
-        int klassenIndex = PreferenceReader.readIntFromPreferences(getActivity(), "meineKlasseInt", 0);
-        ArrayList<String> nichtKurse = PreferenceReader.readStringListFromPreferences(getActivity(), "meineNichtKurse");
-        StundenplanPagerAdapter stundenplanPagerAdapter = new StundenplanPagerAdapter(mainActivity.vertretungsAPI.getTagList(), klassenIndex, nichtKurse, getActivity().getLayoutInflater());
+        StundenplanPagerAdapter stundenplanPagerAdapter = new StundenplanPagerAdapter(mainActivity.vertretungsAPI.getTagList(), getActivity().getLayoutInflater());
         viewPager.setAdapter(stundenplanPagerAdapter);
         tabs.setTabTextColors(getResources().getColor(R.color.white), getResources().getColor(R.color.white));
         tabs.setTabMode(TabLayout.MODE_SCROLLABLE);
@@ -73,9 +68,7 @@ public class StundenplanFragment extends Fragment {
     private class StundenplanPagerAdapter extends PagerAdapter {
 
         private ArrayList<Tag> tagList;
-        private int klasseIndex;
         private LayoutInflater layoutInflater;
-        private ArrayList<String> nichtKurse;
 
         @Override
         public CharSequence getPageTitle(int position) {
@@ -83,11 +76,9 @@ public class StundenplanFragment extends Fragment {
             return tagList.get(position).getDatumString().split(",")[0];
         }
 
-        public StundenplanPagerAdapter(ArrayList<Tag> tagList, int klasseIndex, ArrayList<String> nichtKurse, LayoutInflater layoutInflater) {
+        public StundenplanPagerAdapter(ArrayList<Tag> tagList, LayoutInflater layoutInflater) {
 
             this.tagList = tagList;
-            this.klasseIndex = klasseIndex;
-            this.nichtKurse = nichtKurse;
             this.layoutInflater = layoutInflater;
         }
 
@@ -105,32 +96,35 @@ public class StundenplanFragment extends Fragment {
 
             datumText.setText(tagList.get(position).getDatumString());
 
-            StuPlaKlasse stuPlaKlasse = tagList.get(position).getStuplaKlasseList().get(klasseIndex);
-            ArrayList<Stunde> stundenList = stuPlaKlasse.getStundenList();
-            for (int i=0; i<stundenList.size(); i++) {
+            ArrayList<Vertretung> vertretungsList = tagList.get(position).getVertretungsList();
 
-                Stunde stunde = stundenList.get(i);
-                if (nichtKurse.contains(stunde.getKurs()))
-                    continue;
+            for (int i=0; i<vertretungsList.size(); i++) {
 
-                View stundenItem = layoutInflater.inflate(R.layout.stundenplan_stunde_item, linearLayout, false);
+                Vertretung vertretung = vertretungsList.get(i);
+
+                View stundenItem = layoutInflater.inflate(R.layout.vertretungsplan_stunde_item, linearLayout, false);
                 TextView stundeText = (TextView) stundenItem.findViewById(R.id.stundeText);
                 TextView fachText = (TextView) stundenItem.findViewById(R.id.fachText);
                 TextView raumText = (TextView) stundenItem.findViewById(R.id.raumText);
                 TextView infoText = (TextView) stundenItem.findViewById(R.id.infoText);
+                TextView kursText = (TextView) stundenItem.findViewById(R.id.kursText);
 
-                stundeText.setText(stunde.getStunde());
-                fachText.setText(stunde.getFach());
-                if (stunde.isFachg())
-                    fachText.setTextColor(getResources().getColor(R.color.accent));
-                raumText.setText(stunde.getRaum());
-                if (stunde.isRaumg())
-                    raumText.setTextColor(getResources().getColor(R.color.accent));
-                if (stunde.getInfo().isEmpty())
+                stundeText.setText(vertretung.getStunde());
+                fachText.setText(vertretung.getFach());
+                raumText.setText(vertretung.getRaum());
+                if (vertretung.getInfo().isEmpty())
                     infoText.setHeight(0);
-                infoText.setText(stunde.getInfo());
+                infoText.setText(vertretung.getInfo());
+                kursText.setText(vertretung.getKlasse()+":");
 
                 linearLayout.addView(stundenItem);
+            }
+
+            if (linearLayout.getChildCount()==0) {
+
+                TextView textView = (TextView) layoutInflater.inflate(R.layout.spacedtext_item, linearLayout, false);
+                textView.setText("Für diesen Tag steht kein Vertretungsplan bereit");
+                linearLayout.addView(textView);
             }
 
 

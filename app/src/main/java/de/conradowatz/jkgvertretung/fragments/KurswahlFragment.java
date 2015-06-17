@@ -2,7 +2,8 @@ package de.conradowatz.jkgvertretung.fragments;
 
 
 import android.os.Bundle;
-import android.app.Fragment;
+import android.support.design.widget.FloatingActionButton;
+import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -18,10 +19,6 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
-
-import com.melnykov.fab.FloatingActionButton;
-import com.melnykov.fab.ObservableScrollView;
-import com.mikepenz.materialdrawer.model.PrimaryDrawerItem;
 
 import java.util.ArrayList;
 
@@ -91,8 +88,6 @@ public class KurswahlFragment extends Fragment {
                 }
             }
         });
-        ObservableScrollView scrollView = (ObservableScrollView) contentView.findViewById(R.id.scrollView);
-        fab.attachToScrollView(scrollView);
 
         MainActivity mainActivity = (MainActivity) getActivity();
         if (mainActivity.vertretungsAPI==null) return contentView;

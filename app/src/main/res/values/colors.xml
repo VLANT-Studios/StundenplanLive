@@ -9,7 +9,7 @@
     <color name="primary_text">#212121</color>
     <color name="secondary_text">#727272</color>
     <color name="icons">#212121</color>
-    <color name="divider">#B6B6B6</color>
+    <color name="divider">#ffd1d1d1</color>
     <color name="white">#FFFFFF</color>
     <color name="yellowish">#fffcffd2</color>
     <color name="turquoisish">#ffc1ffe1</color>

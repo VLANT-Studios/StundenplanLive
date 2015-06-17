@@ -104,7 +104,7 @@ public class VertretungsAPI {
 
 
                 //Tag Liste
-                makeTagList(3, 0, new SimpleFinishedHandler() {
+                makeTagList(3, 0, new GetDaysHandler() {
                     @Override
                     public void onFinished() {
                         responseHandler.onSuccess();
@@ -235,9 +235,8 @@ public class VertretungsAPI {
 
     private Date nextSchoolDay(Date startDate) {
 
-        Calendar startCalendar = Calendar.getInstance();
-        startCalendar.setTime(startDate);
-        Calendar nextCalendar = startCalendar;
+        Calendar nextCalendar = Calendar.getInstance();
+        nextCalendar.setTime(startDate);
         Date nextDate;
 
         do {
@@ -260,7 +259,7 @@ public class VertretungsAPI {
         return (dayOfWeek==Calendar.SATURDAY || dayOfWeek==Calendar.SUNDAY || freieTageList.contains(date));
     }
 
-    private void makeTagList (final int count, int skip, final SimpleFinishedHandler responseHandler) {
+    public void makeTagList (final int count, int skip, final GetDaysHandler responseHandler) {
 
         Date startDate = Calendar.getInstance().getTime();
 
@@ -272,7 +271,8 @@ public class VertretungsAPI {
             startDate = nextSchoolDay(startDate);
         }
 
-        tagList = new ArrayList<>();
+        if (tagList==null)
+            tagList = new ArrayList<>();
 
         downloadDays(count-1, startDate, new DownloadDaysHandler() {
             @Override
@@ -282,8 +282,12 @@ public class VertretungsAPI {
 
             @Override
             public void onProgress(int currentCount, double progress) {
-                double doubleCount = count;
-                responseHandler.onProgress((doubleCount-currentCount)/doubleCount * progress);
+                responseHandler.onProgress((count-currentCount)/count * progress);
+            }
+
+            @Override
+            public void onDayAdded() {
+                responseHandler.onDayAdded();
             }
 
             @Override
@@ -346,7 +350,7 @@ public class VertretungsAPI {
 
                             try {
 
-                                ArrayList<Vertretung> vertretungsList = null;
+                                ArrayList<Vertretung> vertretungsList;
                                 vertretungsList = makeVertretungsList(responseString);
 
                                 String datumString = responseString.substring(responseString.indexOf("<titel>")+7, responseString.indexOf("</titel>"));
@@ -354,6 +358,7 @@ public class VertretungsAPI {
 
                                 Tag tag = new Tag(date, datumString, currentStundenList, vertretungsList);
                                 tagList.add(tag);
+                                responseHandler.onDayAdded();
 
                                 if (count>0) {
                                     downloadDays(count - 1, nextSchoolDay(date), responseHandler);
@@ -365,7 +370,6 @@ public class VertretungsAPI {
                                 e.printStackTrace();
                                 responseHandler.onFinished();
                                 responseHandler.onError(e);
-                                return;
                             }
 
                         }
@@ -375,7 +379,6 @@ public class VertretungsAPI {
                     e.printStackTrace();
                     responseHandler.onFinished();
                     responseHandler.onError(e);
-                    return;
                 }
 
             }
@@ -521,11 +524,14 @@ public class VertretungsAPI {
         }
     }
 
-    private static abstract class SimpleFinishedHandler {
+    public static abstract class GetDaysHandler {
 
         public abstract void onFinished();
         public abstract void onError(Throwable throwable);
         public void onProgress(double progress) {
+
+        }
+        public void onDayAdded() {
 
         }
     }
@@ -535,6 +541,9 @@ public class VertretungsAPI {
         public abstract void onFinished();
         public abstract void onError(Throwable throwable);
         public void onProgress(int count, double progress) {
+
+        }
+        public void onDayAdded() {
 
         }
     }

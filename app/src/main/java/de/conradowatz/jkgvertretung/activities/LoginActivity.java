@@ -2,6 +2,7 @@ package de.conradowatz.jkgvertretung.activities;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.support.design.widget.TextInputLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.view.KeyEvent;
 import android.view.Menu;
@@ -18,8 +19,8 @@ import de.conradowatz.jkgvertretung.tools.VertretungsAPI;
 
 public class LoginActivity extends AppCompatActivity {
 
-    EditText usernameEdit;
-    EditText passwordEdit;
+    TextInputLayout usernameInput;
+    TextInputLayout passwordInput;
     Button loginButton;
     ProgressWheel loginProgressWheel;
     TextView loginErrorText;
@@ -29,8 +30,8 @@ public class LoginActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_login);
-        usernameEdit = (EditText) findViewById(R.id.usernameEdit);
-        passwordEdit = (EditText) findViewById(R.id.passwordEdit);
+        usernameInput = (TextInputLayout) findViewById(R.id.usernameInput);
+        passwordInput = (TextInputLayout) findViewById(R.id.passwordInput);
         loginButton = (Button) findViewById(R.id.loginButton);
         loginProgressWheel = (ProgressWheel) findViewById(R.id.loginProgressWheel);
         loginErrorText = (TextView) findViewById(R.id.loginErrorText);
@@ -44,7 +45,7 @@ public class LoginActivity extends AppCompatActivity {
         });
 
         //Wenn ENTER geklickt wird -> einloggen
-        passwordEdit.setOnKeyListener(new View.OnKeyListener() {
+        passwordInput.getEditText().setOnKeyListener(new View.OnKeyListener() {
             @Override
             public boolean onKey(View v, int keyCode, KeyEvent event) {
                 if ((event.getAction() == KeyEvent.ACTION_DOWN) && (keyCode == KeyEvent.KEYCODE_ENTER)) {
@@ -57,14 +58,14 @@ public class LoginActivity extends AppCompatActivity {
 
 
     private void login() {
-        final String benutzerName = usernameEdit.getText().toString();
-        final String passwort = passwordEdit.getText().toString();
+        final String benutzerName = usernameInput.getEditText().getText().toString();
+        final String passwort = passwordInput.getEditText().getText().toString();
 
         loginButton.setVisibility(View.INVISIBLE);
         loginProgressWheel.setVisibility(View.VISIBLE);
         loginErrorText.setVisibility(View.INVISIBLE);
-        passwordEdit.setEnabled(false);
-        usernameEdit.setEnabled(false);
+        passwordInput.getEditText().setEnabled(false);
+        usernameInput.getEditText().setEnabled(false);
 
         new VertretungsAPI().checkLogin(benutzerName, passwort, new VertretungsAPI.AsyncLoginResponseHandler() {
 
@@ -88,8 +89,8 @@ public class LoginActivity extends AppCompatActivity {
 
                 loginButton.setVisibility(View.VISIBLE);
                 loginProgressWheel.setVisibility(View.INVISIBLE);
-                passwordEdit.setEnabled(true);
-                usernameEdit.setEnabled(true);
+                passwordInput.getEditText().setEnabled(true);
+                usernameInput.getEditText().setEnabled(true);
                 loginErrorText.setVisibility(View.VISIBLE);
                 loginErrorText.setText("Fehler bei der Anmeldung!");
             }
@@ -99,7 +100,6 @@ public class LoginActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        super.onBackPressed();
 
         //Anwendung schließen
         Intent backToMain = new Intent();

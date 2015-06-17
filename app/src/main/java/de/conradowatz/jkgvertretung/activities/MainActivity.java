@@ -1,14 +1,13 @@
 package de.conradowatz.jkgvertretung.activities;
 
-import android.app.FragmentManager;
 import android.content.Intent;
 import android.os.Bundle;
+import android.support.v4.app.FragmentManager;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.text.Html;
 import android.text.method.LinkMovementMethod;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -19,17 +18,12 @@ import android.widget.TextView;
 import com.mikepenz.google_material_typeface_library.GoogleMaterial;
 import com.mikepenz.materialdrawer.Drawer;
 import com.mikepenz.materialdrawer.DrawerBuilder;
-import com.mikepenz.materialdrawer.accountswitcher.AccountHeader;
-import com.mikepenz.materialdrawer.accountswitcher.AccountHeaderBuilder;
 import com.mikepenz.materialdrawer.model.DividerDrawerItem;
 import com.mikepenz.materialdrawer.model.PrimaryDrawerItem;
-import com.mikepenz.materialdrawer.model.ProfileDrawerItem;
 import com.mikepenz.materialdrawer.model.interfaces.IDrawerItem;
-import com.mikepenz.materialdrawer.model.interfaces.IProfile;
-
-import java.util.ArrayList;
 
 import de.conradowatz.jkgvertretung.R;
+import de.conradowatz.jkgvertretung.fragments.AllgVertretungsplanFragment;
 import de.conradowatz.jkgvertretung.fragments.KurswahlFragment;
 import de.conradowatz.jkgvertretung.fragments.StundenplanFragment;
 import de.conradowatz.jkgvertretung.fragments.VertretungsplanFragment;
@@ -41,14 +35,14 @@ import de.greenrobot.event.EventBus;
 public class MainActivity extends AppCompatActivity {
 
     private Toolbar toolbar;
-    private AccountHeader accountHeader;
     private Drawer navigationDrawer;
 
     private StundenplanFragment stundenplanFragment;
     private VertretungsplanFragment vertretungsplanFragment;
     private KurswahlFragment kurswahlFragment;
+    private AllgVertretungsplanFragment allgVertretungsplanFragment;
 
-    private int currentlySelected = 0;
+    private int currentlySelected;
     public VertretungsAPI vertretungsAPI;
 
     private EventBus eventBus = EventBus.getDefault();
@@ -64,63 +58,42 @@ public class MainActivity extends AppCompatActivity {
         buildDrawer();
 
 
-        if (getLastCustomNonConfigurationInstance()!=null) {
+        if (getLastCustomNonConfigurationInstance() != null) {
             vertretungsAPI = (VertretungsAPI) getLastCustomNonConfigurationInstance();
             CharSequence title = savedInstanceState.getCharSequence("title");
             getSupportActionBar().setTitle(title);
             int selection = savedInstanceState.getInt("selection");
-            navigationDrawer.setSelection(selection, false);
+            if (selection>=0) navigationDrawer.setSelection(selection, false);
             currentlySelected = savedInstanceState.getInt("currentlySelected");
         } else {
             stundenplanFragment = null;
             vertretungsplanFragment = null;
             kurswahlFragment = null;
+            currentlySelected = -1;
             startLoadingActivities();
         }
     }
 
     private void buildDrawer() {
 
-        ProfileDrawerItem profileDrawerItem = new ProfileDrawerItem().withIcon(getResources().getDrawable(R.drawable.logo));
-
-        accountHeader = new AccountHeaderBuilder()
-                .withActivity(this)
-                .withTextColorRes(R.color.primary_text)
-                //TODO .withHeaderBackground(R.drawable.timetable)
-                .withSelectionListEnabledForSingleProfile(false)
-                .addProfiles(
-                        profileDrawerItem
-                )
-                .withOnAccountHeaderListener(new AccountHeader.OnAccountHeaderListener() {
-                    @Override
-                    public boolean onProfileChanged(View view, IProfile profile, boolean currentProfile) {
-                        return false;
-                    }
-                })
-                .build();
-
-        ArrayList<IDrawerItem> footerList = new ArrayList<>();
-        footerList.add(new PrimaryDrawerItem().withName("Infos").withIcon(GoogleMaterial.Icon.gmd_info_outline).withIdentifier(-1));
-
         navigationDrawer = new DrawerBuilder()
                 .withActivity(this)
                 .withToolbar(toolbar)
-                .withAccountHeader(accountHeader)
+                .withHeader(R.layout.drawer_header)
                 .addDrawerItems(
-                        new PrimaryDrawerItem().withName("Mein Stundenplan").withIcon(GoogleMaterial.Icon.gmd_access_time).withIdentifier(1),
-                        //new PrimaryDrawerItem().withName("Mein Vertretungsplan").withIcon(GoogleMaterial.Icon.gmd_format_list_numbered).withIdentifier(2),
-                        new PrimaryDrawerItem().withName("Klassen- / Kurswahl").withIcon(GoogleMaterial.Icon.gmd_check_box).withIdentifier(3)//,
-                        //new DividerDrawerItem(),
-                        //new PrimaryDrawerItem().withName("Allgemeiner Vertretungsplan").withIcon(GoogleMaterial.Icon.gmd_format_list_numbered).withIdentifier(4),
-                        //new PrimaryDrawerItem().withName("Anderer Stundenplan").withIcon(GoogleMaterial.Icon.gmd_access_time).withIdentifier(5)
+                        new PrimaryDrawerItem().withName("Mein Stundenplan").withIcon(R.drawable.ic_stuplan).withIconTintingEnabled(true).withIdentifier(1),
+                        new PrimaryDrawerItem().withName("Mein Vertretungsplan").withIcon(R.drawable.ic_vertretung).withIconTintingEnabled(true).withIdentifier(2),
+                        new PrimaryDrawerItem().withName("Klassen- / Kurswahl").withIcon(R.drawable.ic_check).withIconTintingEnabled(true).withIdentifier(3),
+                        new DividerDrawerItem(),
+                        new PrimaryDrawerItem().withName("Allgemeiner Vertretungsplan").withIcon(R.drawable.ic_vertretung).withIconTintingEnabled(true).withIdentifier(4),
+                        new DividerDrawerItem(),
+                        new PrimaryDrawerItem().withName("Infos").withIcon(R.drawable.ic_info).withIconTintingEnabled(true).withIdentifier(11)
                 )
-                .withStickyFooterDivider(true)
-                .withStickyDrawerItems(footerList)
                 .withOnDrawerItemClickListener(new Drawer.OnDrawerItemClickListener() {
                     @Override
                     public boolean onItemClick(AdapterView<?> parent, View view, int position, long id, IDrawerItem drawerItem) {
                         int identifier = drawerItem.getIdentifier();
-                        if (identifier >= 0) {
+                        if (identifier < 10) {
                             if (currentlySelected != position) {
                                 setFragment(identifier);
                                 currentlySelected = position;
@@ -129,7 +102,7 @@ public class MainActivity extends AppCompatActivity {
                         } else {
                             navigationDrawer.setSelection(currentlySelected, false);
                             switch (identifier) {
-                                case -1:
+                                case 11:
                                     showInfoDialog();
                                     break;
                             }
@@ -141,27 +114,33 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private void setFragment(int position) {
+    private void setFragment(int identifier) {
 
-        FragmentManager mFragmentManager = getFragmentManager();
-        if (position == 1) {
+        FragmentManager mFragmentManager = getSupportFragmentManager();
+        if (identifier == 1) {
             if (stundenplanFragment == null) {
                 stundenplanFragment = new StundenplanFragment();
             }
-            mFragmentManager.beginTransaction().replace(R.id.container, stundenplanFragment).commit();
-            getSupportActionBar().setTitle("Meine Stundenplan");
-        } else if (position == 2) {
+            mFragmentManager.beginTransaction().replace(R.id.container, stundenplanFragment).commitAllowingStateLoss();
+            getSupportActionBar().setTitle("Mein Stundenplan");
+        } else if (identifier == 2) {
             if (vertretungsplanFragment == null) {
                 vertretungsplanFragment = new VertretungsplanFragment();
             }
-            mFragmentManager.beginTransaction().replace(R.id.container, vertretungsplanFragment).commit();
-            getSupportActionBar().setTitle("Vertretungsplan");
-        } else if (position == 3) {
+            mFragmentManager.beginTransaction().replace(R.id.container, vertretungsplanFragment).commitAllowingStateLoss();
+            getSupportActionBar().setTitle("Mein Vertretungsplan");
+        } else if (identifier == 3) {
             if (kurswahlFragment == null) {
                 kurswahlFragment = new KurswahlFragment();
             }
-            mFragmentManager.beginTransaction().replace(R.id.container, kurswahlFragment).commit();
+            mFragmentManager.beginTransaction().replace(R.id.container, kurswahlFragment).commitAllowingStateLoss();
             getSupportActionBar().setTitle("Klassen- / Kurswahl");
+        } else if (identifier == 4) {
+            if (allgVertretungsplanFragment == null) {
+                allgVertretungsplanFragment = new AllgVertretungsplanFragment();
+            }
+            mFragmentManager.beginTransaction().replace(R.id.container, allgVertretungsplanFragment).commitAllowingStateLoss();
+            getSupportActionBar().setTitle("Allgemeiner Vertretungsplan");
         }
     }
 
@@ -179,7 +158,8 @@ public class MainActivity extends AppCompatActivity {
     private void loadData() {
 
         Intent startLoadingIntent = new Intent(this, LoadingActivity.class);
-        startActivity(startLoadingIntent);
+        final  int result = 1;
+        startActivityForResult(startLoadingIntent, result);
 
         eventBus.register(this);
 
@@ -193,24 +173,65 @@ public class MainActivity extends AppCompatActivity {
 
         boolean firstStart = Boolean.valueOf(PreferenceReader.readStringFromPreferences(getApplicationContext(), "firstStart", "true"));
         if (firstStart) {
-            //navigationDrawer.setSelection(3, true);
-            navigationDrawer.setSelection(2, true);
+            navigationDrawer.setSelection(2, false);
+            currentlySelected = 2;
+            setFragment(3);
             navigationDrawer.openDrawer();
             PreferenceReader.saveStringToPreferences(getApplicationContext(), "firstStart", "false");
         } else {
-            navigationDrawer.setSelection(0, true);
+            navigationDrawer.setSelection(0, false);
+            currentlySelected = 0;
+            setFragment(1);
         }
-    };
+
+        //mehr Tage im Hintergrund laden
+        if (vertretungsAPI.getTagList().size() == 3) {
+
+            vertretungsAPI.makeTagList(10, 3, new VertretungsAPI.GetDaysHandler() {
+                @Override
+                public void onFinished() {
+
+                }
+
+                @Override
+                public void onDayAdded() {
+                    if (stundenplanFragment != null) {
+                        stundenplanFragment.onDayAdded();
+                    }
+                    if (vertretungsplanFragment != null) {
+                        vertretungsplanFragment.onDayAdded();
+                    }
+                }
+
+                @Override
+                public void onError(Throwable throwable) {
+
+                }
+            });
+        }
+    }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, final Intent data) {
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 
+        if (data==null) return;
         String response = data.getStringExtra("ExitCode");
-        if (response.equals("Exit")) {                  //Anwendung schließen, falls von Activity gewünscht
-            finish();
-        } else if (response.equals("LoggedIn")) {       //Anzeige von Fragments starten wenn eingeloggt
-            loadData();
+        switch (response) {
+            case "Exit":                   //Anwendung schließen, falls von Activity gewünscht
+                finish();
+                break;
+            case "LoggedIn":        //Anzeige von Fragments starten wenn eingeloggt
+                loadData();
+                break;
+            case "ReLog":
+
+                PreferenceReader.saveStringToPreferences(this, "username", "null");
+                PreferenceReader.saveStringToPreferences(this, "password", "null");
+                eventBus.unregister(this);
+                startLoadingActivities();
+                break;
         }
+
     }
 
     private void showInfoDialog() {
