@@ -19,9 +19,12 @@ import android.widget.TextView;
 
 import com.pnikosis.materialishprogress.ProgressWheel;
 
+import java.io.File;
+
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.tools.PreferenceReader;
 import de.conradowatz.jkgvertretung.tools.VertretungsAPI;
+import de.conradowatz.jkgvertretung.variables.Vertretung;
 import de.greenrobot.event.EventBus;
 
 public class LoadingActivity extends AppCompatActivity {
@@ -41,7 +44,9 @@ public class LoadingActivity extends AppCompatActivity {
     private Button retryButton;
     private Button changepwButton;
 
-    private VertretungsAPI vertretungsAPI;
+    private String username;
+    private String password;
+
     private EventBus eventBus = EventBus.getDefault();
 
     @Override
@@ -59,50 +64,42 @@ public class LoadingActivity extends AppCompatActivity {
         noaccesLayout = (LinearLayout) findViewById(R.id.noacces_layout);
         retryButton = (Button) findViewById(R.id.retryButton);
         changepwButton = (Button) findViewById(R.id.changepwButton);
-        loadingLayout.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
+        loadingLayout.setOnClickListener(v -> {
 
-                if (!isnoConnection) {
-                    return;
-                }
-
-                contentMode(CONTENT_LOADING);
-
-                isnoConnection = false;
-                downloadData();
-
+            if (!isnoConnection) {
+                return;
             }
+
+            contentMode(CONTENT_LOADING);
+
+            isnoConnection = false;
+            downloadData();
+
         });
-        retryButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
+        retryButton.setOnClickListener(v -> {
 
-                contentMode(CONTENT_LOADING);
-                downloadData();
-            }
+            contentMode(CONTENT_LOADING);
+            downloadData();
         });
-        changepwButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
+        changepwButton.setOnClickListener(v -> {
 
-                Intent backToMain = new Intent();
-                backToMain.putExtra("ExitCode", "ReLog");
-                setResult(RESULT_OK, backToMain);
-                finish();
+            Intent backToMain = new Intent();
+            backToMain.putExtra("ExitCode", "ReLog");
+            setResult(RESULT_OK, backToMain);
+            finish();
 
-            }
         });
 
-        String username = PreferenceReader.readStringFromPreferences(this, "username", "");
-        String password = PreferenceReader.readStringFromPreferences(this, "password", "");
-        vertretungsAPI = new VertretungsAPI(username, password);
+        username = PreferenceReader.readStringFromPreferences(this, "username", "");
+        password = PreferenceReader.readStringFromPreferences(this, "password", "");
 
         downloadData();
 
     }
 
     private void downloadData() {
+
+        final VertretungsAPI vertretungsAPI = new VertretungsAPI(username, password);
 
         vertretungsAPI.getAllInfo(new VertretungsAPI.AsyncVertretungsResponseHandler() {
             @Override

@@ -7,19 +7,9 @@ public class Tag {
 
     private Date datum;
     private String datumString;
+    private String zeitStempel;
     private ArrayList<StuPlaKlasse> stuplaKlasseList;
     private ArrayList<Vertretung> vertretungsList;
-
-    public Tag(Date datum, String datumString, ArrayList<StuPlaKlasse> stuplaKlasseList, ArrayList<Vertretung> vertretungsList) {
-        this.datum = datum;
-        this.datumString = datumString;
-        this.stuplaKlasseList = stuplaKlasseList;
-        this.vertretungsList = vertretungsList;
-    }
-
-    public Tag() {
-
-    }
 
     public Date getDatum() {
         return datum;
@@ -35,6 +25,14 @@ public class Tag {
 
     public void setDatumString(String datumString) {
         this.datumString = datumString;
+    }
+
+    public String getZeitStempel() {
+        return zeitStempel;
+    }
+
+    public void setZeitStempel(String zeitStempel) {
+        this.zeitStempel = zeitStempel;
     }
 
     public ArrayList<StuPlaKlasse> getStuplaKlasseList() {
@@ -53,4 +51,16 @@ public class Tag {
         this.vertretungsList = vertretungsList;
     }
 
+    public Tag(Date datum, String datumString, String zeitStempel, ArrayList<StuPlaKlasse> stuplaKlasseList, ArrayList<Vertretung> vertretungsList) {
+
+        this.datum = datum;
+        this.datumString = datumString;
+        this.zeitStempel = zeitStempel;
+        this.stuplaKlasseList = stuplaKlasseList;
+        this.vertretungsList = vertretungsList;
+    }
+
+    public Tag() {
+
+    }
 }

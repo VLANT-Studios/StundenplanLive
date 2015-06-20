@@ -1,5 +1,6 @@
 package de.conradowatz.jkgvertretung.activities;
 
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v4.app.FragmentManager;
@@ -8,11 +9,15 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.text.Html;
 import android.text.method.LinkMovementMethod;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 import android.widget.AdapterView;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.mikepenz.google_material_typeface_library.GoogleMaterial;
@@ -21,6 +26,8 @@ import com.mikepenz.materialdrawer.DrawerBuilder;
 import com.mikepenz.materialdrawer.model.DividerDrawerItem;
 import com.mikepenz.materialdrawer.model.PrimaryDrawerItem;
 import com.mikepenz.materialdrawer.model.interfaces.IDrawerItem;
+
+import java.io.File;
 
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.fragments.AllgVertretungsplanFragment;
@@ -36,6 +43,7 @@ public class MainActivity extends AppCompatActivity {
 
     private Toolbar toolbar;
     private Drawer navigationDrawer;
+    private Menu menu;
 
     private StundenplanFragment stundenplanFragment;
     private VertretungsplanFragment vertretungsplanFragment;
@@ -44,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
 
     private int currentlySelected;
     public VertretungsAPI vertretungsAPI;
+    private Boolean isRefreshing = false;
 
     private EventBus eventBus = EventBus.getDefault();
 
@@ -65,6 +74,7 @@ public class MainActivity extends AppCompatActivity {
             int selection = savedInstanceState.getInt("selection");
             if (selection>=0) navigationDrawer.setSelection(selection, false);
             currentlySelected = savedInstanceState.getInt("currentlySelected");
+            if (isRefreshing==null) isRefreshing = savedInstanceState.getBoolean("isRefreshing");
         } else {
             stundenplanFragment = null;
             vertretungsplanFragment = null;
@@ -89,26 +99,23 @@ public class MainActivity extends AppCompatActivity {
                         new DividerDrawerItem(),
                         new PrimaryDrawerItem().withName("Infos").withIcon(R.drawable.ic_info).withIconTintingEnabled(true).withIdentifier(11)
                 )
-                .withOnDrawerItemClickListener(new Drawer.OnDrawerItemClickListener() {
-                    @Override
-                    public boolean onItemClick(AdapterView<?> parent, View view, int position, long id, IDrawerItem drawerItem) {
-                        int identifier = drawerItem.getIdentifier();
-                        if (identifier < 10) {
-                            if (currentlySelected != position) {
-                                setFragment(identifier);
-                                currentlySelected = position;
-                                return false;
-                            }
-                        } else {
-                            navigationDrawer.setSelection(currentlySelected, false);
-                            switch (identifier) {
-                                case 11:
-                                    showInfoDialog();
-                                    break;
-                            }
+                .withOnDrawerItemClickListener((parent, view, position, id, drawerItem) -> {
+                    int identifier = drawerItem.getIdentifier();
+                    if (identifier < 10) {
+                        if (currentlySelected != position) {
+                            setFragment(identifier);
+                            currentlySelected = position;
+                            return false;
                         }
-                        return true;
+                    } else {
+                        navigationDrawer.setSelection(currentlySelected, false);
+                        switch (identifier) {
+                            case 11:
+                                showInfoDialog();
+                                break;
+                        }
                     }
+                    return true;
                 })
                 .build();
 
@@ -157,18 +164,54 @@ public class MainActivity extends AppCompatActivity {
 
     private void loadData() {
 
-        Intent startLoadingIntent = new Intent(this, LoadingActivity.class);
-        final  int result = 1;
-        startActivityForResult(startLoadingIntent, result);
+        final File savedSessionFile = new File(getFilesDir(), VertretungsAPI.SAVE_FILE_NAE);
+        if (savedSessionFile.exists()) {
 
-        eventBus.register(this);
+            String username = PreferenceReader.readStringFromPreferences(this, "username", "");
+            String password = PreferenceReader.readStringFromPreferences(this, "password", "");
+
+            //Load from saved session
+            VertretungsAPI.createFromFile(
+                    this, username, password, new VertretungsAPI.CreateFromFileHandler() {
+                        @Override
+                        public void onCreated(VertretungsAPI myVertretungsAPI) {
+
+                            vertretungsAPI = myVertretungsAPI;
+                            navigationDrawer.setSelection(0, false);
+                            currentlySelected = 0;
+                            setFragment(1);
+
+                        }
+
+                        @Override
+                        public void onError(Throwable throwable) {
+
+                            Log.e("JKGV", "Error loading data from storage. Redownload it...");
+                            throwable.printStackTrace();
+                            savedSessionFile.delete();
+                            loadData();
+                        }
+                    }
+            );
+
+        } else {
+
+            //Load from the Interwebs
+
+            Intent startLoadingIntent = new Intent(this, LoadingActivity.class);
+            final int result = 1;
+            startActivityForResult(startLoadingIntent, result);
+
+            eventBus.register(this);
+
+        }
 
     }
 
     //Information von LoadingActivity bekommen
     public void onEvent(VertretungsAPI event) {
 
-        this.vertretungsAPI = event;
+        vertretungsAPI = event;
         eventBus.unregister(this);
 
         boolean firstStart = Boolean.valueOf(PreferenceReader.readStringFromPreferences(getApplicationContext(), "firstStart", "true"));
@@ -184,31 +227,54 @@ public class MainActivity extends AppCompatActivity {
             setFragment(1);
         }
 
+        final MainActivity context = this;
+
+        vertretungsAPI.saveToFile(context);
+
         //mehr Tage im Hintergrund laden
         if (vertretungsAPI.getTagList().size() == 3) {
 
-            vertretungsAPI.makeTagList(10, 3, new VertretungsAPI.GetDaysHandler() {
+            showRefresh();
+            isRefreshing = true;
+            vertretungsAPI.makeTagList(11, 3, new VertretungsAPI.GetDaysHandler() {
                 @Override
                 public void onFinished() {
+
+                    if (vertretungsAPI.getTagList().size() > 3) vertretungsAPI.saveToFile(context);
+                    isRefreshing = false;
+                    stopRefresh();
 
                 }
 
                 @Override
                 public void onDayAdded() {
-                    if (stundenplanFragment != null) {
-                        stundenplanFragment.onDayAdded();
-                    }
-                    if (vertretungsplanFragment != null) {
-                        vertretungsplanFragment.onDayAdded();
-                    }
+
+                    informFragmentsDayAdded();
                 }
 
                 @Override
                 public void onError(Throwable throwable) {
 
+                    throwable.printStackTrace();
                 }
             });
+
         }
+
+    }
+
+    private void informFragmentsDayAdded() {
+
+        if (stundenplanFragment != null) {
+            stundenplanFragment.onDayAdded();
+        }
+        if (vertretungsplanFragment != null) {
+            vertretungsplanFragment.onDayAdded();
+        }
+        if (allgVertretungsplanFragment != null) {
+            allgVertretungsplanFragment.onDayAdded();
+        }
+
     }
 
     @Override
@@ -257,7 +323,13 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
-        //getMenuInflater().inflate(R.menu.menu_main, menu);
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        this.menu = menu;
+
+        if (isRefreshing) {
+            showRefresh();
+        }
+
         return true;
     }
 
@@ -269,11 +341,69 @@ public class MainActivity extends AppCompatActivity {
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
+        if (id == R.id.action_refresh) {
+            refreshClicked(item);
             return true;
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    private void refreshClicked(final MenuItem item) {
+
+        if (isRefreshing) {
+            return;
+        }
+
+        showRefresh();
+        isRefreshing = true;
+
+        vertretungsAPI.makeTagList(14, 0, new VertretungsAPI.GetDaysHandler() {
+            @Override
+            public void onFinished() {
+
+                Log.d("SWAG", "finished called");
+                stopRefresh();
+                isRefreshing = false;
+
+            }
+
+            @Override
+            public void onDayAdded() {
+
+                informFragmentsDayAdded();
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+
+            }
+        });
+
+    }
+
+    private void showRefresh() {
+
+        MenuItem item = menu.findItem(R.id.action_refresh);
+
+        LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        ImageView iv = (ImageView) inflater.inflate(R.layout.refresh_icon, null);
+
+        Animation rotation = AnimationUtils.loadAnimation(this, R.anim.rotate);
+        rotation.setRepeatCount(Animation.INFINITE);
+        iv.startAnimation(rotation);
+
+        item.setActionView(iv);
+
+    }
+
+    private void stopRefresh() {
+
+        MenuItem item = menu.findItem(R.id.action_refresh);
+
+        item.getActionView().clearAnimation();
+        item.setActionView(null);
+
     }
 
     @Override
@@ -289,9 +419,12 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onSaveInstanceState(Bundle outState) {
 
+        Log.d("SAVE", "save instance");
+
         outState.putInt("selection", navigationDrawer.getCurrentSelection());
         outState.putInt("currentlySelected", currentlySelected);
         outState.putCharSequence("title", toolbar.getTitle());
+        outState.putBoolean("isRefreshing", isRefreshing);
         super.onSaveInstanceState(outState);
     }
 }

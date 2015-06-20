@@ -55,8 +55,6 @@ public class KurswahlFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
 
-        Log.d("SWAG", "onCreateView");
-
         contentView = inflater.inflate(R.layout.fragment_kurswahl, container, false);
 
         klassenSpinner = (Spinner) contentView.findViewById(R.id.klassenSpinner);
@@ -65,27 +63,14 @@ public class KurswahlFragment extends Fragment {
         buttonKeine = (Button) contentView.findViewById(R.id.buttonKeine);
         fab = (FloatingActionButton) contentView.findViewById(R.id.fab);
 
-        buttonAlle.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                selectAlleKurse();
-            }
-        });
-        buttonKeine.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                selectKeineKurse();
-            }
-        });
+        buttonAlle.setOnClickListener(v -> selectAlleKurse());
+        buttonKeine.setOnClickListener(v -> selectKeineKurse());
 
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (!editMode) {
-                    editMode();
-                } else {
-                    saveKurse();
-                }
+        fab.setOnClickListener(v -> {
+            if (!editMode) {
+                editMode();
+            } else {
+                saveKurse();
             }
         });
 
@@ -128,8 +113,6 @@ public class KurswahlFragment extends Fragment {
         editMode = false;
         fab.setImageResource(R.drawable.ic_mode_edit);
 
-        Log.d("SWAG", "saving...");
-
         PreferenceReader.saveIntToPreferences(getActivity(), "meineKlasseInt", klassenSpinner.getSelectedItemPosition());
 
         ArrayList<String> saveArray = new ArrayList<>();
@@ -161,8 +144,6 @@ public class KurswahlFragment extends Fragment {
 
     private void editMode() {
 
-        Log.d("SWAG", "editMode");
-
         editMode = true;
         fab.setImageResource(R.drawable.ic_done);
 
@@ -171,8 +152,6 @@ public class KurswahlFragment extends Fragment {
     }
 
     private void showKlassen(final ArrayList<Klasse> klassenList) {
-
-        Log.d("SWAG", "showKlassen");
 
         ArrayList<String> klassennamenListe = new ArrayList<>();
         for (Klasse klasse : klassenList) {
@@ -203,8 +182,6 @@ public class KurswahlFragment extends Fragment {
 
     private void loadKlasse() {
 
-        Log.d("SWAG", "load saves...");
-
         int meineKlasseInt = PreferenceReader.readIntFromPreferences(getActivity(), "meineKlasseInt", -1);
         if (meineKlasseInt>=0) {
             klassenSpinner.setSelection(meineKlasseInt);
@@ -215,8 +192,6 @@ public class KurswahlFragment extends Fragment {
     private void loadKurse() {
 
         if (isLoaded) return;
-
-        Log.d("SWAG", "loadKurse");
 
         ArrayList<String> meineNichtKurse = PreferenceReader.readStringListFromPreferences(getActivity(), "meineNichtKurse");
         if (meineNichtKurse!=null) {
@@ -240,7 +215,6 @@ public class KurswahlFragment extends Fragment {
     private void showKurse(ArrayList<Klasse> klassenList, int position) {
 
         ArrayList<Kurs> alleKurse = klassenList.get(position).getKurse();
-        Log.d("SWAG", "showKurse");
 
         int size = alleKurse.size();
 

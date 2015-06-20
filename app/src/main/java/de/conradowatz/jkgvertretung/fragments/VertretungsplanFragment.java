@@ -102,8 +102,10 @@ public class VertretungsplanFragment extends Fragment {
             View page = layoutInflater.inflate(R.layout.stundenplan_page, container, false);
             LinearLayout linearLayout = (LinearLayout) page.findViewById(R.id.linearLayout);
             TextView datumText = (TextView) page.findViewById(R.id.datumText);
+            TextView zeitstempelText = (TextView) page.findViewById(R.id.zeitstempelText);
 
             datumText.setText(tagList.get(position).getDatumString());
+            zeitstempelText.setText("aktualisiert am "+tagList.get(position).getZeitStempel());
 
             ArrayList<Vertretung> vertretungsList = tagList.get(position).getVertretungsList();
 
