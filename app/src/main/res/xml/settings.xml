@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory
+        android:title="App Start">
+
+        <ListPreference
+            android:defaultValue="0"
+            android:dialogTitle="Startbildschirm wählen"
+            android:entries="@array/settings_screen_titles"
+            android:entryValues="@array/settings_screen_title_values"
+            android:key="startScreen"
+            android:title="Startbildschirm" />
+
+        <SwitchPreference
+            android:defaultValue="true"
+            android:key="doRefreshAtStart"
+            android:title="Beim Start aktualisieren" />
+
+        <ListPreference
+            android:dependency="doRefreshAtStart"
+            android:defaultValue="14"
+            android:dialogTitle="Wähle Anzahl der Tage"
+            android:entries="@array/settings_day_count"
+            android:entryValues="@array/settings_day_count_values"
+            android:key="maxDaysToFetchStart"
+            android:title="Herunterzuladende Tage" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:title="Aktualisieren Knopf">
+
+        <ListPreference
+            android:defaultValue="14"
+            android:dialogTitle="Wähle Anzahl der Tage"
+            android:entries="@array/settings_day_count"
+            android:entryValues="@array/settings_day_count_values"
+            android:key="maxDaysToFetchRefresh"
+            android:title="Herunterzuladende Tage" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

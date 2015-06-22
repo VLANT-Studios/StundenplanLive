@@ -1,12 +1,11 @@
 <resources>
     <string name="app_name">JKG Vertretung</string>
-
-    <string name="hello_world">Hello world!</string>
-    <string name="action_settings">Settings</string>
     <string name="title_activity_login">Einloggen</string>
 
-<!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="title_activity_loading">LoadingActivity</string>
     <string name="no_acces_text">Der Server hat die Verbindungsabfrage abgelehnt. Das kann folgende Ursachen haben:\n\n- Es besteht ein Server Problem\n- Es ist derzeit kein Plan verfügbar (z.B. in den Ferien)\n- Das Zugangspasswort hat sich geändert</string>
+    <string name="title_settings">Einstellungen</string>
+
+
 </resources>

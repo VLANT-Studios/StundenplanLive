@@ -91,6 +91,10 @@ public class VertretungsplanFragment extends Fragment {
             this.layoutInflater = layoutInflater;
         }
 
+        public int getItemPosition(Object object) {
+            return POSITION_NONE;
+        }
+
         @Override
         public boolean isViewFromObject(View view, Object object) {
             return view == object;

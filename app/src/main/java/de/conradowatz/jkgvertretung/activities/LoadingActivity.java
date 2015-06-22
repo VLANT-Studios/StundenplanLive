@@ -33,6 +33,7 @@ public class LoadingActivity extends AppCompatActivity {
     private static final int CONTENT_NOCONNECTION = 2;
     private static final int CONTENT_NOACCES = 3;
     private boolean isnoConnection = false;
+
     private TextView ladeDatenText;
     private TextView errorText;
     private ProgressWheel progressWheel;
@@ -64,7 +65,9 @@ public class LoadingActivity extends AppCompatActivity {
         noaccesLayout = (LinearLayout) findViewById(R.id.noacces_layout);
         retryButton = (Button) findViewById(R.id.retryButton);
         changepwButton = (Button) findViewById(R.id.changepwButton);
-        loadingLayout.setOnClickListener(v -> {
+        loadingLayout.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
 
             if (!isnoConnection) {
                 return;
@@ -75,20 +78,24 @@ public class LoadingActivity extends AppCompatActivity {
             isnoConnection = false;
             downloadData();
 
-        });
-        retryButton.setOnClickListener(v -> {
+        }});
+        retryButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
 
             contentMode(CONTENT_LOADING);
             downloadData();
-        });
-        changepwButton.setOnClickListener(v -> {
+        }});
+        changepwButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
 
             Intent backToMain = new Intent();
             backToMain.putExtra("ExitCode", "ReLog");
             setResult(RESULT_OK, backToMain);
             finish();
 
-        });
+        }});
 
         username = PreferenceReader.readStringFromPreferences(this, "username", "");
         password = PreferenceReader.readStringFromPreferences(this, "password", "");
@@ -101,7 +108,7 @@ public class LoadingActivity extends AppCompatActivity {
 
         final VertretungsAPI vertretungsAPI = new VertretungsAPI(username, password);
 
-        vertretungsAPI.getAllInfo(new VertretungsAPI.AsyncVertretungsResponseHandler() {
+        vertretungsAPI.getAllInfo(3, new VertretungsAPI.AsyncVertretungsResponseHandler() {
             @Override
             public void onSuccess() {
                 if (vertretungsAPI.getTagList().size()>0) {

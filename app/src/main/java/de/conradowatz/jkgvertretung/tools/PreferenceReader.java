@@ -18,8 +18,23 @@ public class PreferenceReader {
     }
 
     public static String readStringFromPreferences(Context context, String preferenceName, String defaultValue) {
+
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
         return sharedPreferences.getString(preferenceName, defaultValue);
+    }
+
+    public static boolean readBooleanFromPreferences(Context context, String preferenceName, boolean defaultValue) {
+
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        return sharedPreferences.getBoolean(preferenceName, defaultValue);
+    }
+
+    public static void saveBooleanToPrefernces(Context context, String preferenceName, Boolean preferenceValue) {
+
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putBoolean(preferenceName, preferenceValue);
+        editor.apply();
     }
 
     public static void saveStringListToPreferences(Context context, String preferenceName, ArrayList<String> preferenceValue) {

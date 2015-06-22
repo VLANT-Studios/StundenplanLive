@@ -1,8 +1,10 @@
 package de.conradowatz.jkgvertretung.activities;
 
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v4.app.FragmentManager;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -17,8 +19,10 @@ import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.widget.AdapterView;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.mikepenz.google_material_typeface_library.GoogleMaterial;
 import com.mikepenz.materialdrawer.Drawer;
@@ -54,6 +58,9 @@ public class MainActivity extends AppCompatActivity {
     public VertretungsAPI vertretungsAPI;
     private Boolean isRefreshing = false;
 
+    private boolean isInfoDialog = false;
+    private boolean isNoAccesDialog = false;
+
     private EventBus eventBus = EventBus.getDefault();
 
     @Override
@@ -65,22 +72,31 @@ public class MainActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
 
         buildDrawer();
+        PreferenceManager.setDefaultValues(this, R.xml.settings, false);
 
 
         if (getLastCustomNonConfigurationInstance() != null) {
+
+            //App noch im Speicher, wiederherstellen
             vertretungsAPI = (VertretungsAPI) getLastCustomNonConfigurationInstance();
             CharSequence title = savedInstanceState.getCharSequence("title");
             getSupportActionBar().setTitle(title);
             int selection = savedInstanceState.getInt("selection");
-            if (selection>=0) navigationDrawer.setSelection(selection, false);
+            if (selection >= 0) navigationDrawer.setSelection(selection, false);
             currentlySelected = savedInstanceState.getInt("currentlySelected");
-            if (isRefreshing==null) isRefreshing = savedInstanceState.getBoolean("isRefreshing");
+            if (isRefreshing == null) isRefreshing = savedInstanceState.getBoolean("isRefreshing");
+            isInfoDialog = savedInstanceState.getBoolean("isInfoDialog");
+            isNoAccesDialog = savedInstanceState.getBoolean("isNoAccesDialog");
+
+            if (isInfoDialog) showInfoDialog();
+            if (isNoAccesDialog) showFetchErrorDialog();
+
         } else {
-            stundenplanFragment = null;
-            vertretungsplanFragment = null;
-            kurswahlFragment = null;
+
+            //App starten
             currentlySelected = -1;
-            startLoadingActivities();
+            initializeLoadingData();
+
         }
     }
 
@@ -97,27 +113,41 @@ public class MainActivity extends AppCompatActivity {
                         new DividerDrawerItem(),
                         new PrimaryDrawerItem().withName("Allgemeiner Vertretungsplan").withIcon(R.drawable.ic_vertretung).withIconTintingEnabled(true).withIdentifier(4),
                         new DividerDrawerItem(),
-                        new PrimaryDrawerItem().withName("Infos").withIcon(R.drawable.ic_info).withIconTintingEnabled(true).withIdentifier(11)
+                        new PrimaryDrawerItem().withName("Einstellungen").withIcon(R.drawable.ic_settings).withIconTintingEnabled(true).withIdentifier(11),
+                        new PrimaryDrawerItem().withName("Infos").withIcon(R.drawable.ic_info).withIconTintingEnabled(true).withIdentifier(12)
                 )
-                .withOnDrawerItemClickListener((parent, view, position, id, drawerItem) -> {
-                    int identifier = drawerItem.getIdentifier();
-                    if (identifier < 10) {
-                        if (currentlySelected != position) {
-                            setFragment(identifier);
-                            currentlySelected = position;
-                            return false;
+                .withOnDrawerItemClickListener(new Drawer.OnDrawerItemClickListener() {
+                    @Override
+                    public boolean onItemClick(AdapterView<?> adapterView, View view, int position, long l, IDrawerItem drawerItem) {
+                        int identifier = drawerItem.getIdentifier();
+                        if (identifier < 10) {
+                            if (currentlySelected != position) {
+                                setFragment(identifier);
+                                currentlySelected = position;
+                                return false;
+                            }
+                        } else {
+                            navigationDrawer.setSelection(currentlySelected, false);
+                            switch (identifier) {
+                                case 11:
+                                    openSettings();
+                                    return false;
+                                case 12:
+                                    showInfoDialog();
+                                    break;
+                            }
                         }
-                    } else {
-                        navigationDrawer.setSelection(currentlySelected, false);
-                        switch (identifier) {
-                            case 11:
-                                showInfoDialog();
-                                break;
-                        }
+                        return true;
                     }
-                    return true;
                 })
                 .build();
+
+    }
+
+    private void openSettings() {
+
+        Intent openSettingsIntent = new Intent(this, SettingsActivity.class);
+        startActivity(openSettingsIntent);
 
     }
 
@@ -151,41 +181,84 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void startLoadingActivities() {
+    private void initializeLoadingData() {
 
+        //Wenn nicht eingeloggt, LoginActivity starten
         if (PreferenceReader.readStringFromPreferences(this, "username", "null").equals("null")) {
             Intent startLoginIntent = new Intent(this, LoginActivity.class);
             final int result = 1;
             startActivityForResult(startLoginIntent, result);
         } else {
+            //Ansonsten Daten laden
             loadData();
         }
     }
 
+    private void showStartScreen() {
+
+        boolean keineKlasse = PreferenceReader.readIntFromPreferences(this, "meineKlasseInt", -1) == -1;
+        if (keineKlasse) {
+
+            //Falls noch keine Klasse gewählt ist, zur Klassen-/Kurswahl springen
+            navigationDrawer.setSelection(2, false);
+            currentlySelected = 2;
+            setFragment(3);
+
+        } else {
+
+            //Ansonsten zum Stundenplan springen
+            int startScreen = Integer.parseInt(PreferenceReader.readStringFromPreferences(this, "startScreen", "0"));
+            navigationDrawer.setSelection(startScreen, false);
+            currentlySelected = startScreen;
+            setFragment(startScreen + 1);
+
+        }
+
+    }
+
     private void loadData() {
 
+        //Schauen on eine SavedSession im Speicher ist
         final File savedSessionFile = new File(getFilesDir(), VertretungsAPI.SAVE_FILE_NAE);
         if (savedSessionFile.exists()) {
 
             String username = PreferenceReader.readStringFromPreferences(this, "username", "");
             String password = PreferenceReader.readStringFromPreferences(this, "password", "");
 
-            //Load from saved session
+            //Saved Session laden
+            final MainActivity context = this;
             VertretungsAPI.createFromFile(
                     this, username, password, new VertretungsAPI.CreateFromFileHandler() {
                         @Override
                         public void onCreated(VertretungsAPI myVertretungsAPI) {
 
+                            //Wenn die Tage nicht mehr aktuell sind, neue laden
+                            if (myVertretungsAPI.getTagList().size() == 0) {
+                                savedSessionFile.delete();
+                                loadData();
+                                return;
+                            }
+
+                            //wenn es fertig ist, Fragment öffnen
                             vertretungsAPI = myVertretungsAPI;
-                            navigationDrawer.setSelection(0, false);
-                            currentlySelected = 0;
-                            setFragment(1);
+                            showStartScreen();
+
+                            //Daten aktualisieren aus dem Interwebs
+                            boolean doRefresh = PreferenceReader.readBooleanFromPreferences(context, "doRefreshAtStart", true);
+                            if (doRefresh) {
+
+                                isRefreshing = true;
+                                showRefresh();
+                                int dayCount = Integer.parseInt(PreferenceReader.readStringFromPreferences(context, "maxDaysToFetchStart", "14"));
+                                redownloadData(dayCount);
+                            }
 
                         }
 
                         @Override
                         public void onError(Throwable throwable) {
 
+                            //Falls es einnen Fehler gab (z.B. neue App Version nicht mit Saved Session kompatibel), neu herunterladen
                             Log.e("JKGV", "Error loading data from storage. Redownload it...");
                             throwable.printStackTrace();
                             savedSessionFile.delete();
@@ -196,8 +269,7 @@ public class MainActivity extends AppCompatActivity {
 
         } else {
 
-            //Load from the Interwebs
-
+            //Daten aus dem Interwebs herunterladen, dazu LoadingActivity starten
             Intent startLoadingIntent = new Intent(this, LoadingActivity.class);
             final int result = 1;
             startActivityForResult(startLoadingIntent, result);
@@ -208,58 +280,114 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    //Information von LoadingActivity bekommen
+    //wird gecalled, wenn die LoadingActivity Daten sendet - z.B. beim ersten Start der App
     public void onEvent(VertretungsAPI event) {
 
         vertretungsAPI = event;
         eventBus.unregister(this);
 
-        boolean firstStart = Boolean.valueOf(PreferenceReader.readStringFromPreferences(getApplicationContext(), "firstStart", "true"));
-        if (firstStart) {
-            navigationDrawer.setSelection(2, false);
-            currentlySelected = 2;
-            setFragment(3);
-            navigationDrawer.openDrawer();
-            PreferenceReader.saveStringToPreferences(getApplicationContext(), "firstStart", "false");
-        } else {
-            navigationDrawer.setSelection(0, false);
-            currentlySelected = 0;
-            setFragment(1);
-        }
+        showStartScreen();
 
-        final MainActivity context = this;
-
-        vertretungsAPI.saveToFile(context);
+        //Daten als Saved Session speichern
+        vertretungsAPI.saveToFile(this);
 
         //mehr Tage im Hintergrund laden
-        if (vertretungsAPI.getTagList().size() == 3) {
+        int dayCount = Integer.parseInt(PreferenceReader.readStringFromPreferences(this, "maxDaysToFetchStart", "14"));
+        if (vertretungsAPI.getTagList().size() == 3 && dayCount > 3) {
 
+            //Ladesymbol zeigen
             showRefresh();
             isRefreshing = true;
-            vertretungsAPI.makeTagList(11, 3, new VertretungsAPI.GetDaysHandler() {
-                @Override
-                public void onFinished() {
 
-                    if (vertretungsAPI.getTagList().size() > 3) vertretungsAPI.saveToFile(context);
-                    isRefreshing = false;
-                    stopRefresh();
-
-                }
-
-                @Override
-                public void onDayAdded() {
-
-                    informFragmentsDayAdded();
-                }
-
-                @Override
-                public void onError(Throwable throwable) {
-
-                    throwable.printStackTrace();
-                }
-            });
-
+            downloadTagList(dayCount - 3, 3);
         }
+
+    }
+
+    private void downloadTagList(int days, final int skipDays) {
+
+        final MainActivity context = this;
+        vertretungsAPI.makeTagList(days, skipDays, new VertretungsAPI.GetDaysHandler() {
+
+            @Override
+            public void onFinished() {
+
+                //Wenn alle verfügbaren Tage geladen wurden
+
+                //Wenn Tage geladen wurden, diese speichern
+                if (vertretungsAPI.getTagList().size() > skipDays)
+                    vertretungsAPI.saveToFile(context);
+
+                //Ladesymbol anhalten
+                isRefreshing = false;
+                stopRefresh();
+
+            }
+
+            @Override
+            public void onDayAdded() {
+
+                //Fragments aktualisieren
+                informFragmentsDayAdded();
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+
+                //Wenn es hier ein Error gibt, hat sich warscheinlich das Online System geändert
+                Log.e("JKGV", "Error bei der Verarbeitung der Daten");
+                throwable.printStackTrace();
+            }
+        });
+
+    }
+
+    private void showFetchErrorDialog() {
+
+        isNoAccesDialog = true;
+
+        final MainActivity context = this;
+        final AlertDialog alertD = new AlertDialog.Builder(this).create();
+        LayoutInflater layoutInflater = getLayoutInflater();
+        View promptView = layoutInflater.inflate(R.layout.no_acces_dialog, null);
+
+        Button buttonRelog = (Button) promptView.findViewById(R.id.buttonRelog);
+        Button buttonReload = (Button) promptView.findViewById(R.id.buttonReload);
+        Button buttonCancel = (Button) promptView.findViewById(R.id.buttonCancel);
+
+        buttonRelog.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                relog();
+                alertD.cancel();
+                isNoAccesDialog = false;
+            }
+        });
+        buttonReload.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                isRefreshing = true;
+                showRefresh();
+                int dayCount = Integer.parseInt(PreferenceReader.readStringFromPreferences(context, "maxDaysToFetch", "14"));
+                redownloadData(dayCount);
+
+                alertD.cancel();
+                isNoAccesDialog = false;
+            }
+        });
+        buttonCancel.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                alertD.cancel();
+                isNoAccesDialog = false;
+            }
+        });
+
+        alertD.setView(promptView);
+        alertD.show();
 
     }
 
@@ -280,27 +408,34 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 
-        if (data==null) return;
+        if (data == null) return;
         String response = data.getStringExtra("ExitCode");
         switch (response) {
-            case "Exit":                   //Anwendung schließen, falls von Activity gewünscht
+            case "Exit":            //Anwendung schließen, falls von Activity gewünscht
                 finish();
                 break;
-            case "LoggedIn":        //Anzeige von Fragments starten wenn eingeloggt
+            case "LoggedIn":        //Login Activity hat erfolgreich eingeloggt
                 loadData();
                 break;
-            case "ReLog":
-
-                PreferenceReader.saveStringToPreferences(this, "username", "null");
-                PreferenceReader.saveStringToPreferences(this, "password", "null");
+            case "ReLog":           //Falls die Loading Activity neu einloggen will
+                relog();
                 eventBus.unregister(this);
-                startLoadingActivities();
                 break;
         }
 
     }
 
+    private void relog() {
+
+        //Benutzerdaten leeren und LoginActivity starten
+        PreferenceReader.saveStringToPreferences(this, "username", "null");
+        PreferenceReader.saveStringToPreferences(this, "password", "null");
+        initializeLoadingData();
+    }
+
     private void showInfoDialog() {
+
+        isInfoDialog = true;
 
         LayoutInflater inflater = getLayoutInflater();
         View scrollView = inflater.inflate(R.layout.infotext_dialog, null);
@@ -310,7 +445,13 @@ public class MainActivity extends AppCompatActivity {
 
         AlertDialog.Builder infoDialogB = new AlertDialog.Builder(this);
         infoDialogB.setView(scrollView);
-        infoDialogB.setNeutralButton("Okay", null);
+        infoDialogB.setNeutralButton("Okay", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+
+                isInfoDialog = false;
+            }
+        });
         infoDialogB.show();
     }
 
@@ -322,11 +463,12 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        this.menu = menu;
 
-        if (isRefreshing) {
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+
+        this.menu = menu; //Menu für alle Methoden verfügbar machen
+
+        if (isRefreshing) { //Falls noch Daten geladen werden, das auch zeigen
             showRefresh();
         }
 
@@ -335,21 +477,19 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
+
         int id = item.getItemId();
 
-        //noinspection SimplifiableIfStatement
+        //Wenn refresh geklickt wurde
         if (id == R.id.action_refresh) {
-            refreshClicked(item);
+            refreshClicked();
             return true;
         }
 
         return super.onOptionsItemSelected(item);
     }
 
-    private void refreshClicked(final MenuItem item) {
+    private void refreshClicked() {
 
         if (isRefreshing) {
             return;
@@ -358,13 +498,35 @@ public class MainActivity extends AppCompatActivity {
         showRefresh();
         isRefreshing = true;
 
-        vertretungsAPI.makeTagList(14, 0, new VertretungsAPI.GetDaysHandler() {
-            @Override
-            public void onFinished() {
+        //Daten im Hintergrund laden
+        int dayCount = Integer.parseInt(PreferenceReader.readStringFromPreferences(this, "maxDaysToFetchRefresh", "14"));
+        redownloadData(dayCount);
 
-                Log.d("SWAG", "finished called");
-                stopRefresh();
-                isRefreshing = false;
+    }
+
+    private void redownloadData(int dayCount) {
+
+        final MainActivity context = this;
+        vertretungsAPI.getAllInfo(dayCount, new VertretungsAPI.AsyncVertretungsResponseHandler() {
+
+            @Override
+            public void onSuccess() {
+                if (vertretungsAPI.getTagList().size() > 0) {
+
+                    Toast.makeText(context, "Daten erfolgreich aktualisiert", Toast.LENGTH_SHORT).show();
+                    onFinished();
+
+                } else {
+
+                    onNoAccess();
+                }
+            }
+
+            @Override
+            public void onNoConnection() {
+
+                Toast.makeText(context, "Keine Verbindung zum Server!", Toast.LENGTH_LONG).show();
+                onFinished();
 
             }
 
@@ -375,8 +537,34 @@ public class MainActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onError(Throwable throwable) {
+            public void onKlassenListFinished() {
 
+                if (kurswahlFragment != null) {
+                    kurswahlFragment.onKlassenListUpdated();
+                }
+            }
+
+            @Override
+            public void onNoAccess() {
+
+                showFetchErrorDialog();
+                onFinished();
+
+            }
+
+            @Override
+            public void onOtherError(Throwable throwable) {
+
+                //Wenn es hier ein Error gibt, hat sich warscheinlich das Online System geändert
+                Log.e("JKGV", "Error bei der Verarbeitung der Daten");
+                throwable.printStackTrace();
+            }
+
+            private void onFinished() {
+
+                vertretungsAPI.saveToFile(context);
+                stopRefresh();
+                isRefreshing = false;
             }
         });
 
@@ -384,8 +572,10 @@ public class MainActivity extends AppCompatActivity {
 
     private void showRefresh() {
 
+        if (menu == null) return;
         MenuItem item = menu.findItem(R.id.action_refresh);
 
+        //Das Refresh Item durch ein ImageView, was sich dreht austauschen
         LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         ImageView iv = (ImageView) inflater.inflate(R.layout.refresh_icon, null);
 
@@ -399,8 +589,10 @@ public class MainActivity extends AppCompatActivity {
 
     private void stopRefresh() {
 
+        if (menu == null) return;
         MenuItem item = menu.findItem(R.id.action_refresh);
 
+        //Das Refresh Item zurücktauschen
         item.getActionView().clearAnimation();
         item.setActionView(null);
 
@@ -408,7 +600,8 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        //handle the back press :D close the drawer first and if the drawer is closed close the activity
+
+        //Wenn der Drawer noch offen ist, erst ihn schließen, dann beenden
         if (navigationDrawer != null && navigationDrawer.isDrawerOpen()) {
             navigationDrawer.closeDrawer();
         } else {
@@ -419,12 +612,12 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onSaveInstanceState(Bundle outState) {
 
-        Log.d("SAVE", "save instance");
-
         outState.putInt("selection", navigationDrawer.getCurrentSelection());
         outState.putInt("currentlySelected", currentlySelected);
         outState.putCharSequence("title", toolbar.getTitle());
         outState.putBoolean("isRefreshing", isRefreshing);
+        outState.putBoolean("isInfoDialog", isInfoDialog);
+        outState.putBoolean("isNoAccesDialog", isNoAccesDialog);
         super.onSaveInstanceState(outState);
     }
 }

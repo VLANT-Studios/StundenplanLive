@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="settings_screen_titles">
+        <item>Mein Stundenplan</item>
+        <item>Mein Vertretungsplan</item>
+    </string-array>
+    <string-array name="settings_screen_title_values">
+        <item>0</item>
+        <item>1</item>
+    </string-array>
+
+    <string-array name="settings_day_count">
+        <item>1 Tag</item>
+        <item>2 Tage</item>
+        <item>3 Tage</item>
+        <item>4 Tage</item>
+        <item>5 Tage</item>
+        <item>6 Tage</item>
+        <item>1 Woche</item>
+        <item>Alle verfügbaren</item>
+    </string-array>
+    <string-array name="settings_day_count_values">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+        <item>7</item>
+        <item>14</item>
+    </string-array>
+</resources>

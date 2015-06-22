@@ -63,26 +63,41 @@ public class KurswahlFragment extends Fragment {
         buttonKeine = (Button) contentView.findViewById(R.id.buttonKeine);
         fab = (FloatingActionButton) contentView.findViewById(R.id.fab);
 
-        buttonAlle.setOnClickListener(v -> selectAlleKurse());
-        buttonKeine.setOnClickListener(v -> selectKeineKurse());
+        buttonAlle.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                selectAlleKurse();
+            }
+        });
+        buttonKeine.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                selectKeineKurse();
+            }
+        });
 
-        fab.setOnClickListener(v -> {
-            if (!editMode) {
-                editMode();
-            } else {
-                saveKurse();
+        fab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (!editMode) {
+                    editMode();
+                } else {
+                    saveKurse();
+                }
             }
         });
 
         MainActivity mainActivity = (MainActivity) getActivity();
-        if (mainActivity.vertretungsAPI==null) return contentView;
+        if (mainActivity.vertretungsAPI == null) return contentView;
+
         showKlassen(mainActivity.vertretungsAPI.getKlassenList());
 
-        if (savedInstanceState!=null) {
+        if (savedInstanceState != null) {
+
             String[] checkBoxNames = savedInstanceState.getStringArray("checkBoxNames");
             boolean[] checkBoxChecks = savedInstanceState.getBooleanArray("checkBoxChecks");
             kurseLayout.removeAllViews();
-            for (int j=0; j<checkBoxChecks.length; j++) {
+            for (int j = 0; j < checkBoxChecks.length; j++) {
                 CheckBox checkBox = new CheckBox(getActivity());
                 checkBox.setText(checkBoxNames[j]);
                 checkBox.setChecked(checkBoxChecks[j]);
@@ -98,11 +113,14 @@ public class KurswahlFragment extends Fragment {
             selected = savedInstanceState.getInt("selected");
             setEditable(editMode);
             selectedKurse = savedInstanceState.getParcelableArrayList("selectedKurse");
+
         } else {
+
             editMode = false;
             isLoaded = false;
             selected = -1;
             setEditable(false);
+
         }
 
         return contentView;
@@ -116,7 +134,7 @@ public class KurswahlFragment extends Fragment {
         PreferenceReader.saveIntToPreferences(getActivity(), "meineKlasseInt", klassenSpinner.getSelectedItemPosition());
 
         ArrayList<String> saveArray = new ArrayList<>();
-        for (int i = 0; i<kurseLayout.getChildCount(); i++) {
+        for (int i = 0; i < kurseLayout.getChildCount(); i++) {
             CheckBox checkBox = (CheckBox) kurseLayout.getChildAt(i);
             if (!checkBox.isChecked()) {
                 saveArray.add(selectedKurse.get(i).getName());
@@ -135,7 +153,7 @@ public class KurswahlFragment extends Fragment {
         klassenSpinner.setEnabled(editable);
         buttonKeine.setEnabled(editable);
         buttonAlle.setEnabled(editable);
-        for (int i = 0; i<kurseLayout.getChildCount(); i++) {
+        for (int i = 0; i < kurseLayout.getChildCount(); i++) {
             CheckBox checkBox = (CheckBox) kurseLayout.getChildAt(i);
             checkBox.setEnabled(editable);
         }
@@ -165,7 +183,7 @@ public class KurswahlFragment extends Fragment {
         klassenSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                if (position!=selected) {
+                if (position != selected) {
                     showKurse(klassenList, position);
                     selected = position;
                 }
@@ -183,7 +201,7 @@ public class KurswahlFragment extends Fragment {
     private void loadKlasse() {
 
         int meineKlasseInt = PreferenceReader.readIntFromPreferences(getActivity(), "meineKlasseInt", -1);
-        if (meineKlasseInt>=0) {
+        if (meineKlasseInt >= 0) {
             klassenSpinner.setSelection(meineKlasseInt);
         }
 
@@ -194,10 +212,9 @@ public class KurswahlFragment extends Fragment {
         if (isLoaded) return;
 
         ArrayList<String> meineNichtKurse = PreferenceReader.readStringListFromPreferences(getActivity(), "meineNichtKurse");
-        if (meineNichtKurse!=null) {
+        if (meineNichtKurse != null) {
 
-            Log.d("SWAG", String.valueOf(kurseLayout.getChildCount()));
-            for (int i = 0; i<kurseLayout.getChildCount(); i++) {
+            for (int i = 0; i < kurseLayout.getChildCount(); i++) {
                 CheckBox checkBox = (CheckBox) kurseLayout.getChildAt(i);
 
                 if (meineNichtKurse.contains(selectedKurse.get(i).getName())) {
@@ -218,12 +235,12 @@ public class KurswahlFragment extends Fragment {
 
         int size = alleKurse.size();
 
-        for (int i=0; i<size-1; i++) {
-            for (int j=i+1; j<size; j++) {
+        for (int i = 0; i < size - 1; i++) {
+            for (int j = i + 1; j < size; j++) {
                 if (!alleKurse.get(j).getName().equals(alleKurse.get(i).getName())) {
                     continue;
                 }
-                alleKurse.get(i).setLehrer(alleKurse.get(i).getLehrer()+", "+alleKurse.get(j).getLehrer());
+                alleKurse.get(i).setLehrer(alleKurse.get(i).getLehrer() + ", " + alleKurse.get(j).getLehrer());
                 alleKurse.remove(j);
                 j--;
                 size--;
@@ -233,17 +250,17 @@ public class KurswahlFragment extends Fragment {
         selectedKurse = alleKurse;
 
         ArrayList<String> kurseStringList = new ArrayList<>();
-        for (int i=0; i<alleKurse.size(); i++) {
+        for (int i = 0; i < alleKurse.size(); i++) {
             Kurs kurs = alleKurse.get(i);
             String text = kurs.getName();
             if (!kurs.getLehrer().isEmpty()) {
-                text = text+" ("+kurs.getLehrer()+")";
+                text = text + " (" + kurs.getLehrer() + ")";
             }
             kurseStringList.add(text);
         }
 
         kurseLayout.removeAllViews();
-        for (int j=0; j<kurseStringList.size(); j++) {
+        for (int j = 0; j < kurseStringList.size(); j++) {
             CheckBox checkBox = new CheckBox(getActivity());
             checkBox.setText(kurseStringList.get(j));
             checkBox.setEnabled(editMode);
@@ -256,7 +273,7 @@ public class KurswahlFragment extends Fragment {
 
     private void selectAlleKurse() {
 
-        for (int i = 0; i<kurseLayout.getChildCount(); i++) {
+        for (int i = 0; i < kurseLayout.getChildCount(); i++) {
             CheckBox checkBox = (CheckBox) kurseLayout.getChildAt(i);
             checkBox.setChecked(true);
         }
@@ -265,7 +282,7 @@ public class KurswahlFragment extends Fragment {
 
     private void selectKeineKurse() {
 
-        for (int i = 0; i<kurseLayout.getChildCount(); i++) {
+        for (int i = 0; i < kurseLayout.getChildCount(); i++) {
             CheckBox checkBox = (CheckBox) kurseLayout.getChildAt(i);
             checkBox.setChecked(false);
         }
@@ -277,7 +294,7 @@ public class KurswahlFragment extends Fragment {
 
         String[] checkBoxNames = new String[kurseLayout.getChildCount()];
         boolean[] checkBoxChecks = new boolean[kurseLayout.getChildCount()];
-        for (int i = 0; i<kurseLayout.getChildCount(); i++) {
+        for (int i = 0; i < kurseLayout.getChildCount(); i++) {
             CheckBox checkBox = (CheckBox) kurseLayout.getChildAt(i);
             checkBoxNames[i] = checkBox.getText().toString();
             checkBoxChecks[i] = checkBox.isChecked();
@@ -289,5 +306,12 @@ public class KurswahlFragment extends Fragment {
         outState.putBoolean("isLoaded", isLoaded);
         outState.putInt("selected", selected);
         super.onSaveInstanceState(outState);
+    }
+
+    public void onKlassenListUpdated() {
+
+        MainActivity mainActivity = (MainActivity) getActivity();
+        showKlassen(mainActivity.vertretungsAPI.getKlassenList());
+
     }
 }

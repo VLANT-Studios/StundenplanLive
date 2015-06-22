@@ -36,7 +36,7 @@ public class LoginActivity extends AppCompatActivity {
         loginProgressWheel = (ProgressWheel) findViewById(R.id.loginProgressWheel);
         loginErrorText = (TextView) findViewById(R.id.loginErrorText);
 
-        //Wenn Button gedrückt -> eonlogen
+        //Wenn Button gedrückt -> einlogen
         loginButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {

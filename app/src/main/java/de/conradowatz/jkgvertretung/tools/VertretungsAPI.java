@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
 import java.text.ParseException;
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
@@ -70,7 +71,7 @@ public class VertretungsAPI {
         return (totalSize > 0) ? (bytesWritten * 1.0 / totalSize) * 100 : -1;
     }
 
-    public void getAllInfo(final AsyncVertretungsResponseHandler responseHandler) {
+    public void getAllInfo(final int dayCount, final AsyncVertretungsResponseHandler responseHandler) {
 
         //KlassenList
         client.get("http://kepler.c.sn.schule.de/stuplanindiware/VmobilS/mobdaten/Klassen.xml", new TextHttpResponseHandler() {
@@ -86,7 +87,6 @@ public class VertretungsAPI {
             @Override
             public void onProgress(long bytesWritten, long totalSize) {
                 responseHandler.onProgress(bytesToProgress(bytesWritten, totalSize) / 7);
-                super.onProgress(bytesWritten, totalSize);
             }
 
             @Override
@@ -100,6 +100,7 @@ public class VertretungsAPI {
                     responseHandler.onOtherError(e);
                     return;
                 }
+                responseHandler.onKlassenListFinished();
 
                 //freie Tage
                 try {
@@ -111,7 +112,7 @@ public class VertretungsAPI {
 
 
                 //Tag Liste
-                makeTagList(3, 0, new GetDaysHandler() {
+                makeTagList(dayCount, 0, new GetDaysHandler() {
                     @Override
                     public void onFinished() {
                         responseHandler.onSuccess();
@@ -120,6 +121,12 @@ public class VertretungsAPI {
                     @Override
                     public void onProgress(double progress) {
                         responseHandler.onProgress(100.0 / 7.0 + (6.0 / 7.0) * progress);
+                    }
+
+                    @Override
+                    public void onDayAdded() {
+
+                        responseHandler.onDayAdded();
                     }
 
                     @Override
@@ -177,7 +184,6 @@ public class VertretungsAPI {
                     if (name.equals("KKz")) {
                         String lehrer = pullParser.getAttributeValue(null, "KLe");
                         currentKursList.add(new Kurs(pullParser.nextText(), lehrer));
-                        //Log.d("LOGY", pullParser.nextText());
                     }
                     break;
                 case XmlPullParser.END_TAG:
@@ -268,9 +274,7 @@ public class VertretungsAPI {
 
         Date startDate = Calendar.getInstance().getTime();
 
-        if (isntSchoolDay(startDate)) {
-            skip++;
-        }
+        if (isntSchoolDay(startDate)) skip++;
 
         for (int i = 0; i < skip; i++) {
             startDate = nextSchoolDay(startDate);
@@ -309,8 +313,8 @@ public class VertretungsAPI {
         String dateString = new SimpleDateFormat("yyyMMdd").format(date);
         String stundenPlanUrl = "http://kepler.c.sn.schule.de/stuplanindiware/VmobilS/mobdaten/PlanKl" + dateString + ".xml";
         final String vertretungsPlanUrl = "http://kepler.c.sn.schule.de/stuplanindiware/VplanonlineS/vdaten/VplanKl" + dateString + ".xml";
-        Log.d("SWAG", stundenPlanUrl);
-        Log.d("SWAG", vertretungsPlanUrl);
+        Log.d("JKGV", "DownloadURL 1: " + stundenPlanUrl);
+        Log.d("JKGV", "DownloadURL 2: " + vertretungsPlanUrl);
 
         client.get(stundenPlanUrl, new TextHttpResponseHandler() {
             @Override
@@ -325,7 +329,6 @@ public class VertretungsAPI {
             public void onProgress(long bytesWritten, long totalSize) {
                 double progress = bytesToProgress(bytesWritten, totalSize);
                 responseHandler.onProgress(count, progress / 2);
-                super.onProgress(bytesWritten, totalSize);
             }
 
             @Override
@@ -348,7 +351,6 @@ public class VertretungsAPI {
                         public void onProgress(long bytesWritten, long totalSize) {
                             double progress = bytesToProgress(bytesWritten, totalSize);
                             responseHandler.onProgress(count, 50 + progress / 2);
-                            super.onProgress(bytesWritten, totalSize);
                         }
 
                         @Override
@@ -530,100 +532,104 @@ public class VertretungsAPI {
 
     public void saveToFile(final Context context) {
 
-        new Thread(() -> {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
 
-            try {
 
-                JSONObject alleDaten = new JSONObject();
+                try {
 
-                //Klassenliste
-                JSONArray klassenListArray = new JSONArray();
-                for (Klasse klasse : klassenList) {
-                    JSONObject klasseObject = new JSONObject();
-                    klasseObject.put("name", klasse.getName());
-                    //Kurse
-                    JSONArray kurseArray = new JSONArray();
-                    for (Kurs kurs : klasse.getKurse()) {
-                        JSONObject kursObject = new JSONObject();
-                        kursObject.put("name", kurs.getName());
-                        kursObject.put("lehrer", kurs.getLehrer());
-                        kurseArray.put(kursObject);
-                    }
-                    klasseObject.put("kurse", kurseArray);
-                    klassenListArray.put(klasseObject);
-                }
-                alleDaten.put("klassenList", klassenListArray);
+                    JSONObject alleDaten = new JSONObject();
 
-                //Freie Tage
-                JSONArray freieTageListArray = new JSONArray();
-                for (Date date : freieTageList) {
-                    String stringDate = new SimpleDateFormat("ddMMyyyy").format(date);
-                    freieTageListArray.put(stringDate);
-                }
-                alleDaten.put("freieTageList", freieTageListArray);
-
-                //Tage
-                JSONArray tagListArray = new JSONArray();
-                for (Tag tag : tagList) {
-                    JSONObject tagObject = new JSONObject();
-                    String dateString = new SimpleDateFormat("ddMMyyyy").format(tag.getDatum());
-                    tagObject.put("datum", dateString);
-                    tagObject.put("datumString", tag.getDatumString());
-                    tagObject.put("zeitStempel", tag.getZeitStempel());
-
-                    //StuPlaKlassen Liste
-                    JSONArray stuPlaKlasseListArray = new JSONArray();
-                    for (StuPlaKlasse stuPlaKlasse : tag.getStuplaKlasseList()) {
-                        JSONObject stuPlaKlasseObject = new JSONObject();
-                        stuPlaKlasseObject.put("name", stuPlaKlasse.getName());
-                        JSONArray stundenListArray = new JSONArray();
-                        for (Stunde stunde : stuPlaKlasse.getStundenList()) {
-                            JSONObject stundeObject = new JSONObject();
-                            stundeObject.put("stunde", stunde.getStunde());
-                            stundeObject.put("fach", stunde.getFach());
-                            stundeObject.put("fachg", stunde.isFachg());
-                            stundeObject.put("raum", stunde.getRaum());
-                            stundeObject.put("raumg", stunde.isRaumg());
-                            stundeObject.put("kurs", stunde.getKurs());
-                            stundeObject.put("info", stunde.getInfo());
-                            stundenListArray.put(stundeObject);
+                    //Klassenliste
+                    JSONArray klassenListArray = new JSONArray();
+                    for (Klasse klasse : klassenList) {
+                        JSONObject klasseObject = new JSONObject();
+                        klasseObject.put("name", klasse.getName());
+                        //Kurse
+                        JSONArray kurseArray = new JSONArray();
+                        for (Kurs kurs : klasse.getKurse()) {
+                            JSONObject kursObject = new JSONObject();
+                            kursObject.put("name", kurs.getName());
+                            kursObject.put("lehrer", kurs.getLehrer());
+                            kurseArray.put(kursObject);
                         }
-                        stuPlaKlasseObject.put("stundenList", stundenListArray);
-                        stuPlaKlasseListArray.put(stuPlaKlasseObject);
+                        klasseObject.put("kurse", kurseArray);
+                        klassenListArray.put(klasseObject);
                     }
-                    tagObject.put("stuPlaKlasseList", stuPlaKlasseListArray);
+                    alleDaten.put("klassenList", klassenListArray);
 
-                    //Vertretungs Liste
-                    JSONArray vertretungsListArray = new JSONArray();
-                    for (Vertretung vertretung : tag.getVertretungsList()) {
-                        JSONObject vertretungObject = new JSONObject();
-                        vertretungObject.put("klasse", vertretung.getKlasse());
-                        vertretungObject.put("stunde", vertretung.getStunde());
-                        vertretungObject.put("fach", vertretung.getFach());
-                        vertretungObject.put("raum", vertretung.getRaum());
-                        vertretungObject.put("info", vertretung.getInfo());
-                        vertretungsListArray.put(vertretungObject);
+                    //Freie Tage
+                    JSONArray freieTageListArray = new JSONArray();
+                    for (Date date : freieTageList) {
+                        String stringDate = new SimpleDateFormat("ddMMyyyy").format(date);
+                        freieTageListArray.put(stringDate);
                     }
-                    tagObject.put("vertretungsList", vertretungsListArray);
+                    alleDaten.put("freieTageList", freieTageListArray);
 
-                    tagListArray.put(tagObject);
+                    //Tage
+                    JSONArray tagListArray = new JSONArray();
+                    for (Tag tag : tagList) {
+                        JSONObject tagObject = new JSONObject();
+                        String dateString = new SimpleDateFormat("ddMMyyyy").format(tag.getDatum());
+                        tagObject.put("datum", dateString);
+                        tagObject.put("datumString", tag.getDatumString());
+                        tagObject.put("zeitStempel", tag.getZeitStempel());
+
+                        //StuPlaKlassen Liste
+                        JSONArray stuPlaKlasseListArray = new JSONArray();
+                        for (StuPlaKlasse stuPlaKlasse : tag.getStuplaKlasseList()) {
+                            JSONObject stuPlaKlasseObject = new JSONObject();
+                            stuPlaKlasseObject.put("name", stuPlaKlasse.getName());
+                            JSONArray stundenListArray = new JSONArray();
+                            for (Stunde stunde : stuPlaKlasse.getStundenList()) {
+                                JSONObject stundeObject = new JSONObject();
+                                stundeObject.put("stunde", stunde.getStunde());
+                                stundeObject.put("fach", stunde.getFach());
+                                stundeObject.put("fachg", stunde.isFachg());
+                                stundeObject.put("raum", stunde.getRaum());
+                                stundeObject.put("raumg", stunde.isRaumg());
+                                stundeObject.put("kurs", stunde.getKurs());
+                                stundeObject.put("info", stunde.getInfo());
+                                stundenListArray.put(stundeObject);
+                            }
+                            stuPlaKlasseObject.put("stundenList", stundenListArray);
+                            stuPlaKlasseListArray.put(stuPlaKlasseObject);
+                        }
+                        tagObject.put("stuPlaKlasseList", stuPlaKlasseListArray);
+
+                        //Vertretungs Liste
+                        JSONArray vertretungsListArray = new JSONArray();
+                        for (Vertretung vertretung : tag.getVertretungsList()) {
+                            JSONObject vertretungObject = new JSONObject();
+                            vertretungObject.put("klasse", vertretung.getKlasse());
+                            vertretungObject.put("stunde", vertretung.getStunde());
+                            vertretungObject.put("fach", vertretung.getFach());
+                            vertretungObject.put("raum", vertretung.getRaum());
+                            vertretungObject.put("info", vertretung.getInfo());
+                            vertretungsListArray.put(vertretungObject);
+                        }
+                        tagObject.put("vertretungsList", vertretungsListArray);
+
+                        tagListArray.put(tagObject);
+                    }
+                    alleDaten.put("tagList", tagListArray);
+
+                    //JSON speichern
+                    String dataToSave = alleDaten.toString();
+
+                    FileOutputStream outputStream = context.openFileOutput(SAVE_FILE_NAE, Context.MODE_PRIVATE);
+                    outputStream.write(dataToSave.getBytes(Charset.forName("UTF-8")));
+                    outputStream.close();
+
+                } catch (Exception e) {
+
+                    Log.e("SWAG", "Error saving session");
+                    e.printStackTrace();
+
                 }
-                alleDaten.put("tagList", tagListArray);
-
-                //JSON speichern
-                String dataToSave = alleDaten.toString();
-
-                FileOutputStream outputStream = context.openFileOutput(SAVE_FILE_NAE, Context.MODE_PRIVATE);
-                outputStream.write(dataToSave.getBytes());
-                outputStream.close();
-
-            } catch (Exception e) {
-
-                Log.e("SWAG", "Error saving session");
-                e.printStackTrace();
 
             }
-
         }).run();
 
     }
@@ -642,128 +648,132 @@ public class VertretungsAPI {
 
     public static void createFromFile(final Context context, final String username, final String password, final CreateFromFileHandler handler) {
 
-        new Thread(() -> {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
 
-            Calendar heute = Calendar.getInstance();
+                Calendar heute = Calendar.getInstance();
 
-            try {
+                try {
 
-                VertretungsAPI vertretungsAPI = new VertretungsAPI(username, password);
+                    VertretungsAPI vertretungsAPI = new VertretungsAPI(username, password);
 
-                //Read Data
-                FileInputStream inputStream = context.openFileInput(SAVE_FILE_NAE);
-                BufferedReader r = new BufferedReader(new InputStreamReader(inputStream));
-                StringBuilder total = new StringBuilder(inputStream.available());
-                String line;
-                while ((line = r.readLine()) != null) {
-                    total.append(line);
-                }
-                JSONObject alleDaten = new JSONObject(total.toString());
-
-                //Klassenliste
-                ArrayList<Klasse> klassenList1 = new ArrayList<>();
-                JSONArray klassenListArray = alleDaten.getJSONArray("klassenList");
-                for (int i = 0; i < klassenListArray.length(); i++) {
-                    JSONObject klasseObject = klassenListArray.getJSONObject(i);
-                    String name = klasseObject.getString("name");
-                    //Kurse
-                    ArrayList<Kurs> kurse = new ArrayList<>();
-                    JSONArray kurseArray = klasseObject.getJSONArray("kurse");
-                    for (int j = 0; j < kurseArray.length(); j++) {
-                        JSONObject kursObject = kurseArray.getJSONObject(j);
-                        Kurs kurs = new Kurs(
-                                kursObject.getString("name"),
-                                kursObject.getString("lehrer")
-                        );
-                        kurse.add(kurs);
+                    //Read Data
+                    FileInputStream inputStream = context.openFileInput(SAVE_FILE_NAE);
+                    BufferedReader r = new BufferedReader(new InputStreamReader(inputStream));
+                    StringBuilder total = new StringBuilder(inputStream.available());
+                    String line;
+                    while ((line = r.readLine()) != null) {
+                        total.append(line);
                     }
-                    klassenList1.add(new Klasse(
-                            name,
-                            kurse
-                    ));
+                    JSONObject alleDaten = new JSONObject(total.toString());
 
-                }
-                vertretungsAPI.setKlassenList(klassenList1);
+                    //Klassenliste
+                    ArrayList<Klasse> klassenList1 = new ArrayList<>();
+                    JSONArray klassenListArray = alleDaten.getJSONArray("klassenList");
+                    for (int i = 0; i < klassenListArray.length(); i++) {
+                        JSONObject klasseObject = klassenListArray.getJSONObject(i);
+                        String name = klasseObject.getString("name");
+                        //Kurse
+                        ArrayList<Kurs> kurse = new ArrayList<>();
+                        JSONArray kurseArray = klasseObject.getJSONArray("kurse");
+                        for (int j = 0; j < kurseArray.length(); j++) {
+                            JSONObject kursObject = kurseArray.getJSONObject(j);
+                            Kurs kurs = new Kurs(
+                                    kursObject.getString("name"),
+                                    kursObject.getString("lehrer")
+                            );
+                            kurse.add(kurs);
+                        }
+                        klassenList1.add(new Klasse(
+                                name,
+                                kurse
+                        ));
+
+                    }
+                    vertretungsAPI.setKlassenList(klassenList1);
 
 
-                //Freie Tage
-                ArrayList<Date> freieTageList1 = new ArrayList<>();
-                JSONArray freieTageListArray = alleDaten.getJSONArray("freieTageList");
-                for (int i = 0; i < freieTageListArray.length(); i++) {
-                    String stringDate = freieTageListArray.getString(i);
-                    freieTageList1.add(new SimpleDateFormat("ddMMyyyy").parse(stringDate));
-                }
-                vertretungsAPI.setFreieTageList(freieTageList1);
+                    //Freie Tage
+                    ArrayList<Date> freieTageList1 = new ArrayList<>();
+                    JSONArray freieTageListArray = alleDaten.getJSONArray("freieTageList");
+                    for (int i = 0; i < freieTageListArray.length(); i++) {
+                        String stringDate = freieTageListArray.getString(i);
+                        freieTageList1.add(new SimpleDateFormat("ddMMyyyy").parse(stringDate));
+                    }
+                    vertretungsAPI.setFreieTageList(freieTageList1);
 
-                //Tage
-                ArrayList<Tag> tagList1 = new ArrayList<>();
-                JSONArray tagListArray = alleDaten.getJSONArray("tagList");
-                for (int i = 0; i < tagListArray.length(); i++) {
-                    Tag tag = new Tag();
-                    JSONObject tagObject = tagListArray.getJSONObject(i);
-                    String dateString = tagObject.getString("datum");
-                    Date datum = new SimpleDateFormat("ddMMyyyy").parse(dateString);
+                    //Tage
+                    ArrayList<Tag> tagList1 = new ArrayList<>();
+                    JSONArray tagListArray = alleDaten.getJSONArray("tagList");
+                    for (int i = 0; i < tagListArray.length(); i++) {
+                        Tag tag = new Tag();
+                        JSONObject tagObject = tagListArray.getJSONObject(i);
+                        String dateString = tagObject.getString("datum");
+                        Date datum = new SimpleDateFormat("ddMMyyyy").parse(dateString);
 
-                    //Wenn Tag ist älter als heute -> nicht zeigen
-                    Calendar tagCalendar = Calendar.getInstance();
-                    tagCalendar.setTime(datum);
-                    if (tagCalendar.get(Calendar.DAY_OF_YEAR)<heute.get(Calendar.DAY_OF_YEAR)) continue;
+                        //Wenn Tag ist älter als heute -> nicht zeigen
+                        Calendar tagCalendar = Calendar.getInstance();
+                        tagCalendar.setTime(datum);
+                        if (tagCalendar.get(Calendar.DAY_OF_YEAR) < heute.get(Calendar.DAY_OF_YEAR))
+                            continue;
 
-                    tag.setDatum(datum);
-                    tag.setDatumString(tagObject.getString("datumString"));
-                    tag.setZeitStempel(tagObject.getString("zeitStempel"));
+                        tag.setDatum(datum);
+                        tag.setDatumString(tagObject.getString("datumString"));
+                        tag.setZeitStempel(tagObject.getString("zeitStempel"));
 
-                    //StuPlaKlassen Liste
-                    ArrayList<StuPlaKlasse> stuPlaKlasseList = new ArrayList<>();
-                    JSONArray stuPlaKlasseListArray = tagObject.getJSONArray("stuPlaKlasseList");
-                    for (int j = 0; j < stuPlaKlasseListArray.length(); j++) {
-                        StuPlaKlasse stuPlaKlasse = new StuPlaKlasse();
-                        JSONObject stuPlaKlasseObject = stuPlaKlasseListArray.getJSONObject(j);
-                        stuPlaKlasse.setName(stuPlaKlasseObject.getString("name"));
-                        ArrayList<Stunde> stundenList = new ArrayList<>();
-                        JSONArray stundenListArray = stuPlaKlasseObject.getJSONArray("stundenList");
-                        for (int k = 0; k < stundenListArray.length(); k++) {
-                            JSONObject stundeObject = stundenListArray.getJSONObject(k);
-                            stundenList.add(new Stunde(
-                                    stundeObject.getString("stunde"),
-                                    stundeObject.getString("fach"),
-                                    stundeObject.has("kurs") ? stundeObject.getString("kurs") : null,
-                                    stundeObject.getBoolean("fachg"),
-                                    stundeObject.getString("raum"),
-                                    stundeObject.getBoolean("raumg"),
-                                    stundeObject.getString("info")
+                        //StuPlaKlassen Liste
+                        ArrayList<StuPlaKlasse> stuPlaKlasseList = new ArrayList<>();
+                        JSONArray stuPlaKlasseListArray = tagObject.getJSONArray("stuPlaKlasseList");
+                        for (int j = 0; j < stuPlaKlasseListArray.length(); j++) {
+                            StuPlaKlasse stuPlaKlasse = new StuPlaKlasse();
+                            JSONObject stuPlaKlasseObject = stuPlaKlasseListArray.getJSONObject(j);
+                            stuPlaKlasse.setName(stuPlaKlasseObject.getString("name"));
+                            ArrayList<Stunde> stundenList = new ArrayList<>();
+                            JSONArray stundenListArray = stuPlaKlasseObject.getJSONArray("stundenList");
+                            for (int k = 0; k < stundenListArray.length(); k++) {
+                                JSONObject stundeObject = stundenListArray.getJSONObject(k);
+                                stundenList.add(new Stunde(
+                                        stundeObject.getString("stunde"),
+                                        stundeObject.getString("fach"),
+                                        stundeObject.has("kurs") ? stundeObject.getString("kurs") : null,
+                                        stundeObject.getBoolean("fachg"),
+                                        stundeObject.getString("raum"),
+                                        stundeObject.getBoolean("raumg"),
+                                        stundeObject.getString("info")
+                                ));
+                            }
+                            stuPlaKlasse.setStundenList(stundenList);
+                            stuPlaKlasseList.add(stuPlaKlasse);
+                        }
+                        tag.setStuplaKlasseList(stuPlaKlasseList);
+
+                        //Vertretungs Liste
+                        ArrayList<Vertretung> vertretungsList = new ArrayList<>();
+                        JSONArray vertretungsListArray = tagObject.getJSONArray("vertretungsList");
+                        for (int j = 0; j < vertretungsListArray.length(); j++) {
+                            JSONObject vertretungObject = vertretungsListArray.getJSONObject(j);
+                            vertretungsList.add(new Vertretung(
+                                    vertretungObject.getString("klasse"),
+                                    vertretungObject.getString("stunde"),
+                                    vertretungObject.getString("fach"),
+                                    vertretungObject.getString("raum"),
+                                    vertretungObject.getString("info")
                             ));
                         }
-                        stuPlaKlasse.setStundenList(stundenList);
-                        stuPlaKlasseList.add(stuPlaKlasse);
-                    }
-                    tag.setStuplaKlasseList(stuPlaKlasseList);
+                        tag.setVertretungsList(vertretungsList);
 
-                    //Vertretungs Liste
-                    ArrayList<Vertretung> vertretungsList = new ArrayList<>();
-                    JSONArray vertretungsListArray = tagObject.getJSONArray("vertretungsList");
-                    for (int j = 0; j < vertretungsListArray.length(); j++) {
-                        JSONObject vertretungObject = vertretungsListArray.getJSONObject(j);
-                        vertretungsList.add(new Vertretung(
-                                vertretungObject.getString("klasse"),
-                                vertretungObject.getString("stunde"),
-                                vertretungObject.getString("fach"),
-                                vertretungObject.getString("raum"),
-                                vertretungObject.getString("info")
-                        ));
+                        tagList1.add(tag);
                     }
-                    tag.setVertretungsList(vertretungsList);
+                    vertretungsAPI.setTagList(tagList1);
 
-                    tagList1.add(tag);
+                    handler.onCreated(vertretungsAPI);
+
+                } catch (Exception e) {
+                    handler.onError(e);
                 }
-                vertretungsAPI.setTagList(tagList1);
 
-                handler.onCreated(vertretungsAPI);
-
-            } catch (Exception e) {
-                handler.onError(e);
             }
-
         }).run();
 
     }
@@ -786,6 +796,14 @@ public class VertretungsAPI {
         public abstract void onOtherError(Throwable e);
 
         public void onProgress(double progress) {
+
+        }
+
+        public void onDayAdded() {
+
+        }
+
+        public void onKlassenListFinished() {
 
         }
     }
