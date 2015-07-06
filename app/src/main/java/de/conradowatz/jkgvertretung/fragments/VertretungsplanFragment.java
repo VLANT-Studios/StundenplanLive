@@ -6,7 +6,6 @@ import android.support.design.widget.TabLayout;
 import android.support.v4.app.Fragment;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -15,24 +14,19 @@ import android.widget.TextView;
 
 import java.util.ArrayList;
 
+import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.activities.MainActivity;
 import de.conradowatz.jkgvertretung.tools.PreferenceReader;
-import de.conradowatz.jkgvertretung.variables.StuPlaKlasse;
-import de.conradowatz.jkgvertretung.variables.Stunde;
 import de.conradowatz.jkgvertretung.variables.Tag;
 import de.conradowatz.jkgvertretung.variables.Vertretung;
 
-/**
- * A simple {@link Fragment} subclass.
- */
 public class VertretungsplanFragment extends Fragment {
 
     private View contentView;
 
     private ViewPager viewPager;
     private TabLayout tabs;
-    private int dayCount = -1;
 
     public VertretungsplanFragment() {
         // Required empty public constructor
@@ -42,6 +36,10 @@ public class VertretungsplanFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
+
+        //Analytics
+        MyApplication analytics = (MyApplication) getActivity().getApplication();
+        analytics.fireScreenHit("Vertretungsplan");
 
         contentView = inflater.inflate(R.layout.fragment_stundenplan, container, false);
         viewPager = (ViewPager) contentView.findViewById(R.id.viewPager);
@@ -62,6 +60,9 @@ public class VertretungsplanFragment extends Fragment {
         return contentView;
     }
 
+    /**
+     * Läd den ViewPager neu, wenn Tage hinzugefügt wurden
+     */
     public void onDayAdded() {
 
         if (viewPager!=null) {

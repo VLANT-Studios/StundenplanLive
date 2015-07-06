@@ -1,16 +1,15 @@
 package de.conradowatz.jkgvertretung.tools;
 
 
+import android.app.Activity;
 import android.content.Context;
 import android.util.Log;
-import android.widget.ArrayAdapter;
 
 import com.loopj.android.http.AsyncHttpClient;
 import com.loopj.android.http.TextHttpResponseHandler;
 
 import org.apache.http.Header;
 import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
@@ -19,12 +18,10 @@ import org.xmlpull.v1.XmlPullParserFactory;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
 import java.text.ParseException;
 import java.text.ParsePosition;
@@ -32,6 +29,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Locale;
 
 import de.conradowatz.jkgvertretung.variables.Klasse;
 import de.conradowatz.jkgvertretung.variables.Kurs;
@@ -50,6 +48,13 @@ public class VertretungsAPI {
     private ArrayList<Date> freieTageList;
     private ArrayList<Tag> tagList;
 
+    /**
+     * Prüft, ob die Benutzerdaten stimmen
+     *
+     * @param username             der Benutzername
+     * @param password             das Passwort
+     * @param loginResponseHandler ein Handler um die Antwort zu handhaben
+     */
     public void checkLogin(String username, String password, final AsyncLoginResponseHandler loginResponseHandler) {
 
         client.setBasicAuth(username, password);
@@ -66,11 +71,23 @@ public class VertretungsAPI {
         });
     }
 
+    /**
+     * Wandelt die von HttpClient übergebenen Byte Werte in Progress um
+     *
+     * @param bytesWritten
+     * @param totalSize
+     * @return eine Prozent Zahl von 0-100; -1 bei Fehlern
+     */
     private double bytesToProgress(long bytesWritten, long totalSize) {
 
         return (totalSize > 0) ? (bytesWritten * 1.0 / totalSize) * 100 : -1;
     }
 
+    /**
+     * Fragt nacheinander alle Informationen ab: klassenList, freieTageList, tagList
+     * @param dayCount wie viele Tage maximal abgefragt werden
+     * @param responseHandler ein Handler um die Antwort zu handhaben
+     */
     public void getAllInfo(final int dayCount, final AsyncVertretungsResponseHandler responseHandler) {
 
         //KlassenList
@@ -92,7 +109,6 @@ public class VertretungsAPI {
             @Override
             public void onSuccess(int statusCode, Header[] headers, String responseString) {
 
-
                 //Klassenliste
                 try {
                     klassenList = makeKlassen(responseString);
@@ -109,7 +125,6 @@ public class VertretungsAPI {
                     responseHandler.onOtherError(e);
                     return;
                 }
-
 
                 //Tag Liste
                 makeTagList(dayCount, 0, new GetDaysHandler() {
@@ -244,6 +259,11 @@ public class VertretungsAPI {
 
     }
 
+    /**
+     * berechnet den nächsten Schultag anhand von Wochenenden und freien Tagen
+     * @param startDate Datum ab dem geschaut wird
+     * @return Datum des nächsten Schultages
+     */
     private Date nextSchoolDay(Date startDate) {
 
         Calendar nextCalendar = Calendar.getInstance();
@@ -270,6 +290,12 @@ public class VertretungsAPI {
         return (dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY || freieTageList.contains(date));
     }
 
+    /**
+     * Fragt Stundenplan und Vertretungsplan ab und fügt diese der TagList hinzu
+     * @param count wieviele Tage maximal abgefragt werden
+     * @param skip wieviele Schultage sollen ab heute übersprungen werden
+     * @param responseHandler ein Handler um die Antwort zu handhaben
+     */
     public void makeTagList(final int count, int skip, final GetDaysHandler responseHandler) {
 
         Date startDate = Calendar.getInstance().getTime();
@@ -308,25 +334,35 @@ public class VertretungsAPI {
 
     }
 
+    /**
+     * Läd einen spezifischen Tag herunter und fügt diesen der tagList hinzu bzw. updatet ihn
+     * @param count wieviele Tage insgasamm heruntergeladen werden sollen
+     * @param date mit welchem Tag begonnen werden soll
+     * @param responseHandler ein Handler um die Antwort zu handhaben
+     */
     private void downloadDays(final int count, final Date date, final DownloadDaysHandler responseHandler) {
 
         String dateString = new SimpleDateFormat("yyyMMdd").format(date);
         String stundenPlanUrl = "http://kepler.c.sn.schule.de/stuplanindiware/VmobilS/mobdaten/PlanKl" + dateString + ".xml";
         final String vertretungsPlanUrl = "http://kepler.c.sn.schule.de/stuplanindiware/VplanonlineS/vdaten/VplanKl" + dateString + ".xml";
-        Log.d("JKGV", "DownloadURL 1: " + stundenPlanUrl);
-        Log.d("JKGV", "DownloadURL 2: " + vertretungsPlanUrl);
+        //Log.d("JKGDEBUG", "DownloadURL 1: " + stundenPlanUrl);
+        //Log.d("JKGDEBUG", "DownloadURL 2: " + vertretungsPlanUrl);
 
         client.get(stundenPlanUrl, new TextHttpResponseHandler() {
             @Override
             public void onFailure(int statusCode, Header[] headers, String responseString, Throwable throwable) {
+
+                //kann nicht abgerufen werden -> beenden
                 responseHandler.onFinished();
                 if (statusCode != 401) {
+                    //wenn Tag nicht vorhanden Fehlercode=401; wenn etwas anderes -> unbekannter Fehler
                     responseHandler.onError(throwable);
                 }
             }
 
             @Override
             public void onProgress(long bytesWritten, long totalSize) {
+
                 double progress = bytesToProgress(bytesWritten, totalSize);
                 responseHandler.onProgress(count, progress / 2);
             }
@@ -341,7 +377,10 @@ public class VertretungsAPI {
                     client.get(vertretungsPlanUrl, new TextHttpResponseHandler() {
                         @Override
                         public void onFailure(int statusCode, Header[] headers, String responseString, Throwable throwable) {
-                            responseHandler.onFinished();
+
+                            //Falls Vertretungsplan nicht da ist, trotzdem weiter machen
+                            onNoVertretung();
+
                             if (statusCode != 401) {
                                 responseHandler.onError(throwable);
                             }
@@ -358,41 +397,70 @@ public class VertretungsAPI {
 
                             try {
 
-                                ArrayList<Vertretung> vertretungsList;
-                                vertretungsList = makeVertretungsList(responseString);
+                                ArrayList<Vertretung> vertretungsList = makeVertretungsList(responseString);
+                                vertretungsList = enhanceVertretungsList(vertretungsList, currentStundenList);
 
                                 String datumString = responseString.substring(responseString.indexOf("<titel>") + 7, responseString.indexOf("</titel>"));
-
                                 Tag tag = new Tag(date, datumString, zeitStempel, currentStundenList, vertretungsList);
-
-                                //falls Tag schon vorhanden, updaten
-                                boolean updated = false;
-                                for (int i = 0; i < tagList.size(); i++) {
-                                    Calendar calendar1 = Calendar.getInstance();
-                                    calendar1.setTime(tagList.get(i).getDatum());
-                                    Calendar calendar2 = Calendar.getInstance();
-                                    calendar2.setTime(tag.getDatum());
-                                    if (calendar1.get(Calendar.DAY_OF_YEAR) == calendar2.get(Calendar.DAY_OF_YEAR)) {
-                                        tagList.remove(i);
-                                        tagList.add(i, tag);
-                                        updated = true;
-                                        break;
-                                    }
-                                }
-                                //falls nicht, hinten anhängen
-                                if (!updated) tagList.add(tag);
-                                responseHandler.onDayAdded();
-
-                                if (count > 0) {
-                                    downloadDays(count - 1, nextSchoolDay(date), responseHandler);
-                                } else {
-                                    responseHandler.onFinished();
-                                }
+                                addTag(tag);
 
                             } catch (Exception e) {
                                 e.printStackTrace();
                                 responseHandler.onFinished();
                                 responseHandler.onError(e);
+                            }
+
+                        }
+
+                        public void onNoVertretung() {
+
+                            try {
+
+                                ArrayList<Vertretung> vertretungsList = enhanceVertretungsList(new ArrayList<Vertretung>(), currentStundenList);
+
+                                String datumString = new SimpleDateFormat("EEEE, dd. MMMM yyyy", Locale.GERMAN).format(date);
+                                Tag tag = new Tag(date, datumString, zeitStempel, currentStundenList, vertretungsList);
+                                addTag(tag);
+
+
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                                responseHandler.onFinished();
+                                responseHandler.onError(e);
+                            }
+
+                        }
+
+                        /**
+                         * Fügt einen Tag zur Liste hinzu bzw. updated ihn falls schon vorhanden
+                         *
+                         * @param tag Der hinzu zu fügende Tag
+                         */
+                        private void addTag(Tag tag) {
+
+                            //falls Tag schon vorhanden, updaten
+                            boolean updated = false;
+                            for (int i = 0; i < tagList.size(); i++) {
+                                Calendar calendar1 = Calendar.getInstance();
+                                calendar1.setTime(tagList.get(i).getDatum());
+                                Calendar calendar2 = Calendar.getInstance();
+                                calendar2.setTime(tag.getDatum());
+                                if (calendar1.get(Calendar.DAY_OF_YEAR) == calendar2.get(Calendar.DAY_OF_YEAR)) {
+                                    tagList.remove(i);
+                                    tagList.add(i, tag);
+                                    updated = true;
+                                    break;
+                                }
+                            }
+                            //falls nicht, hinten anhängen
+                            if (!updated) tagList.add(tag);
+                            responseHandler.onDayAdded();
+
+                            //nächsten Tag abfragen, falls gewünscht, ansonsten beenden
+                            if (count > 0) {
+                                downloadDays(count - 1, nextSchoolDay(date), responseHandler);
+                            } else {
+                                responseHandler.onFinished();
                             }
 
                         }
@@ -530,12 +598,57 @@ public class VertretungsAPI {
 
     }
 
+    /**
+     * Fügt der vertrtungsList Informationen hinzu, die nicht im Vertretungspla, aber im Stundenplan stehen
+     *
+     * @param vertretungsList  die unvollständige vertretungsList
+     * @param stuPlaKlasseList die stundenplanList mit der verglichen wird
+     * @return die vollständige vertretungsList
+     */
+    private ArrayList<Vertretung> enhanceVertretungsList(ArrayList<Vertretung> vertretungsList, ArrayList<StuPlaKlasse> stuPlaKlasseList) {
+
+        for (StuPlaKlasse stuPlaKlasse : stuPlaKlasseList) {
+
+            for (Stunde stunde : stuPlaKlasse.getStundenList()) {
+
+                if (!(stunde.isFachg() || stunde.isRaumg())) continue;
+
+                boolean isInVertretung = false;
+
+                for (Vertretung vertretung : vertretungsList) {
+
+                    if (stunde.getStunde().equals(vertretung.getStunde()) && vertretung.getKlasse().contains(stuPlaKlasse.getName())) {
+                        isInVertretung = true;
+                        break;
+                    }
+
+                }
+
+                if (!isInVertretung) {
+
+                    String stundenName = stuPlaKlasse.getName();
+                    if (stunde.getKurs() != null && !stunde.getKurs().isEmpty()) {
+                        stundenName = stundenName + " / " + stunde.getKurs();
+                    }
+                    vertretungsList.add(new Vertretung(stundenName, stunde.getStunde(), stunde.getFach(), stunde.getRaum(), stunde.getInfo()));
+                }
+
+            }
+
+        }
+
+        return vertretungsList;
+    }
+
+    /**
+     * Speichert den derzeitigen Zustand der VertretungsAPI in den AppSpeicher
+     * @param context Context zum Zugriff auf den App-Speicher
+     */
     public void saveToFile(final Context context) {
 
         new Thread(new Runnable() {
             @Override
             public void run() {
-
 
                 try {
 
@@ -624,13 +737,13 @@ public class VertretungsAPI {
 
                 } catch (Exception e) {
 
-                    Log.e("SWAG", "Error saving session");
+                    Log.e("JKGDEBUG", "Error saving session");
                     e.printStackTrace();
 
                 }
 
             }
-        }).run();
+        }).start();
 
     }
 
@@ -646,6 +759,13 @@ public class VertretungsAPI {
         this.tagList = tagList;
     }
 
+    /**
+     * Erstellt eine VertretungsAPI, wenn diese im AppSpeicher vorhanden ist; läuft in eigenem Thread
+     * @param context die Activity für den handler und als Context für den Zugriff auf den AppSpeicher
+     * @param username Bunutzername
+     * @param password Passwort
+     * @param handler ein Handler, da die Aktion Zeit in anspruch nimmt
+     */
     public static void createFromFile(final Context context, final String username, final String password, final CreateFromFileHandler handler) {
 
         new Thread(new Runnable() {
@@ -656,7 +776,7 @@ public class VertretungsAPI {
 
                 try {
 
-                    VertretungsAPI vertretungsAPI = new VertretungsAPI(username, password);
+                    final VertretungsAPI vertretungsAPI = new VertretungsAPI(username, password);
 
                     //Read Data
                     FileInputStream inputStream = context.openFileInput(SAVE_FILE_NAE);
@@ -767,14 +887,25 @@ public class VertretungsAPI {
                     }
                     vertretungsAPI.setTagList(tagList1);
 
-                    handler.onCreated(vertretungsAPI);
+                    ((Activity) context).runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            handler.onCreated(vertretungsAPI);
+                        }
+                    });
 
-                } catch (Exception e) {
-                    handler.onError(e);
+                } catch (final Exception e) {
+
+                    ((Activity) context).runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            handler.onError(e);
+                        }
+                    });
                 }
 
             }
-        }).run();
+        }).start();
 
     }
 

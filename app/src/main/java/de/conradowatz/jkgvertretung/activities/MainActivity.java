@@ -3,6 +3,7 @@ package de.conradowatz.jkgvertretung.activities;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.v4.app.FragmentManager;
@@ -24,7 +25,6 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.mikepenz.google_material_typeface_library.GoogleMaterial;
 import com.mikepenz.materialdrawer.Drawer;
 import com.mikepenz.materialdrawer.DrawerBuilder;
 import com.mikepenz.materialdrawer.model.DividerDrawerItem;
@@ -33,6 +33,7 @@ import com.mikepenz.materialdrawer.model.interfaces.IDrawerItem;
 
 import java.io.File;
 
+import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.fragments.AllgVertretungsplanFragment;
 import de.conradowatz.jkgvertretung.fragments.KurswahlFragment;
@@ -62,6 +63,8 @@ public class MainActivity extends AppCompatActivity {
     private boolean isNoAccesDialog = false;
 
     private EventBus eventBus = EventBus.getDefault();
+    private static final String EXTRA_CUSTOM_TABS_SESSION_ID = "android.support.CUSTOM_TABS:session_id";
+    private static final String EXTRA_CUSTOM_TABS_TOOLBAR_COLOR = "android.support.CUSTOM_TABS:toolbar_color";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -114,7 +117,8 @@ public class MainActivity extends AppCompatActivity {
                         new PrimaryDrawerItem().withName("Allgemeiner Vertretungsplan").withIcon(R.drawable.ic_vertretung).withIconTintingEnabled(true).withIdentifier(4),
                         new DividerDrawerItem(),
                         new PrimaryDrawerItem().withName("Einstellungen").withIcon(R.drawable.ic_settings).withIconTintingEnabled(true).withIdentifier(11),
-                        new PrimaryDrawerItem().withName("Infos").withIcon(R.drawable.ic_info).withIconTintingEnabled(true).withIdentifier(12)
+                        new PrimaryDrawerItem().withName("Feedback").withIcon(R.drawable.ic_feedback).withIconTintingEnabled(true).withIdentifier(12),
+                        new PrimaryDrawerItem().withName("Infos").withIcon(R.drawable.ic_info).withIconTintingEnabled(true).withIdentifier(13)
                 )
                 .withOnDrawerItemClickListener(new Drawer.OnDrawerItemClickListener() {
                     @Override
@@ -133,6 +137,9 @@ public class MainActivity extends AppCompatActivity {
                                     openSettings();
                                     return false;
                                 case 12:
+                                    openFeedbackPage();
+                                    break;
+                                case 13:
                                     showInfoDialog();
                                     break;
                             }
@@ -144,6 +151,55 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * Zeigt den Info Dialog
+     */
+    private void showInfoDialog() {
+
+        //Analytics
+        MyApplication analytics = (MyApplication) getApplication();
+        analytics.fireEvent("NavDrawer", "Infos");
+
+        isInfoDialog = true;
+
+        LayoutInflater inflater = getLayoutInflater();
+        View scrollView = inflater.inflate(R.layout.infotext_dialog, null);
+        TextView textView = (TextView) scrollView.findViewById(R.id.textView);
+        textView.setText(Html.fromHtml(getString(R.string.infoDialog_text)));
+        textView.setMovementMethod(LinkMovementMethod.getInstance()); //Link klickbar machen
+
+        AlertDialog.Builder infoDialogB = new AlertDialog.Builder(this);
+        infoDialogB.setView(scrollView);
+        infoDialogB.setNeutralButton("Okay", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+
+                isInfoDialog = false;
+            }
+        });
+        infoDialogB.show();
+    }
+
+    /**
+     * Öffnet die Feedback Page in einem Chrome Custom Tab
+     */
+    private void openFeedbackPage() {
+
+        //Analytics
+        MyApplication analytics = (MyApplication) getApplication();
+        analytics.fireEvent("NavDrawer", "Feedback");
+
+        String url = "http://conradowatz.de/android-apps/jkg-vertretung-support/";
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+        intent.putExtra(EXTRA_CUSTOM_TABS_SESSION_ID, -1); // -1 or any valid session id returned from newSession() call
+        intent.putExtra(EXTRA_CUSTOM_TABS_TOOLBAR_COLOR, getResources().getColor(R.color.primary));
+        startActivity(intent);
+
+    }
+
+    /**
+     * öffnet die Einstelungen Activity
+     */
     private void openSettings() {
 
         Intent openSettingsIntent = new Intent(this, SettingsActivity.class);
@@ -151,6 +207,11 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * Wechselt das angezeigte Fragment
+     *
+     * @param identifier der Fragment identifier
+     */
     private void setFragment(int identifier) {
 
         FragmentManager mFragmentManager = getSupportFragmentManager();
@@ -181,6 +242,9 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Leitet das Laden der Daten ein; Prüft ob Benutzerdaten vorhanden sind und öffnet falls nötig die LoginActivity
+     */
     private void initializeLoadingData() {
 
         //Wenn nicht eingeloggt, LoginActivity starten
@@ -194,6 +258,9 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * wechselt zum vom Nutzer als Startscreen festgelegten Fragment
+     */
     private void showStartScreen() {
 
         boolean keineKlasse = PreferenceReader.readIntFromPreferences(this, "meineKlasseInt", -1) == -1;
@@ -216,6 +283,10 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * Läd die Daten entweder aus dem Speicher oder mit der LoadingActivity
+     * verfährt außerdem nach dem vom Nutzer in den Einstellungen festgelegten Regeln zum weiteren Laden
+     */
     private void loadData() {
 
         //Schauen on eine SavedSession im Speicher ist
@@ -280,7 +351,10 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    //wird gecalled, wenn die LoadingActivity Daten sendet - z.B. beim ersten Start der App
+    /**
+     * Leitet das Anzeigen der Daten ein
+     * wird gecalled, wenn die LoadingActivity Daten sendet - z.B. beim ersten Start der App
+     */
     public void onEvent(VertretungsAPI event) {
 
         vertretungsAPI = event;
@@ -304,6 +378,12 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * Läd Tage neu herunter
+     *
+     * @param days     Anzahl der Tage
+     * @param skipDays Wieviele tage es (ab heute) überspringen soll
+     */
     private void downloadTagList(int days, final int skipDays) {
 
         final MainActivity context = this;
@@ -342,6 +422,9 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * Zeig den NoAcces Fehler-Dialog an
+     */
     private void showFetchErrorDialog() {
 
         isNoAccesDialog = true;
@@ -391,6 +474,9 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * Informiert die Fragments, dass ein Tag hinzugefügt wurde
+     */
     private void informFragmentsDayAdded() {
 
         if (stundenplanFragment != null) {
@@ -425,34 +511,15 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * Löscht die Benutzerdaten und zeigt LoginActivity
+     */
     private void relog() {
 
         //Benutzerdaten leeren und LoginActivity starten
         PreferenceReader.saveStringToPreferences(this, "username", "null");
         PreferenceReader.saveStringToPreferences(this, "password", "null");
         initializeLoadingData();
-    }
-
-    private void showInfoDialog() {
-
-        isInfoDialog = true;
-
-        LayoutInflater inflater = getLayoutInflater();
-        View scrollView = inflater.inflate(R.layout.infotext_dialog, null);
-        TextView textView = (TextView) scrollView.findViewById(R.id.textView);
-        textView.setText(Html.fromHtml(getString(R.string.infoDialog_text)));
-        textView.setMovementMethod(LinkMovementMethod.getInstance()); //Link klickbar machen
-
-        AlertDialog.Builder infoDialogB = new AlertDialog.Builder(this);
-        infoDialogB.setView(scrollView);
-        infoDialogB.setNeutralButton("Okay", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-
-                isInfoDialog = false;
-            }
-        });
-        infoDialogB.show();
     }
 
     @Override
@@ -489,11 +556,18 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    /**
+     * Wird gecallt, wenn auf refresh geklickt wurde
+     */
     private void refreshClicked() {
 
         if (isRefreshing) {
             return;
         }
+
+        //Analytics
+        MyApplication analytics = (MyApplication) getApplication();
+        analytics.fireEvent("Toolbar", "Refresh");
 
         showRefresh();
         isRefreshing = true;
@@ -504,6 +578,11 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * Läd alle Daten (klassenList, freieTageList, tagList) neu herunter
+     *
+     * @param dayCount Anzahl der zu downloadenden Tage
+     */
     private void redownloadData(int dayCount) {
 
         final MainActivity context = this;
@@ -556,7 +635,7 @@ public class MainActivity extends AppCompatActivity {
             public void onOtherError(Throwable throwable) {
 
                 //Wenn es hier ein Error gibt, hat sich warscheinlich das Online System geändert
-                Log.e("JKGV", "Error bei der Verarbeitung der Daten");
+                Log.e("JKGDEBUG", "Error bei der Verarbeitung der Daten");
                 throwable.printStackTrace();
             }
 
@@ -570,6 +649,9 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * Animiert das Refresh MenuItem
+     */
     private void showRefresh() {
 
         if (menu == null) return;
@@ -587,6 +669,9 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * Stoppt die Animation des Refresh Menu Items
+     */
     private void stopRefresh() {
 
         if (menu == null) return;

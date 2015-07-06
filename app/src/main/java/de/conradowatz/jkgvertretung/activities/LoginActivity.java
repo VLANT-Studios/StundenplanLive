@@ -5,13 +5,12 @@ import android.os.Bundle;
 import android.support.design.widget.TextInputLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.view.KeyEvent;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.TextView;
+
 import com.pnikosis.materialishprogress.ProgressWheel;
+
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.tools.PreferenceReader;
 import de.conradowatz.jkgvertretung.tools.VertretungsAPI;
@@ -57,6 +56,9 @@ public class LoginActivity extends AppCompatActivity {
     }
 
 
+    /**
+     * Überprüft die eingegebenen Benutzerdaten
+     */
     private void login() {
         final String benutzerName = usernameInput.getEditText().getText().toString();
         final String passwort = passwordInput.getEditText().getText().toString();

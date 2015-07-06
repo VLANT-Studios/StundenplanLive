@@ -4,11 +4,7 @@ package de.conradowatz.jkgvertretung.fragments;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.Fragment;
-import android.util.Log;
 import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
@@ -16,16 +12,14 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.LinearLayout;
-import android.widget.ScrollView;
 import android.widget.Spinner;
-import android.widget.TextView;
 
 import java.util.ArrayList;
 
+import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.activities.MainActivity;
 import de.conradowatz.jkgvertretung.tools.PreferenceReader;
-import de.conradowatz.jkgvertretung.tools.VertretungsAPI;
 import de.conradowatz.jkgvertretung.variables.Klasse;
 import de.conradowatz.jkgvertretung.variables.Kurs;
 
@@ -55,6 +49,10 @@ public class KurswahlFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
 
+        //Analytics
+        MyApplication analytics = (MyApplication) getActivity().getApplication();
+        analytics.fireScreenHit("Kurswahl");
+
         contentView = inflater.inflate(R.layout.fragment_kurswahl, container, false);
 
         klassenSpinner = (Spinner) contentView.findViewById(R.id.klassenSpinner);
@@ -79,10 +77,12 @@ public class KurswahlFragment extends Fragment {
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+
                 if (!editMode) {
-                    editMode();
+                    setEditable(true);
                 } else {
                     saveKurse();
+                    setEditable(false);
                 }
             }
         });
@@ -126,10 +126,10 @@ public class KurswahlFragment extends Fragment {
         return contentView;
     }
 
+    /**
+     * Speichert die ausgewählten Kurse in den SharedPreferences
+     */
     private void saveKurse() {
-
-        editMode = false;
-        fab.setImageResource(R.drawable.ic_mode_edit);
 
         PreferenceReader.saveIntToPreferences(getActivity(), "meineKlasseInt", klassenSpinner.getSelectedItemPosition());
 
@@ -144,11 +144,21 @@ public class KurswahlFragment extends Fragment {
 
         PreferenceReader.saveStringListToPreferences(getActivity(), "meineNichtKurse", saveArray);
 
-        setEditable(false);
-
     }
 
+    /**
+     * Wechselt den EditMode und ändert den FAB
+     *
+     * @param editable EditMode
+     */
     private void setEditable(boolean editable) {
+
+        editMode = editable;
+        if (editMode) {
+            fab.setImageResource(R.drawable.ic_done);
+        } else {
+            fab.setImageResource(R.drawable.ic_mode_edit);
+        }
 
         klassenSpinner.setEnabled(editable);
         buttonKeine.setEnabled(editable);
@@ -160,15 +170,11 @@ public class KurswahlFragment extends Fragment {
 
     }
 
-    private void editMode() {
-
-        editMode = true;
-        fab.setImageResource(R.drawable.ic_done);
-
-        setEditable(true);
-
-    }
-
+    /**
+     * Läd alle Klassen in den Spinner
+     *
+     * @param klassenList die Klassenlist der VertretungsAPI
+     */
     private void showKlassen(final ArrayList<Klasse> klassenList) {
 
         ArrayList<String> klassennamenListe = new ArrayList<>();
@@ -198,6 +204,9 @@ public class KurswahlFragment extends Fragment {
         loadKlasse();
     }
 
+    /**
+     * Zeigt die gespeicherte Klasse aus den SharedPreferences an
+     */
     private void loadKlasse() {
 
         int meineKlasseInt = PreferenceReader.readIntFromPreferences(getActivity(), "meineKlasseInt", -1);
@@ -207,6 +216,10 @@ public class KurswahlFragment extends Fragment {
 
     }
 
+    /**
+     * Selektiert die Kurse, die vom Nutzer gespeichert wurden
+     * in den SharedPreferences sind alle nicht ausgewählten Kurse gespeichert
+     */
     private void loadKurse() {
 
         if (isLoaded) return;
@@ -229,6 +242,11 @@ public class KurswahlFragment extends Fragment {
 
     }
 
+    /**
+     * Zeigt alle Kurse einer Klasse als Checkboxen
+     * @param klassenList die KlassenList der VertretungsAPI
+     * @param position der Index der Klasse
+     */
     private void showKurse(ArrayList<Klasse> klassenList, int position) {
 
         ArrayList<Kurs> alleKurse = klassenList.get(position).getKurse();
@@ -271,6 +289,9 @@ public class KurswahlFragment extends Fragment {
 
     }
 
+    /**
+     * Selektiert alle Kurs-Checkboxen
+     */
     private void selectAlleKurse() {
 
         for (int i = 0; i < kurseLayout.getChildCount(); i++) {
@@ -280,6 +301,9 @@ public class KurswahlFragment extends Fragment {
 
     }
 
+    /**
+     * Deselektiert alle Kurs-Checkboxen
+     */
     private void selectKeineKurse() {
 
         for (int i = 0; i < kurseLayout.getChildCount(); i++) {
@@ -308,6 +332,10 @@ public class KurswahlFragment extends Fragment {
         super.onSaveInstanceState(outState);
     }
 
+    /**
+     * Läd die KlassenList neu
+     * Wird gecallt wenn die Liste aktualisiert wurde
+     */
     public void onKlassenListUpdated() {
 
         MainActivity mainActivity = (MainActivity) getActivity();

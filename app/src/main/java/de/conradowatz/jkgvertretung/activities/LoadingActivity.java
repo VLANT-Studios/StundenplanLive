@@ -1,30 +1,21 @@
 package de.conradowatz.jkgvertretung.activities;
 
 import android.content.Intent;
-import android.os.PersistableBundle;
-import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
-import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
+import android.support.v7.widget.CardView;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import com.pnikosis.materialishprogress.ProgressWheel;
 
-import java.io.File;
-
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.tools.PreferenceReader;
 import de.conradowatz.jkgvertretung.tools.VertretungsAPI;
-import de.conradowatz.jkgvertretung.variables.Vertretung;
 import de.greenrobot.event.EventBus;
 
 public class LoadingActivity extends AppCompatActivity {
@@ -41,7 +32,7 @@ public class LoadingActivity extends AppCompatActivity {
     private ImageView cloudImage;
     private ImageView logoImage;
     private RelativeLayout loadingLayout;
-    private LinearLayout noaccesLayout;
+    private CardView noaccesLayout;
     private Button retryButton;
     private Button changepwButton;
 
@@ -62,7 +53,7 @@ public class LoadingActivity extends AppCompatActivity {
         cloudImage = (ImageView) findViewById(R.id.cloudImage);
         logoImage = (ImageView) findViewById(R.id.logoImage);
         loadingLayout = (RelativeLayout) findViewById(R.id.loadingLayout);
-        noaccesLayout = (LinearLayout) findViewById(R.id.noacces_layout);
+        noaccesLayout = (CardView) findViewById(R.id.noacces_layout);
         retryButton = (Button) findViewById(R.id.retryButton);
         changepwButton = (Button) findViewById(R.id.changepwButton);
         loadingLayout.setOnClickListener(new View.OnClickListener() {
@@ -104,6 +95,9 @@ public class LoadingActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * Läd alle Daten für maximal 3 Tage herunter
+     */
     private void downloadData() {
 
         final VertretungsAPI vertretungsAPI = new VertretungsAPI(username, password);
@@ -111,6 +105,7 @@ public class LoadingActivity extends AppCompatActivity {
         vertretungsAPI.getAllInfo(3, new VertretungsAPI.AsyncVertretungsResponseHandler() {
             @Override
             public void onSuccess() {
+
                 if (vertretungsAPI.getTagList().size()>0) {
                     eventBus.post(vertretungsAPI);
                     finish();
@@ -147,6 +142,11 @@ public class LoadingActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * Wechselt die anzuzeigenden Elemente
+     *
+     * @param contentMode Ansicht
+     */
     private void contentMode(int contentMode) {
 
         if (contentMode == CONTENT_LOADING) {

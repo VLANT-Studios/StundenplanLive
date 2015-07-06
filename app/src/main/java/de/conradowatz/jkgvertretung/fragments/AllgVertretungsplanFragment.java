@@ -6,7 +6,6 @@ import android.support.design.widget.TabLayout;
 import android.support.v4.app.Fragment;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -15,41 +14,42 @@ import android.widget.TextView;
 
 import java.util.ArrayList;
 
+import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.activities.MainActivity;
-import de.conradowatz.jkgvertretung.tools.PreferenceReader;
+import de.conradowatz.jkgvertretung.tools.VertretungsAPI;
 import de.conradowatz.jkgvertretung.variables.Tag;
 import de.conradowatz.jkgvertretung.variables.Vertretung;
 
-/**
- * A simple {@link Fragment} subclass.
- */
-public class AllgVertretungsplanFragment extends Fragment {
 
-    private View contentView;
+public class AllgVertretungsplanFragment extends Fragment {
 
     private ViewPager viewPager;
     private TabLayout tabs;
-    private int dayCount = -1;
+    private VertretungsAPI vertretungsAPI;
 
     public AllgVertretungsplanFragment() {
         // Required empty public constructor
     }
 
-
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
 
-        contentView = inflater.inflate(R.layout.fragment_stundenplan, container, false);
+        //Analytics
+        MyApplication analytics = (MyApplication) getActivity().getApplication();
+        analytics.fireScreenHit("Allgemeiner Vertretungsplan");
+
+        View contentView = inflater.inflate(R.layout.fragment_stundenplan, container, false);
         viewPager = (ViewPager) contentView.findViewById(R.id.viewPager);
         tabs = (TabLayout) contentView.findViewById(R.id.materialTabs);
 
         MainActivity mainActivity = (MainActivity) getActivity();
         if (mainActivity.vertretungsAPI==null) return contentView;
+        vertretungsAPI = mainActivity.vertretungsAPI;
 
-        StundenplanPagerAdapter stundenplanPagerAdapter = new StundenplanPagerAdapter(mainActivity.vertretungsAPI.getTagList(), getActivity().getLayoutInflater());
-        viewPager.setAdapter(stundenplanPagerAdapter);
+        StundenplanPagerAdapter adapter = new StundenplanPagerAdapter(mainActivity.vertretungsAPI.getTagList(), getActivity().getLayoutInflater());
+        viewPager.setAdapter(adapter);
         tabs.setTabTextColors(getResources().getColor(R.color.white), getResources().getColor(R.color.white));
         tabs.setTabMode(TabLayout.MODE_SCROLLABLE);
         tabs.setupWithViewPager(viewPager);
@@ -57,6 +57,9 @@ public class AllgVertretungsplanFragment extends Fragment {
         return contentView;
     }
 
+    /**
+     * Läd den ViewPager neu, wenn Tage hinzugefügt wurden
+     */
     public void onDayAdded() {
 
         if (viewPager!=null) {
@@ -129,7 +132,7 @@ public class AllgVertretungsplanFragment extends Fragment {
             if (linearLayout.getChildCount()==0) {
 
                 TextView textView = (TextView) layoutInflater.inflate(R.layout.spacedtext_item, linearLayout, false);
-                textView.setText("Für diesen Tag steht kein Vertretungsplan bereit");
+                textView.setText("Für diesen Tag steht kein Vertretungsplan bereit.");
                 linearLayout.addView(textView);
             }
 
@@ -148,6 +151,5 @@ public class AllgVertretungsplanFragment extends Fragment {
             return tagList.size();
         }
     }
-
 
 }

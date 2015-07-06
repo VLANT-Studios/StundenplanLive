@@ -4,22 +4,17 @@ package de.conradowatz.jkgvertretung.fragments;
 import android.os.Bundle;
 import android.support.design.widget.TabLayout;
 import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentManager;
-import android.support.v4.app.FragmentStatePagerAdapter;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import org.w3c.dom.Text;
-
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 
+import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.activities.MainActivity;
 import de.conradowatz.jkgvertretung.tools.PreferenceReader;
@@ -33,7 +28,6 @@ public class StundenplanFragment extends Fragment {
 
     private ViewPager viewPager;
     private TabLayout tabs;
-    private int dayCount = -1;
 
     public StundenplanFragment() {
         // Required empty public constructor
@@ -43,6 +37,10 @@ public class StundenplanFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
+
+        //Analytics
+        MyApplication analytics = (MyApplication) getActivity().getApplication();
+        analytics.fireScreenHit("Stundenplan");
 
         contentView = inflater.inflate(R.layout.fragment_stundenplan, container, false);
         viewPager = (ViewPager) contentView.findViewById(R.id.viewPager);
@@ -62,6 +60,9 @@ public class StundenplanFragment extends Fragment {
         return contentView;
     }
 
+    /**
+     * Läd den ViewPager neu, wenn Tage hinzugefügt wurden
+     */
     public void onDayAdded() {
 
         if (viewPager!=null) {
@@ -116,7 +117,9 @@ public class StundenplanFragment extends Fragment {
             for (int i=0; i<stundenList.size(); i++) {
 
                 Stunde stunde = stundenList.get(i);
-                if (nichtKurse.contains(stunde.getKurs()))
+                if (nichtKurse.contains(stunde.getKurs())
+                        || nichtKurse.contains(stunde.getFach())
+                        || nichtKurse.contains(stunde.getInfo().split(" ")[0]))
                     continue;
 
                 View stundenItem = layoutInflater.inflate(R.layout.stundenplan_stunde_item, linearLayout, false);

@@ -6,7 +6,7 @@ android {
 
     defaultConfig {
         applicationId "de.conradowatz.jkgvertretung"
-        minSdkVersion 11
+        minSdkVersion 12
         targetSdkVersion 22
         versionCode 1
         versionName "1.0"
@@ -30,7 +30,7 @@ dependencies {
     compile 'com.google.android.gms:play-services-analytics:7.5.0'
     compile 'com.android.support:design:22.2.0'
 
-    compile "com.mikepenz:materialdrawer:3.0.7"
+    compile "com.mikepenz:materialdrawer:3.0.9"
     compile 'com.loopj.android:android-async-http:1.4.7'
     compile 'com.pnikosis:materialish-progress:1.5'
     compile 'de.greenrobot:eventbus:2.4.0'
