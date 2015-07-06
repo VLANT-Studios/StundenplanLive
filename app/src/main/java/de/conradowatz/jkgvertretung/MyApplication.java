@@ -14,7 +14,7 @@ public class MyApplication extends Application {
     @Override
     public void onCreate() {
         analytics = GoogleAnalytics.getInstance(this);
-        analytics.setLocalDispatchPeriod(30);
+        analytics.setLocalDispatchPeriod(600);
 
         tracker = analytics.newTracker(R.xml.app_tracker);
         tracker.enableExceptionReporting(true);
