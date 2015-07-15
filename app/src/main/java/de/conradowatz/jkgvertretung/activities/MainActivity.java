@@ -58,6 +58,8 @@ public class MainActivity extends AppCompatActivity {
     private int currentlySelected;
     public VertretungsAPI vertretungsAPI;
     private Boolean isRefreshing = false;
+    private boolean isActivityActive;
+    private boolean showStartScreenInResume = false;
 
     private boolean isInfoDialog = false;
     private boolean isNoAccesDialog = false;
@@ -101,6 +103,27 @@ public class MainActivity extends AppCompatActivity {
             initializeLoadingData();
 
         }
+    }
+
+    //onResume und onPause speichern ob die Activity gerade aktiv ist
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        isActivityActive = true;
+
+        //Falls der startScreen gezeigt werden soll, weil die Activity vorher inaktiv war
+        if (showStartScreenInResume) {
+            showStartScreen();
+            showStartScreenInResume = false;
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        isActivityActive = false;
     }
 
     private void buildDrawer() {
@@ -219,25 +242,25 @@ public class MainActivity extends AppCompatActivity {
             if (stundenplanFragment == null) {
                 stundenplanFragment = new StundenplanFragment();
             }
-            mFragmentManager.beginTransaction().replace(R.id.container, stundenplanFragment).commitAllowingStateLoss();
+            mFragmentManager.beginTransaction().replace(R.id.container, stundenplanFragment).commit();
             getSupportActionBar().setTitle("Mein Stundenplan");
         } else if (identifier == 2) {
             if (vertretungsplanFragment == null) {
                 vertretungsplanFragment = new VertretungsplanFragment();
             }
-            mFragmentManager.beginTransaction().replace(R.id.container, vertretungsplanFragment).commitAllowingStateLoss();
+            mFragmentManager.beginTransaction().replace(R.id.container, vertretungsplanFragment).commit();
             getSupportActionBar().setTitle("Mein Vertretungsplan");
         } else if (identifier == 3) {
             if (kurswahlFragment == null) {
                 kurswahlFragment = new KurswahlFragment();
             }
-            mFragmentManager.beginTransaction().replace(R.id.container, kurswahlFragment).commitAllowingStateLoss();
+            mFragmentManager.beginTransaction().replace(R.id.container, kurswahlFragment).commit();
             getSupportActionBar().setTitle("Klassen- / Kurswahl");
         } else if (identifier == 4) {
             if (allgVertretungsplanFragment == null) {
                 allgVertretungsplanFragment = new AllgVertretungsplanFragment();
             }
-            mFragmentManager.beginTransaction().replace(R.id.container, allgVertretungsplanFragment).commitAllowingStateLoss();
+            mFragmentManager.beginTransaction().replace(R.id.container, allgVertretungsplanFragment).commit();
             getSupportActionBar().setTitle("Allgemeiner Vertretungsplan");
         }
     }
@@ -330,7 +353,7 @@ public class MainActivity extends AppCompatActivity {
                         public void onError(Throwable throwable) {
 
                             //Falls es einnen Fehler gab (z.B. neue App Version nicht mit Saved Session kompatibel), neu herunterladen
-                            Log.e("JKGV", "Error loading data from storage. Redownload it...");
+                            Log.e("JKGDEBUG", "Error loading data from storage. Redownload it...");
                             throwable.printStackTrace();
                             savedSessionFile.delete();
                             loadData();
@@ -360,7 +383,9 @@ public class MainActivity extends AppCompatActivity {
         vertretungsAPI = event;
         eventBus.unregister(this);
 
-        showStartScreen();
+        //Falls die Activity noch nicht wieder aktiv ist, kann kein Fragment angezeigt werdem, in diesem Fall wird dies nach onResume getan
+        if (isActivityActive) showStartScreen();
+        else showStartScreenInResume = true;
 
         //Daten als Saved Session speichern
         vertretungsAPI.saveToFile(this);
@@ -415,7 +440,7 @@ public class MainActivity extends AppCompatActivity {
             public void onError(Throwable throwable) {
 
                 //Wenn es hier ein Error gibt, hat sich warscheinlich das Online System geändert
-                Log.e("JKGV", "Error bei der Verarbeitung der Daten");
+                Log.e("JKGDEBUG", "Error bei der Verarbeitung der Daten");
                 throwable.printStackTrace();
             }
         });
