@@ -23,7 +23,7 @@
     specifying the canonical name, and the value the alias to use instead. -->
     <!-- The screen names that will appear in reports -->
 
-    <screenName name="de.conradowatz.jkgvertretung.activities.LoadingActivity">
+    <screenName name="de.conradowatz.jkgvertretung.activities.LoginActivity">
         Login Screen
     </screenName>
     <screenName name="de.conradowatz.jkgvertretung.activities.SettingsActivity">
