@@ -339,6 +339,7 @@ public class KurswahlFragment extends Fragment {
     public void onKlassenListUpdated() {
 
         MainActivity mainActivity = (MainActivity) getActivity();
+        if (mainActivity.vertretungsAPI.getKlassenList()==null) return;
         showKlassen(mainActivity.vertretungsAPI.getKlassenList());
 
     }
