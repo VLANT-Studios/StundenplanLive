@@ -6,7 +6,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentTransaction;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -35,10 +35,8 @@ import java.io.File;
 
 import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
-import de.conradowatz.jkgvertretung.fragments.AllgVertretungsplanFragment;
 import de.conradowatz.jkgvertretung.fragments.KurswahlFragment;
 import de.conradowatz.jkgvertretung.fragments.StundenplanFragment;
-import de.conradowatz.jkgvertretung.fragments.VertretungsplanFragment;
 import de.conradowatz.jkgvertretung.tools.PreferenceReader;
 import de.conradowatz.jkgvertretung.tools.VertretungsAPI;
 import de.greenrobot.event.EventBus;
@@ -46,27 +44,24 @@ import de.greenrobot.event.EventBus;
 
 public class MainActivity extends AppCompatActivity {
 
+    private static final String EXTRA_CUSTOM_TABS_SESSION_ID = "android.support.CUSTOM_TABS:session_id";
+    private static final String EXTRA_CUSTOM_TABS_TOOLBAR_COLOR = "android.support.CUSTOM_TABS:toolbar_color";
+    public VertretungsAPI vertretungsAPI;
     private Toolbar toolbar;
     private Drawer navigationDrawer;
     private Menu menu;
-
     private StundenplanFragment stundenplanFragment;
-    private VertretungsplanFragment vertretungsplanFragment;
+    private StundenplanFragment vertretungsplanFragment;
     private KurswahlFragment kurswahlFragment;
-    private AllgVertretungsplanFragment allgVertretungsplanFragment;
-
+    private StundenplanFragment allgVertretungsplanFragment;
     private int currentlySelected;
-    public VertretungsAPI vertretungsAPI;
+    private int activeFragmentIdentifier;
     private Boolean isRefreshing = false;
     private boolean isActivityActive;
     private boolean showStartScreenInResume = false;
-
     private boolean isInfoDialog = false;
     private boolean isNoAccesDialog = false;
-
     private EventBus eventBus = EventBus.getDefault();
-    private static final String EXTRA_CUSTOM_TABS_SESSION_ID = "android.support.CUSTOM_TABS:session_id";
-    private static final String EXTRA_CUSTOM_TABS_TOOLBAR_COLOR = "android.support.CUSTOM_TABS:toolbar_color";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -89,6 +84,7 @@ public class MainActivity extends AppCompatActivity {
             int selection = savedInstanceState.getInt("selection");
             if (selection >= 0) navigationDrawer.setSelection(selection, false);
             currentlySelected = savedInstanceState.getInt("currentlySelected");
+            activeFragmentIdentifier = savedInstanceState.getInt("activeFragmentIdentifier");
             if (isRefreshing == null) isRefreshing = savedInstanceState.getBoolean("isRefreshing");
             isInfoDialog = savedInstanceState.getBoolean("isInfoDialog");
             isNoAccesDialog = savedInstanceState.getBoolean("isNoAccesDialog");
@@ -237,32 +233,35 @@ public class MainActivity extends AppCompatActivity {
      */
     private void setFragment(int identifier) {
 
-        FragmentManager mFragmentManager = getSupportFragmentManager();
+        FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+
         if (identifier == 1) {
-            if (stundenplanFragment == null) {
-                stundenplanFragment = new StundenplanFragment();
-            }
-            mFragmentManager.beginTransaction().replace(R.id.container, stundenplanFragment).commit();
+            //if (stundenplanFragment == null) {
+            stundenplanFragment = StundenplanFragment.newInstance(StundenplanFragment.MODE_STUNDENPLAN);
+            //}
+            ft.replace(R.id.container, StundenplanFragment.newInstance(StundenplanFragment.MODE_STUNDENPLAN)).commit();
             getSupportActionBar().setTitle("Mein Stundenplan");
         } else if (identifier == 2) {
-            if (vertretungsplanFragment == null) {
-                vertretungsplanFragment = new VertretungsplanFragment();
-            }
-            mFragmentManager.beginTransaction().replace(R.id.container, vertretungsplanFragment).commit();
+            //if (vertretungsplanFragment == null) {
+            vertretungsplanFragment = StundenplanFragment.newInstance(StundenplanFragment.MODE_VERTRETUNGSPLAN);
+            //}
+            ft.replace(R.id.container, StundenplanFragment.newInstance(StundenplanFragment.MODE_VERTRETUNGSPLAN)).commit();
             getSupportActionBar().setTitle("Mein Vertretungsplan");
         } else if (identifier == 3) {
-            if (kurswahlFragment == null) {
+            //if (kurswahlFragment == null) {
                 kurswahlFragment = new KurswahlFragment();
-            }
-            mFragmentManager.beginTransaction().replace(R.id.container, kurswahlFragment).commit();
+            //}
+            ft.replace(R.id.container, new KurswahlFragment()).commit();
             getSupportActionBar().setTitle("Klassen- / Kurswahl");
         } else if (identifier == 4) {
-            if (allgVertretungsplanFragment == null) {
-                allgVertretungsplanFragment = new AllgVertretungsplanFragment();
-            }
-            mFragmentManager.beginTransaction().replace(R.id.container, allgVertretungsplanFragment).commit();
+            //if (allgVertretungsplanFragment == null) {
+            allgVertretungsplanFragment = StundenplanFragment.newInstance(StundenplanFragment.MODE_ALGVERTRETUNGSPLAN);
+            //}
+            ft.replace(R.id.container, StundenplanFragment.newInstance(StundenplanFragment.MODE_ALGVERTRETUNGSPLAN)).commit();
             getSupportActionBar().setTitle("Allgemeiner Vertretungsplan");
         }
+
+        activeFragmentIdentifier = identifier;
     }
 
     /**
@@ -724,6 +723,7 @@ public class MainActivity extends AppCompatActivity {
 
         outState.putInt("selection", navigationDrawer.getCurrentSelection());
         outState.putInt("currentlySelected", currentlySelected);
+        outState.putInt("activeFragmentIdentifier", activeFragmentIdentifier);
         outState.putCharSequence("title", toolbar.getTitle());
         outState.putBoolean("isRefreshing", isRefreshing);
         outState.putBoolean("isInfoDialog", isInfoDialog);
