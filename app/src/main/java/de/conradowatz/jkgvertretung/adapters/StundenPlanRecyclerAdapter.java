@@ -1,6 +1,7 @@
 package de.conradowatz.jkgvertretung.adapters;
 
 import android.content.Context;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -16,7 +17,7 @@ import de.conradowatz.jkgvertretung.variables.Tag;
 import de.conradowatz.jkgvertretung.variables.Vertretung;
 
 
-public class StundenPlanAdapter extends RecyclerView.Adapter<StundenPlanAdapter.ViewHolder> {
+public class StundenPlanRecyclerAdapter extends RecyclerView.Adapter<StundenPlanRecyclerAdapter.ViewHolder> {
 
     public static final int MODE_STUNDENPLAN = 1;
     public static final int MODE_VERTRETUNGSPLAN = 2;
@@ -32,7 +33,7 @@ public class StundenPlanAdapter extends RecyclerView.Adapter<StundenPlanAdapter.
     private int mode;
     private boolean noPlan;
 
-    private StundenPlanAdapter(Tag tag, ArrayList<Stunde> stundenList, ArrayList<Vertretung> vertretungsList, int mode, boolean noPlan) {
+    private StundenPlanRecyclerAdapter(Tag tag, ArrayList<Stunde> stundenList, ArrayList<Vertretung> vertretungsList, int mode, boolean noPlan) {
 
         this.mode = mode;
         this.stundenList = stundenList;
@@ -43,7 +44,7 @@ public class StundenPlanAdapter extends RecyclerView.Adapter<StundenPlanAdapter.
         zeitStempelString = tag.getZeitStempel();
     }
 
-    public static StundenPlanAdapter newStundenplanInstance(Tag tag, int klasseIndex, ArrayList<String> nichtKurse) {
+    public static StundenPlanRecyclerAdapter newStundenplanInstance(Tag tag, int klasseIndex, ArrayList<String> nichtKurse) {
 
         StuPlaKlasse stuPlaKlasse = tag.getStuplaKlasseList().get(klasseIndex);
         ArrayList<Stunde> stundenList = new ArrayList<>();
@@ -57,11 +58,11 @@ public class StundenPlanAdapter extends RecyclerView.Adapter<StundenPlanAdapter.
             stundenList.add(stunde);
         }
 
-        return new StundenPlanAdapter(tag, stundenList, null, MODE_STUNDENPLAN, stundenList.size() == 0);
+        return new StundenPlanRecyclerAdapter(tag, stundenList, null, MODE_STUNDENPLAN, stundenList.size() == 0);
 
     }
 
-    public static StundenPlanAdapter newVertretungsplanInstance(Tag tag, String klassenString, ArrayList<String> nichtKurse) {
+    public static StundenPlanRecyclerAdapter newVertretungsplanInstance(Tag tag, String klassenString, ArrayList<String> nichtKurse) {
 
         ArrayList<Vertretung> vertretungsList = new ArrayList<>();
         for (Vertretung vertretung : tag.getVertretungsList()) {
@@ -82,13 +83,13 @@ public class StundenPlanAdapter extends RecyclerView.Adapter<StundenPlanAdapter.
 
         }
 
-        return new StundenPlanAdapter(tag, null, vertretungsList, MODE_VERTRETUNGSPLAN, vertretungsList.size() == 0);
+        return new StundenPlanRecyclerAdapter(tag, null, vertretungsList, MODE_VERTRETUNGSPLAN, vertretungsList.size() == 0);
 
     }
 
-    public static StundenPlanAdapter newAllgvertretungsplanInstance(Tag tag) {
+    public static StundenPlanRecyclerAdapter newAllgvertretungsplanInstance(Tag tag) {
 
-        return new StundenPlanAdapter(tag, null, tag.getVertretungsList(), MODE_ALLGSTUNDENPLAN, tag.getVertretungsList().size() == 0);
+        return new StundenPlanRecyclerAdapter(tag, null, tag.getVertretungsList(), MODE_ALLGSTUNDENPLAN, tag.getVertretungsList().size() == 0);
     }
 
     @Override
@@ -161,14 +162,14 @@ public class StundenPlanAdapter extends RecyclerView.Adapter<StundenPlanAdapter.
                 else
                     holder.fachText.setVisibility(View.VISIBLE);
                 if (stunde.isFachg())
-                    holder.fachText.setTextColor(context.getResources().getColor(R.color.accent));
+                    holder.fachText.setTextColor(ContextCompat.getColor(context, R.color.warn_text));
                 else
-                    holder.fachText.setTextColor(context.getResources().getColor(R.color.primary_text));
+                    holder.fachText.setTextColor(ContextCompat.getColor(context, R.color.primary_text));
                 holder.raumText.setText(stunde.getRaum());
                 if (stunde.isRaumg())
-                    holder.raumText.setTextColor(context.getResources().getColor(R.color.accent));
+                    holder.raumText.setTextColor(ContextCompat.getColor(context, R.color.warn_text));
                 else
-                    holder.raumText.setTextColor(context.getResources().getColor(R.color.primary_text));
+                    holder.raumText.setTextColor(ContextCompat.getColor(context, R.color.primary_text));
                 if (stunde.getInfo().isEmpty())
                     holder.infoText.setVisibility(View.GONE);
                 else

@@ -3,10 +3,12 @@ package de.conradowatz.jkgvertretung.activities;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.v4.app.FragmentTransaction;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -19,7 +21,6 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
-import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -39,6 +40,9 @@ import de.conradowatz.jkgvertretung.fragments.KurswahlFragment;
 import de.conradowatz.jkgvertretung.fragments.StundenplanFragment;
 import de.conradowatz.jkgvertretung.tools.PreferenceReader;
 import de.conradowatz.jkgvertretung.tools.VertretungsAPI;
+import de.conradowatz.jkgvertretung.tools.VertretungsData;
+import de.conradowatz.jkgvertretung.variables.DayUpdatedEvent;
+import de.conradowatz.jkgvertretung.variables.KlassenlistUpdatedEvent;
 import de.greenrobot.event.EventBus;
 
 
@@ -46,21 +50,17 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String EXTRA_CUSTOM_TABS_SESSION_ID = "android.support.CUSTOM_TABS:session_id";
     private static final String EXTRA_CUSTOM_TABS_TOOLBAR_COLOR = "android.support.CUSTOM_TABS:toolbar_color";
-    public VertretungsAPI vertretungsAPI;
     private Toolbar toolbar;
     private Drawer navigationDrawer;
     private Menu menu;
-    private StundenplanFragment stundenplanFragment;
-    private StundenplanFragment vertretungsplanFragment;
-    private KurswahlFragment kurswahlFragment;
-    private StundenplanFragment allgVertretungsplanFragment;
     private int currentlySelected;
-    private int activeFragmentIdentifier;
-    private Boolean isRefreshing = false;
-    private boolean isActivityActive;
-    private boolean showStartScreenInResume = false;
-    private boolean isInfoDialog = false;
-    private boolean isNoAccesDialog = false;
+    private boolean isRefreshing;
+    private boolean isInfoDialog;
+    private boolean isNoAccesDialog;
+
+    private String username;
+    private String password;
+
     private EventBus eventBus = EventBus.getDefault();
 
     @Override
@@ -75,19 +75,23 @@ public class MainActivity extends AppCompatActivity {
         PreferenceManager.setDefaultValues(this, R.xml.settings, false);
 
 
-        if (getLastCustomNonConfigurationInstance() != null) {
+        if (savedInstanceState != null && (VertretungsData.getsInstance().getTagList() != null || getLastCustomNonConfigurationInstance() != null)) {
 
             //App noch im Speicher, wiederherstellen
-            vertretungsAPI = (VertretungsAPI) getLastCustomNonConfigurationInstance();
             CharSequence title = savedInstanceState.getCharSequence("title");
             getSupportActionBar().setTitle(title);
             int selection = savedInstanceState.getInt("selection");
             if (selection >= 0) navigationDrawer.setSelection(selection, false);
             currentlySelected = savedInstanceState.getInt("currentlySelected");
-            activeFragmentIdentifier = savedInstanceState.getInt("activeFragmentIdentifier");
-            if (isRefreshing == null) isRefreshing = savedInstanceState.getBoolean("isRefreshing");
+            isRefreshing = PreferenceReader.readBooleanFromPreferences(this, "isRefreshing", false);
             isInfoDialog = savedInstanceState.getBoolean("isInfoDialog");
             isNoAccesDialog = savedInstanceState.getBoolean("isNoAccesDialog");
+
+            if (VertretungsData.getsInstance().getTagList() == null)
+                VertretungsData.setInstance((VertretungsData) getLastCustomNonConfigurationInstance());
+
+            username = savedInstanceState.getString("username");
+            password = savedInstanceState.getString("password");
 
             if (isInfoDialog) showInfoDialog();
             if (isNoAccesDialog) showFetchErrorDialog();
@@ -101,25 +105,9 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    //onResume und onPause speichern ob die Activity gerade aktiv ist
-    @Override
-    protected void onResume() {
-        super.onResume();
+    private PrimaryDrawerItem getDefaultDrawerItem() {
 
-        isActivityActive = true;
-
-        //Falls der startScreen gezeigt werden soll, weil die Activity vorher inaktiv war
-        if (showStartScreenInResume) {
-            showStartScreen();
-            showStartScreenInResume = false;
-        }
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-
-        isActivityActive = false;
+        return new PrimaryDrawerItem().withIconTintingEnabled(true).withSelectedIconColorRes(R.color.primary).withSelectedTextColorRes(R.color.primary);
     }
 
     private void buildDrawer() {
@@ -129,19 +117,19 @@ public class MainActivity extends AppCompatActivity {
                 .withToolbar(toolbar)
                 .withHeader(R.layout.drawer_header)
                 .addDrawerItems(
-                        new PrimaryDrawerItem().withName("Mein Stundenplan").withIcon(R.drawable.ic_stuplan).withIconTintingEnabled(true).withIdentifier(1),
-                        new PrimaryDrawerItem().withName("Mein Vertretungsplan").withIcon(R.drawable.ic_vertretung).withIconTintingEnabled(true).withIdentifier(2),
-                        new PrimaryDrawerItem().withName("Klassen- / Kurswahl").withIcon(R.drawable.ic_check).withIconTintingEnabled(true).withIdentifier(3),
+                        getDefaultDrawerItem().withName("Mein Stundenplan").withIcon(R.drawable.ic_stuplan).withIdentifier(1),
+                        getDefaultDrawerItem().withName("Mein Vertretungsplan").withIcon(R.drawable.ic_vertretung).withIdentifier(2),
+                        getDefaultDrawerItem().withName("Klassen- / Kurswahl").withIcon(R.drawable.ic_check).withIdentifier(3),
                         new DividerDrawerItem(),
-                        new PrimaryDrawerItem().withName("Allgemeiner Vertretungsplan").withIcon(R.drawable.ic_vertretung).withIconTintingEnabled(true).withIdentifier(4),
+                        getDefaultDrawerItem().withName("Allgemeiner Vertretungsplan").withIcon(R.drawable.ic_vertretung).withIdentifier(4),
                         new DividerDrawerItem(),
-                        new PrimaryDrawerItem().withName("Einstellungen").withIcon(R.drawable.ic_settings).withIconTintingEnabled(true).withIdentifier(11),
-                        new PrimaryDrawerItem().withName("Feedback").withIcon(R.drawable.ic_feedback).withIconTintingEnabled(true).withIdentifier(12),
-                        new PrimaryDrawerItem().withName("Infos").withIcon(R.drawable.ic_info).withIconTintingEnabled(true).withIdentifier(13)
+                        getDefaultDrawerItem().withName("Einstellungen").withIcon(R.drawable.ic_settings).withIdentifier(11),
+                        getDefaultDrawerItem().withName("Feedback").withIcon(R.drawable.ic_feedback).withIdentifier(12),
+                        getDefaultDrawerItem().withName("Infos").withIcon(R.drawable.ic_info).withIdentifier(13)
                 )
                 .withOnDrawerItemClickListener(new Drawer.OnDrawerItemClickListener() {
                     @Override
-                    public boolean onItemClick(AdapterView<?> adapterView, View view, int position, long l, IDrawerItem drawerItem) {
+                    public boolean onItemClick(View view, int position, IDrawerItem drawerItem) {
                         int identifier = drawerItem.getIdentifier();
                         if (identifier < 10) {
                             if (currentlySelected != position) {
@@ -184,7 +172,16 @@ public class MainActivity extends AppCompatActivity {
         LayoutInflater inflater = getLayoutInflater();
         View scrollView = inflater.inflate(R.layout.infotext_dialog, null);
         TextView textView = (TextView) scrollView.findViewById(R.id.textView);
-        textView.setText(Html.fromHtml(getString(R.string.infoDialog_text)));
+        String infoHtml = getString(R.string.infoDialog_text);
+        String versionName = "";
+        try {
+            versionName = getPackageManager()
+                    .getPackageInfo(getPackageName(), 0).versionName;
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+        }
+        infoHtml = String.format(infoHtml, versionName);
+        textView.setText(Html.fromHtml(infoHtml));
         textView.setMovementMethod(LinkMovementMethod.getInstance()); //Link klickbar machen
 
         AlertDialog.Builder infoDialogB = new AlertDialog.Builder(this);
@@ -211,7 +208,7 @@ public class MainActivity extends AppCompatActivity {
         String url = "http://conradowatz.de/android-apps/jkg-vertretung-support/";
         Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
         intent.putExtra(EXTRA_CUSTOM_TABS_SESSION_ID, -1); // -1 or any valid session id returned from newSession() call
-        intent.putExtra(EXTRA_CUSTOM_TABS_TOOLBAR_COLOR, getResources().getColor(R.color.primary));
+        intent.putExtra(EXTRA_CUSTOM_TABS_TOOLBAR_COLOR, ContextCompat.getColor(this, R.color.primary));
         startActivity(intent);
 
     }
@@ -228,7 +225,6 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * Wechselt das angezeigte Fragment
-     *
      * @param identifier der Fragment identifier
      */
     private void setFragment(int identifier) {
@@ -236,32 +232,18 @@ public class MainActivity extends AppCompatActivity {
         FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
 
         if (identifier == 1) {
-            //if (stundenplanFragment == null) {
-            stundenplanFragment = StundenplanFragment.newInstance(StundenplanFragment.MODE_STUNDENPLAN);
-            //}
             ft.replace(R.id.container, StundenplanFragment.newInstance(StundenplanFragment.MODE_STUNDENPLAN)).commit();
             getSupportActionBar().setTitle("Mein Stundenplan");
         } else if (identifier == 2) {
-            //if (vertretungsplanFragment == null) {
-            vertretungsplanFragment = StundenplanFragment.newInstance(StundenplanFragment.MODE_VERTRETUNGSPLAN);
-            //}
             ft.replace(R.id.container, StundenplanFragment.newInstance(StundenplanFragment.MODE_VERTRETUNGSPLAN)).commit();
             getSupportActionBar().setTitle("Mein Vertretungsplan");
         } else if (identifier == 3) {
-            //if (kurswahlFragment == null) {
-                kurswahlFragment = new KurswahlFragment();
-            //}
             ft.replace(R.id.container, new KurswahlFragment()).commit();
             getSupportActionBar().setTitle("Klassen- / Kurswahl");
         } else if (identifier == 4) {
-            //if (allgVertretungsplanFragment == null) {
-            allgVertretungsplanFragment = StundenplanFragment.newInstance(StundenplanFragment.MODE_ALGVERTRETUNGSPLAN);
-            //}
             ft.replace(R.id.container, StundenplanFragment.newInstance(StundenplanFragment.MODE_ALGVERTRETUNGSPLAN)).commit();
             getSupportActionBar().setTitle("Allgemeiner Vertretungsplan");
         }
-
-        activeFragmentIdentifier = identifier;
     }
 
     /**
@@ -276,6 +258,8 @@ public class MainActivity extends AppCompatActivity {
             startActivityForResult(startLoginIntent, result);
         } else {
             //Ansonsten Daten laden
+            username = PreferenceReader.readStringFromPreferences(this, "username", "");
+            password = PreferenceReader.readStringFromPreferences(this, "password", "");
             loadData();
         }
     }
@@ -306,8 +290,39 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Läd die Daten entweder aus dem Speicher oder mit der LoadingActivity
-     * verfährt außerdem nach dem vom Nutzer in den Einstellungen festgelegten Regeln zum weiteren Laden
+     * Wird aufgerufen wenn die LoadingActivity beendet wurde und die ersten 3 tage geladen hat
+     */
+    private void loadingDone() {
+
+        showStartScreen();
+
+        //Daten als Saved Session speichern
+        VertretungsAPI.saveDataToFile(this);
+
+        //mehr Tage im Hintergrund laden
+        int dayCount = Integer.parseInt(PreferenceReader.readStringFromPreferences(this, "maxDaysToFetchStart", "14"));
+        if (VertretungsData.getsInstance().getTagList().size() == 3 && dayCount > 3) {
+
+            //Ladesymbol zeigen
+            showRefresh();
+
+            downloadTagList(dayCount - 3, 3);
+        }
+    }
+
+    /**
+     * Wird aufgerufen wenn die LoginActivity beendet wurde und sich erfolgreich eingeloggt hat
+     */
+    private void loggedIn() {
+
+        username = PreferenceReader.readStringFromPreferences(this, "username", "");
+        password = PreferenceReader.readStringFromPreferences(this, "password", "");
+        loadData();
+    }
+
+    /**
+     * Läd die Daten entweder aus dem Speicher oder startet die LoadingActivity
+     * verfährt außerdem nach den vom Nutzer in den Einstellungen festgelegten Regeln zum weiteren Laden
      */
     private void loadData() {
 
@@ -315,32 +330,27 @@ public class MainActivity extends AppCompatActivity {
         final File savedSessionFile = new File(getFilesDir(), VertretungsAPI.SAVE_FILE_NAE);
         if (savedSessionFile.exists()) {
 
-            String username = PreferenceReader.readStringFromPreferences(this, "username", "");
-            String password = PreferenceReader.readStringFromPreferences(this, "password", "");
-
             //Saved Session laden
             final MainActivity context = this;
-            VertretungsAPI.createFromFile(
-                    this, username, password, new VertretungsAPI.CreateFromFileHandler() {
+            VertretungsAPI.createDataFromFile(
+                    this, new VertretungsAPI.CreateDataFromFileListener() {
                         @Override
-                        public void onCreated(VertretungsAPI myVertretungsAPI) {
+                        public void onCreated() {
 
                             //Wenn die Tage nicht mehr aktuell sind, neue laden
-                            if (myVertretungsAPI.getTagList().size() == 0) {
-                                savedSessionFile.delete();
+                            if (VertretungsData.getsInstance().getTagList().size() == 0) {
+                                boolean deleted = savedSessionFile.delete();
                                 loadData();
                                 return;
                             }
 
                             //wenn es fertig ist, Fragment öffnen
-                            vertretungsAPI = myVertretungsAPI;
                             showStartScreen();
 
                             //Daten aktualisieren aus dem Interwebs
                             boolean doRefresh = PreferenceReader.readBooleanFromPreferences(context, "doRefreshAtStart", true);
                             if (doRefresh) {
 
-                                isRefreshing = true;
                                 showRefresh();
                                 int dayCount = Integer.parseInt(PreferenceReader.readStringFromPreferences(context, "maxDaysToFetchStart", "14"));
                                 redownloadData(dayCount);
@@ -354,7 +364,7 @@ public class MainActivity extends AppCompatActivity {
                             //Falls es einnen Fehler gab (z.B. neue App Version nicht mit Saved Session kompatibel), neu herunterladen
                             Log.e("JKGDEBUG", "Error loading data from storage. Redownload it...");
                             throwable.printStackTrace();
-                            savedSessionFile.delete();
+                            boolean deleted = savedSessionFile.delete();
                             loadData();
                         }
                     }
@@ -367,37 +377,6 @@ public class MainActivity extends AppCompatActivity {
             final int result = 1;
             startActivityForResult(startLoadingIntent, result);
 
-            eventBus.register(this);
-
-        }
-
-    }
-
-    /**
-     * Leitet das Anzeigen der Daten ein
-     * wird gecalled, wenn die LoadingActivity Daten sendet - z.B. beim ersten Start der App
-     */
-    public void onEvent(VertretungsAPI event) {
-
-        vertretungsAPI = event;
-        eventBus.unregister(this);
-
-        //Falls die Activity noch nicht wieder aktiv ist, kann kein Fragment angezeigt werdem, in diesem Fall wird dies nach onResume getan
-        if (isActivityActive) showStartScreen();
-        else showStartScreenInResume = true;
-
-        //Daten als Saved Session speichern
-        vertretungsAPI.saveToFile(this);
-
-        //mehr Tage im Hintergrund laden
-        int dayCount = Integer.parseInt(PreferenceReader.readStringFromPreferences(this, "maxDaysToFetchStart", "14"));
-        if (vertretungsAPI.getTagList().size() == 3 && dayCount > 3) {
-
-            //Ladesymbol zeigen
-            showRefresh();
-            isRefreshing = true;
-
-            downloadTagList(dayCount - 3, 3);
         }
 
     }
@@ -411,28 +390,25 @@ public class MainActivity extends AppCompatActivity {
     private void downloadTagList(int days, final int skipDays) {
 
         final MainActivity context = this;
-        vertretungsAPI.makeTagList(days, skipDays, new VertretungsAPI.GetDaysHandler() {
+        new VertretungsAPI(username, password).downloadDays(days, skipDays, new VertretungsAPI.DownloadDaysListener() {
 
             @Override
             public void onFinished() {
 
-                //Wenn alle verfügbaren Tage geladen wurden
-
                 //Wenn Tage geladen wurden, diese speichern
-                if (vertretungsAPI.getTagList().size() > skipDays)
-                    vertretungsAPI.saveToFile(context);
+                if (VertretungsData.getsInstance().getTagList().size() > skipDays)
+                    VertretungsAPI.saveDataToFile(context);
 
                 //Ladesymbol anhalten
-                isRefreshing = false;
                 stopRefresh();
 
             }
 
             @Override
-            public void onDayAdded() {
+            public void onDayAdded(int position) {
 
                 //Fragments aktualisieren
-                informFragmentsDayAdded();
+                informFragmentsDayAdded(position);
             }
 
             @Override
@@ -475,7 +451,6 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
 
-                isRefreshing = true;
                 showRefresh();
                 int dayCount = Integer.parseInt(PreferenceReader.readStringFromPreferences(context, "maxDaysToFetch", "14"));
                 redownloadData(dayCount);
@@ -499,19 +474,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Informiert die Fragments, dass ein Tag hinzugefügt wurde
+     * Informiert die Fragments, dass ein Tag hinzugefügt bzw geupdatet wurde
+     * @param position welcher Tag wurde hinzugefügt / geupdatet
      */
-    private void informFragmentsDayAdded() {
+    private void informFragmentsDayAdded(int position) {
 
-        if (stundenplanFragment != null) {
-            stundenplanFragment.onDayAdded();
-        }
-        if (vertretungsplanFragment != null) {
-            vertretungsplanFragment.onDayAdded();
-        }
-        if (allgVertretungsplanFragment != null) {
-            allgVertretungsplanFragment.onDayAdded();
-        }
+        eventBus.post(new DayUpdatedEvent(position));
 
     }
 
@@ -524,19 +492,21 @@ public class MainActivity extends AppCompatActivity {
             case "Exit":            //Anwendung schließen, falls von Activity gewünscht
                 finish();
                 break;
-            case "LoggedIn":        //Login Activity hat erfolgreich eingeloggt
-                loadData();
+            case "LoggedIn":        //LoginActivity hat erfolgreich eingeloggt
+                loggedIn();
                 break;
-            case "ReLog":           //Falls die Loading Activity neu einloggen will
+            case "LoadingDone":     //LoadingActivity hat erfolgreich alles geladen
+                loadingDone();
+                break;
+            case "ReLog":           //LoadingActivity fordert neu einloggen
                 relog();
-                eventBus.unregister(this);
                 break;
         }
 
     }
 
     /**
-     * Löscht die Benutzerdaten und zeigt LoginActivity
+     * Löscht die Benutzerdaten und initialisert das Laden neu
      */
     private void relog() {
 
@@ -547,19 +517,16 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    public Object onRetainCustomNonConfigurationInstance() {
-
-        return vertretungsAPI;
-    }
-
-    @Override
     public boolean onCreateOptionsMenu(Menu menu) {
 
         getMenuInflater().inflate(R.menu.menu_main, menu);
 
         this.menu = menu; //Menu für alle Methoden verfügbar machen
 
+        Log.d("JKGDEBUG", "options menu, isRefreshing: " + isRefreshing);
+
         if (isRefreshing) { //Falls noch Daten geladen werden, das auch zeigen
+            isRefreshing = false;
             showRefresh();
         }
 
@@ -585,16 +552,13 @@ public class MainActivity extends AppCompatActivity {
      */
     private void refreshClicked() {
 
-        if (isRefreshing) {
-            return;
-        }
+        if (isRefreshing) return;
 
         //Analytics
         MyApplication analytics = (MyApplication) getApplication();
         analytics.fireEvent("Toolbar", "Refresh");
 
         showRefresh();
-        isRefreshing = true;
 
         //Daten im Hintergrund laden
         int dayCount = Integer.parseInt(PreferenceReader.readStringFromPreferences(this, "maxDaysToFetchRefresh", "14"));
@@ -610,11 +574,11 @@ public class MainActivity extends AppCompatActivity {
     private void redownloadData(int dayCount) {
 
         final MainActivity context = this;
-        vertretungsAPI.getAllInfo(dayCount, new VertretungsAPI.AsyncVertretungsResponseHandler() {
+        new VertretungsAPI(username, password).getAllInfo(dayCount, new VertretungsAPI.AllInfoResponseListener() {
 
             @Override
             public void onSuccess() {
-                if (vertretungsAPI.getTagList().size() > 0) {
+                if (VertretungsData.getsInstance().getTagList().size() > 0) {
 
                     Toast.makeText(context, "Daten erfolgreich aktualisiert", Toast.LENGTH_SHORT).show();
                     onFinished();
@@ -634,17 +598,15 @@ public class MainActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onDayAdded() {
+            public void onDayAdded(int position) {
 
-                informFragmentsDayAdded();
+                informFragmentsDayAdded(position);
             }
 
             @Override
             public void onKlassenListFinished() {
 
-                if (kurswahlFragment != null) {
-                    kurswahlFragment.onKlassenListUpdated();
-                }
+                eventBus.post(new KlassenlistUpdatedEvent());
             }
 
             @Override
@@ -665,9 +627,8 @@ public class MainActivity extends AppCompatActivity {
 
             private void onFinished() {
 
-                vertretungsAPI.saveToFile(context);
+                VertretungsAPI.saveDataToFile(context);
                 stopRefresh();
-                isRefreshing = false;
             }
         });
 
@@ -691,6 +652,8 @@ public class MainActivity extends AppCompatActivity {
 
         item.setActionView(iv);
 
+        isRefreshing = true;
+        PreferenceReader.saveBooleanToPrefernces(this, "isRefreshing", true);
     }
 
     /**
@@ -700,11 +663,13 @@ public class MainActivity extends AppCompatActivity {
 
         if (menu == null) return;
         MenuItem item = menu.findItem(R.id.action_refresh);
-
+        if (item.getActionView() == null) return;
         //Das Refresh Item zurücktauschen
         item.getActionView().clearAnimation();
         item.setActionView(null);
 
+        isRefreshing = false;
+        PreferenceReader.saveBooleanToPrefernces(this, "isRefreshing", false);
     }
 
     @Override
@@ -723,11 +688,17 @@ public class MainActivity extends AppCompatActivity {
 
         outState.putInt("selection", navigationDrawer.getCurrentSelection());
         outState.putInt("currentlySelected", currentlySelected);
-        outState.putInt("activeFragmentIdentifier", activeFragmentIdentifier);
         outState.putCharSequence("title", toolbar.getTitle());
-        outState.putBoolean("isRefreshing", isRefreshing);
         outState.putBoolean("isInfoDialog", isInfoDialog);
         outState.putBoolean("isNoAccesDialog", isNoAccesDialog);
+        outState.putString("username", username);
+        outState.putString("password", password);
+        PreferenceReader.saveBooleanToPrefernces(this, "isRefreshing", isRefreshing);
         super.onSaveInstanceState(outState);
+    }
+
+    @Override
+    public Object onRetainCustomNonConfigurationInstance() {
+        return VertretungsData.getsInstance();
     }
 }

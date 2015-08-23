@@ -5,10 +5,9 @@ import android.app.Activity;
 import android.content.Context;
 import android.util.Log;
 
-import com.loopj.android.http.AsyncHttpClient;
-import com.loopj.android.http.TextHttpResponseHandler;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
 
-import org.apache.http.Header;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.xmlpull.v1.XmlPullParser;
@@ -42,11 +41,16 @@ public class VertretungsAPI {
 
     public static String SAVE_FILE_NAE = "savedSession.json";
 
-    private AsyncHttpClient client = new AsyncHttpClient();
+    private String username;
+    private String password;
 
-    private ArrayList<Klasse> klassenList;
-    private ArrayList<Date> freieTageList;
-    private ArrayList<Tag> tagList;
+    private int pendingDownloads = 0;
+
+    public VertretungsAPI(String username, String password) {
+
+        this.username = username;
+        this.password = password;
+    }
 
     /**
      * Prüft, ob die Benutzerdaten stimmen
@@ -55,600 +59,35 @@ public class VertretungsAPI {
      * @param password             das Passwort
      * @param loginResponseHandler ein Handler um die Antwort zu handhaben
      */
-    public void checkLogin(String username, String password, final AsyncLoginResponseHandler loginResponseHandler) {
+    public static void checkLogin(String username, String password, final AsyncLoginResponseListener loginResponseHandler) {
 
-        client.setBasicAuth(username, password);
-        client.get("http://kepler.c.sn.schule.de/stuplanindiware/VmobilS/mobdaten/Klassen.xml", new TextHttpResponseHandler() {
+        String url = "http://kepler.c.sn.schule.de/stuplanindiware/VmobilS/mobdaten/Klassen.xml";
+        AuthedStringRequest request = new AuthedStringRequest(url, new Response.Listener<String>() {
             @Override
-            public void onFailure(int statusCode, Header[] headers, String responseString, Throwable throwable) {
-                loginResponseHandler.onLoginFailed(throwable);
-            }
-
-            @Override
-            public void onSuccess(int statusCode, Header[] headers, String responseString) {
+            public void onResponse(String response) {
                 loginResponseHandler.onLoggedIn();
             }
-        });
-    }
-
-    /**
-     * Wandelt die von HttpClient übergebenen Byte Werte in Progress um
-     *
-     * @param bytesWritten
-     * @param totalSize
-     * @return eine Prozent Zahl von 0-100; -1 bei Fehlern
-     */
-    private double bytesToProgress(long bytesWritten, long totalSize) {
-
-        return (totalSize > 0) ? (bytesWritten * 1.0 / totalSize) * 100 : -1;
-    }
-
-    /**
-     * Fragt nacheinander alle Informationen ab: klassenList, freieTageList, tagList
-     * @param dayCount wie viele Tage maximal abgefragt werden
-     * @param responseHandler ein Handler um die Antwort zu handhaben
-     */
-    public void getAllInfo(final int dayCount, final AsyncVertretungsResponseHandler responseHandler) {
-
-        //KlassenList
-        client.get("http://kepler.c.sn.schule.de/stuplanindiware/VmobilS/mobdaten/Klassen.xml", new TextHttpResponseHandler() {
+        }, new Response.ErrorListener() {
             @Override
-            public void onFailure(int statusCode, Header[] headers, String responseString, Throwable throwable) {
-                if (statusCode == 401) {
-                    responseHandler.onNoAccess();
-                } else {
-                    responseHandler.onNoConnection();
-                }
-            }
-
-            @Override
-            public void onProgress(long bytesWritten, long totalSize) {
-                responseHandler.onProgress(bytesToProgress(bytesWritten, totalSize) / 7);
-            }
-
-            @Override
-            public void onSuccess(int statusCode, Header[] headers, String responseString) {
-
-                //Klassenliste
-                try {
-                    klassenList = makeKlassen(responseString);
-                } catch (Exception e) {
-                    responseHandler.onOtherError(e);
-                    return;
-                }
-                responseHandler.onKlassenListFinished();
-
-                //freie Tage
-                try {
-                    freieTageList = makeFreieTage(responseString);
-                } catch (Exception e) {
-                    responseHandler.onOtherError(e);
-                    return;
-                }
-
-                //Tag Liste
-                makeTagList(dayCount, 0, new GetDaysHandler() {
-                    @Override
-                    public void onFinished() {
-                        responseHandler.onSuccess();
-                    }
-
-                    @Override
-                    public void onProgress(double progress) {
-                        responseHandler.onProgress(100.0 / 7.0 + (6.0 / 7.0) * progress);
-                    }
-
-                    @Override
-                    public void onDayAdded() {
-
-                        responseHandler.onDayAdded();
-                    }
-
-                    @Override
-                    public void onError(Throwable throwable) {
-                        responseHandler.onOtherError(throwable);
-                    }
-                });
-
+            public void onErrorResponse(VolleyError error) {
+                loginResponseHandler.onLoginFailed(error.getCause());
             }
         });
-
-    }
-
-    public ArrayList<Klasse> getKlassenList() {
-        return klassenList;
-    }
-
-    public ArrayList<Date> getFreieTageList() {
-        return freieTageList;
-    }
-
-    public ArrayList<Tag> getTagList() {
-        return tagList;
-    }
-
-    public VertretungsAPI() {
-
-    }
-
-    public VertretungsAPI(String username, String password) {
-        client.setBasicAuth(username, password);
-    }
-
-    private ArrayList<Klasse> makeKlassen(String xml) throws XmlPullParserException, IOException {
-
-        XmlPullParserFactory xmlPullParserFactory = XmlPullParserFactory.newInstance();
-        XmlPullParser pullParser = xmlPullParserFactory.newPullParser();
-        InputStream is = new ByteArrayInputStream(xml.getBytes("UTF-8"));
-        pullParser.setInput(is, "UTF-8");
-
-        ArrayList<Klasse> klassenList = new ArrayList<>();
-        ArrayList<Kurs> currentKursList = new ArrayList<>();
-        Klasse currentKlasse = null;
-
-        int event = pullParser.getEventType();
-        while (event != XmlPullParser.END_DOCUMENT) {
-
-            String name = pullParser.getName();
-            switch (event) {
-                case XmlPullParser.START_TAG:
-                    if (name.equals("Kurz")) {
-                        currentKlasse = new Klasse(pullParser.nextText());
-                        currentKursList = new ArrayList<>();
-                    }
-                    if (name.equals("KKz")) {
-                        String lehrer = pullParser.getAttributeValue(null, "KLe");
-                        currentKursList.add(new Kurs(pullParser.nextText(), lehrer));
-                    }
-                    break;
-                case XmlPullParser.END_TAG:
-                    if (name.equals("Kurse")) {
-                        currentKlasse.setKurse(currentKursList);
-                        klassenList.add(currentKlasse);
-                    }
-                    break;
-            }
-            event = pullParser.next();
-
-        }
-
-        return klassenList;
-
-    }
-
-    private ArrayList<Date> makeFreieTage(String xml) throws XmlPullParserException, IOException {
-
-        XmlPullParserFactory xmlPullParserFactory = XmlPullParserFactory.newInstance();
-        XmlPullParser pullParser = xmlPullParserFactory.newPullParser();
-        InputStream is = new ByteArrayInputStream(xml.getBytes("UTF-8"));
-        pullParser.setInput(is, "UTF-8");
-
-        ArrayList<Date> dateList = new ArrayList<>();
-
-        int event = pullParser.getEventType();
-        boolean abbruch = false;
-        while (event != XmlPullParser.END_DOCUMENT && !abbruch) {
-
-            String name = pullParser.getName();
-            switch (event) {
-                case XmlPullParser.START_TAG:
-                    if (name.equals("ft")) {
-                        String dateString = pullParser.nextText();
-                        Date date = new SimpleDateFormat("yyMMdd").parse(dateString, new ParsePosition(0));
-                        dateList.add(date);
-                    }
-                    break;
-                case XmlPullParser.END_TAG:
-                    if (name.equals("freietage")) {
-                        abbruch = true;
-                    }
-                    break;
-            }
-            event = pullParser.next();
-
-        }
-
-        try {
-            Date date = new SimpleDateFormat("yyMMdd").parse("150615");
-            dateList.add(date);
-        } catch (ParseException e) {
-            e.printStackTrace();
-        }
-
-        return dateList;
-
+        request.setBasicAuth(username, password);
+        VolleySingelton.getsInstance().getRequestQueue().add(request);
     }
 
     /**
-     * berechnet den nächsten Schultag anhand von Wochenenden und freien Tagen
-     * @param startDate Datum ab dem geschaut wird
-     * @return Datum des nächsten Schultages
-     */
-    private Date nextSchoolDay(Date startDate) {
-
-        Calendar nextCalendar = Calendar.getInstance();
-        nextCalendar.setTime(startDate);
-        Date nextDate;
-
-        do {
-            nextCalendar.add(Calendar.DAY_OF_YEAR, 1);
-            nextDate = nextCalendar.getTime();
-
-        } while (isntSchoolDay(nextDate));
-
-        return nextDate;
-
-    }
-
-    private boolean isntSchoolDay(Date date) {
-
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(date);
-
-        int dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK);
-
-        return (dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY || freieTageList.contains(date));
-    }
-
-    /**
-     * Fragt Stundenplan und Vertretungsplan ab und fügt diese der TagList hinzu
-     * @param count wieviele Tage maximal abgefragt werden
-     * @param skip wieviele Schultage sollen ab heute übersprungen werden
-     * @param responseHandler ein Handler um die Antwort zu handhaben
-     */
-    public void makeTagList(final int count, int skip, final GetDaysHandler responseHandler) {
-
-        Date startDate = Calendar.getInstance().getTime();
-
-        if (isntSchoolDay(startDate)) skip++;
-
-        for (int i = 0; i < skip; i++) {
-            startDate = nextSchoolDay(startDate);
-        }
-
-        if (tagList == null)
-            tagList = new ArrayList<>();
-
-        downloadDays(count - 1, startDate, new DownloadDaysHandler() {
-            @Override
-            public void onFinished() {
-                responseHandler.onFinished();
-            }
-
-            @Override
-            public void onProgress(int currentCount, double progress) {
-                responseHandler.onProgress((count - currentCount) / count * progress);
-            }
-
-            @Override
-            public void onDayAdded() {
-                responseHandler.onDayAdded();
-            }
-
-            @Override
-            public void onError(Throwable throwable) {
-                responseHandler.onError(throwable);
-            }
-        });
-
-
-    }
-
-    /**
-     * Läd einen spezifischen Tag herunter und fügt diesen der tagList hinzu bzw. updatet ihn
-     * @param count wieviele Tage insgasamm heruntergeladen werden sollen
-     * @param date mit welchem Tag begonnen werden soll
-     * @param responseHandler ein Handler um die Antwort zu handhaben
-     */
-    private void downloadDays(final int count, final Date date, final DownloadDaysHandler responseHandler) {
-
-        String dateString = new SimpleDateFormat("yyyMMdd").format(date);
-        String stundenPlanUrl = "http://kepler.c.sn.schule.de/stuplanindiware/VmobilS/mobdaten/PlanKl" + dateString + ".xml";
-        final String vertretungsPlanUrl = "http://kepler.c.sn.schule.de/stuplanindiware/VplanonlineS/vdaten/VplanKl" + dateString + ".xml";
-        //Log.d("JKGDEBUG", "DownloadURL 1: " + stundenPlanUrl);
-        //Log.d("JKGDEBUG", "DownloadURL 2: " + vertretungsPlanUrl);
-
-        client.get(stundenPlanUrl, new TextHttpResponseHandler() {
-            @Override
-            public void onFailure(int statusCode, Header[] headers, String responseString, Throwable throwable) {
-
-                //kann nicht abgerufen werden -> beenden
-                responseHandler.onFinished();
-                if (statusCode != 401) {
-                    //wenn Tag nicht vorhanden Fehlercode=401; wenn etwas anderes -> unbekannter Fehler
-                    responseHandler.onError(throwable);
-                }
-            }
-
-            @Override
-            public void onProgress(long bytesWritten, long totalSize) {
-
-                double progress = bytesToProgress(bytesWritten, totalSize);
-                responseHandler.onProgress(count, progress / 2);
-            }
-
-            @Override
-            public void onSuccess(int statusCode, Header[] headers, String responseString) {
-
-                try {
-                    final ArrayList<StuPlaKlasse> currentStundenList = makeStundenPlanList(responseString);
-                    final String zeitStempel = responseString.substring(responseString.indexOf("<zeitstempel>") + 13, responseString.indexOf("</zeitstempel>"));
-
-                    client.get(vertretungsPlanUrl, new TextHttpResponseHandler() {
-                        @Override
-                        public void onFailure(int statusCode, Header[] headers, String responseString, Throwable throwable) {
-
-                            //Falls Vertretungsplan nicht da ist, trotzdem weiter machen
-                            onNoVertretung();
-
-                            if (statusCode != 401) {
-                                responseHandler.onError(throwable);
-                            }
-                        }
-
-                        @Override
-                        public void onProgress(long bytesWritten, long totalSize) {
-                            double progress = bytesToProgress(bytesWritten, totalSize);
-                            responseHandler.onProgress(count, 50 + progress / 2);
-                        }
-
-                        @Override
-                        public void onSuccess(int statusCode, Header[] headers, String responseString) {
-
-                            try {
-
-                                ArrayList<Vertretung> vertretungsList = makeVertretungsList(responseString);
-                                vertretungsList = enhanceVertretungsList(vertretungsList, currentStundenList);
-
-                                String datumString = responseString.substring(responseString.indexOf("<titel>") + 7, responseString.indexOf("</titel>"));
-                                Tag tag = new Tag(date, datumString, zeitStempel, currentStundenList, vertretungsList);
-                                addTag(tag);
-
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                                responseHandler.onFinished();
-                                responseHandler.onError(e);
-                            }
-
-                        }
-
-                        public void onNoVertretung() {
-
-                            try {
-
-                                ArrayList<Vertretung> vertretungsList = enhanceVertretungsList(new ArrayList<Vertretung>(), currentStundenList);
-
-                                String datumString = new SimpleDateFormat("EEEE, dd. MMMM yyyy", Locale.GERMAN).format(date);
-                                Tag tag = new Tag(date, datumString, zeitStempel, currentStundenList, vertretungsList);
-                                addTag(tag);
-
-
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                                responseHandler.onFinished();
-                                responseHandler.onError(e);
-                            }
-
-                        }
-
-                        /**
-                         * Fügt einen Tag zur Liste hinzu bzw. updated ihn falls schon vorhanden
-                         *
-                         * @param tag Der hinzu zu fügende Tag
-                         */
-                        private void addTag(Tag tag) {
-
-                            //falls Tag schon vorhanden, updaten
-                            boolean updated = false;
-                            for (int i = 0; i < tagList.size(); i++) {
-                                Calendar calendar1 = Calendar.getInstance();
-                                calendar1.setTime(tagList.get(i).getDatum());
-                                Calendar calendar2 = Calendar.getInstance();
-                                calendar2.setTime(tag.getDatum());
-                                if (calendar1.get(Calendar.DAY_OF_YEAR) == calendar2.get(Calendar.DAY_OF_YEAR)) {
-                                    tagList.remove(i);
-                                    tagList.add(i, tag);
-                                    updated = true;
-                                    break;
-                                }
-                            }
-                            //falls nicht, hinten anhängen
-                            if (!updated) tagList.add(tag);
-                            responseHandler.onDayAdded();
-
-                            //nächsten Tag abfragen, falls gewünscht, ansonsten beenden
-                            if (count > 0) {
-                                downloadDays(count - 1, nextSchoolDay(date), responseHandler);
-                            } else {
-                                responseHandler.onFinished();
-                            }
-
-                        }
-                    });
-
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    responseHandler.onFinished();
-                    responseHandler.onError(e);
-                }
-
-            }
-        });
-
-    }
-
-    private ArrayList<StuPlaKlasse> makeStundenPlanList(String xml) throws XmlPullParserException, IOException {
-
-        XmlPullParserFactory xmlPullParserFactory = XmlPullParserFactory.newInstance();
-        XmlPullParser pullParser = xmlPullParserFactory.newPullParser();
-        InputStream is = new ByteArrayInputStream(xml.getBytes("UTF-8"));
-        pullParser.setInput(is, "UTF-8");
-
-        ArrayList<StuPlaKlasse> stundenPlanList = new ArrayList<>();
-        StuPlaKlasse currentStuPlaKlasse = null;
-        ArrayList<Stunde> currentStundeList = null;
-        Stunde currentStunde = null;
-
-        int event = pullParser.getEventType();
-        while (event != XmlPullParser.END_DOCUMENT) {
-
-            String name = pullParser.getName();
-            switch (event) {
-                case XmlPullParser.START_TAG:
-                    if (name.equals("Kurz")) {
-                        currentStuPlaKlasse = new StuPlaKlasse();
-                        currentStuPlaKlasse.setName(pullParser.nextText());
-                        currentStundeList = new ArrayList<>();
-                    }
-                    if (name.equals("St")) {
-                        currentStunde = new Stunde();
-                        currentStunde.setStunde(pullParser.nextText());
-                    }
-                    if (name.equals("Fa")) {
-                        currentStunde.setFachg(pullParser.getAttributeCount() > 0);
-                        String fach = pullParser.nextText();
-                        if (fach.startsWith("&nbsp")) {
-                            currentStunde.setFach("");
-                        } else {
-                            currentStunde.setFach(fach);
-                        }
-                    }
-                    if (name.equals("Ku2")) {
-                        currentStunde.setKurs(pullParser.nextText());
-                    }
-                    if (name.equals("Ra")) {
-                        String raum = pullParser.nextText();
-                        if (raum.startsWith("&nbsp")) {
-                            currentStunde.setRaum("");
-                        } else {
-                            currentStunde.setRaum(raum);
-                        }
-                    }
-                    if (name.equals("If")) {
-                        String info = pullParser.nextText();
-                        if (info == null || info.startsWith("&nbsp")) {
-                            currentStunde.setInfo("");
-                        } else {
-                            currentStunde.setInfo(info);
-                        }
-                    }
-                    break;
-                case XmlPullParser.END_TAG:
-                    if (name.equals("Std")) {
-                        currentStundeList.add(currentStunde);
-                    }
-                    if (name.equals("Kl")) {
-                        currentStuPlaKlasse.setStundenList(currentStundeList);
-                        stundenPlanList.add(currentStuPlaKlasse);
-                    }
-                    break;
-            }
-            event = pullParser.next();
-
-        }
-
-        return stundenPlanList;
-
-    }
-
-    private ArrayList<Vertretung> makeVertretungsList(String xml) throws XmlPullParserException, IOException {
-
-        XmlPullParserFactory xmlPullParserFactory = XmlPullParserFactory.newInstance();
-        XmlPullParser pullParser = xmlPullParserFactory.newPullParser();
-        InputStream is = new ByteArrayInputStream(xml.getBytes("UTF-8"));
-        pullParser.setInput(is, "UTF-8");
-
-        ArrayList<Vertretung> vertretungsList = new ArrayList<>();
-        Vertretung vertretung = null;
-
-        int event = pullParser.getEventType();
-        while (event != XmlPullParser.END_DOCUMENT) {
-
-            String name = pullParser.getName();
-            switch (event) {
-                case XmlPullParser.START_TAG:
-                    if (name.equals("klasse")) {
-                        vertretung = new Vertretung();
-                        vertretung.setKlasse(pullParser.nextText());
-                    }
-                    if (name.equals("stunde")) {
-                        vertretung.setStunde(pullParser.nextText());
-                    }
-                    if (name.equals("fach")) {
-                        vertretung.setFach(pullParser.nextText());
-                    }
-                    if (name.equals("raum")) {
-                        vertretung.setRaum(pullParser.nextText());
-                    }
-                    if (name.equals("info")) {
-                        vertretung.setInfo(pullParser.nextText());
-                    }
-                    break;
-                case XmlPullParser.END_TAG:
-                    if (name.equals("aktion")) {
-                        vertretungsList.add(vertretung);
-                    }
-                    break;
-            }
-            event = pullParser.next();
-
-        }
-
-        return vertretungsList;
-
-    }
-
-    /**
-     * Fügt der vertrtungsList Informationen hinzu, die nicht im Vertretungspla, aber im Stundenplan stehen
-     *
-     * @param vertretungsList  die unvollständige vertretungsList
-     * @param stuPlaKlasseList die stundenplanList mit der verglichen wird
-     * @return die vollständige vertretungsList
-     */
-    private ArrayList<Vertretung> enhanceVertretungsList(ArrayList<Vertretung> vertretungsList, ArrayList<StuPlaKlasse> stuPlaKlasseList) {
-
-        for (StuPlaKlasse stuPlaKlasse : stuPlaKlasseList) {
-
-            for (Stunde stunde : stuPlaKlasse.getStundenList()) {
-
-                if (!(stunde.isFachg() || stunde.isRaumg())) continue;
-
-                boolean isInVertretung = false;
-
-                for (Vertretung vertretung : vertretungsList) {
-
-                    if (stunde.getStunde().equals(vertretung.getStunde()) && vertretung.getKlasse().contains(stuPlaKlasse.getName())) {
-                        isInVertretung = true;
-                        break;
-                    }
-
-                }
-
-                if (!isInVertretung) {
-
-                    String stundenName = stuPlaKlasse.getName();
-                    if (stunde.getKurs() != null && !stunde.getKurs().isEmpty()) {
-                        stundenName = stundenName + " / " + stunde.getKurs();
-                    }
-                    vertretungsList.add(new Vertretung(stundenName, stunde.getStunde(), stunde.getFach(), stunde.getRaum(), stunde.getInfo()));
-                }
-
-            }
-
-        }
-
-        return vertretungsList;
-    }
-
-    /**
-     * Speichert den derzeitigen Zustand der VertretungsAPI in den AppSpeicher
+     * Speichert den derzeitigen Zustand der VertretungsData in den AppSpeicher
      * @param context Context zum Zugriff auf den App-Speicher
      */
-    public void saveToFile(final Context context) {
+    public static void saveDataToFile(final Context context) {
 
         new Thread(new Runnable() {
             @Override
             public void run() {
+
+                VertretungsData vertretungsData = VertretungsData.getsInstance();
 
                 try {
 
@@ -656,7 +95,7 @@ public class VertretungsAPI {
 
                     //Klassenliste
                     JSONArray klassenListArray = new JSONArray();
-                    for (Klasse klasse : klassenList) {
+                    for (Klasse klasse : vertretungsData.getKlassenList()) {
                         JSONObject klasseObject = new JSONObject();
                         klasseObject.put("name", klasse.getName());
                         //Kurse
@@ -674,7 +113,7 @@ public class VertretungsAPI {
 
                     //Freie Tage
                     JSONArray freieTageListArray = new JSONArray();
-                    for (Date date : freieTageList) {
+                    for (Date date : vertretungsData.getFreieTageList()) {
                         String stringDate = new SimpleDateFormat("ddMMyyyy").format(date);
                         freieTageListArray.put(stringDate);
                     }
@@ -682,7 +121,7 @@ public class VertretungsAPI {
 
                     //Tage
                     JSONArray tagListArray = new JSONArray();
-                    for (Tag tag : tagList) {
+                    for (Tag tag : vertretungsData.getTagList()) {
                         JSONObject tagObject = new JSONObject();
                         String dateString = new SimpleDateFormat("ddMMyyyy").format(tag.getDatum());
                         tagObject.put("datum", dateString);
@@ -747,36 +186,22 @@ public class VertretungsAPI {
 
     }
 
-    public void setKlassenList(ArrayList<Klasse> klassenList) {
-        this.klassenList = klassenList;
-    }
-
-    public void setFreieTageList(ArrayList<Date> freieTageList) {
-        this.freieTageList = freieTageList;
-    }
-
-    public void setTagList(ArrayList<Tag> tagList) {
-        this.tagList = tagList;
-    }
-
     /**
-     * Erstellt eine VertretungsAPI, wenn diese im AppSpeicher vorhanden ist; läuft in eigenem Thread
-     * @param context die Activity für den handler und als Context für den Zugriff auf den AppSpeicher
-     * @param username Bunutzername
-     * @param password Passwort
-     * @param handler ein Handler, da die Aktion Zeit in anspruch nimmt
+     * Ruft die VertretungsData aus dem App Speicher ab, falls diese vorhanden ist; läuft in eigenem Thread
+     *
+     * @param context                    die Activity für den handler und als Context für den Zugriff auf den AppSpeicher
+     * @param createDataFromFileListener ein Listener für Created / Error
      */
-    public static void createFromFile(final Context context, final String username, final String password, final CreateFromFileHandler handler) {
+    public static void createDataFromFile(final Context context, final CreateDataFromFileListener createDataFromFileListener) {
 
         new Thread(new Runnable() {
             @Override
             public void run() {
 
                 Calendar heute = Calendar.getInstance();
+                VertretungsData vertretungsData = VertretungsData.getsInstance();
 
                 try {
-
-                    final VertretungsAPI vertretungsAPI = new VertretungsAPI(username, password);
 
                     //Read Data
                     FileInputStream inputStream = context.openFileInput(SAVE_FILE_NAE);
@@ -811,7 +236,7 @@ public class VertretungsAPI {
                         ));
 
                     }
-                    vertretungsAPI.setKlassenList(klassenList1);
+                    vertretungsData.setKlassenList(klassenList1);
 
 
                     //Freie Tage
@@ -821,7 +246,7 @@ public class VertretungsAPI {
                         String stringDate = freieTageListArray.getString(i);
                         freieTageList1.add(new SimpleDateFormat("ddMMyyyy").parse(stringDate));
                     }
-                    vertretungsAPI.setFreieTageList(freieTageList1);
+                    vertretungsData.setFreieTageList(freieTageList1);
 
                     //Tage
                     ArrayList<Tag> tagList1 = new ArrayList<>();
@@ -885,12 +310,12 @@ public class VertretungsAPI {
 
                         tagList1.add(tag);
                     }
-                    vertretungsAPI.setTagList(tagList1);
+                    vertretungsData.setTagList(tagList1);
 
                     ((Activity) context).runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            handler.onCreated(vertretungsAPI);
+                            createDataFromFileListener.onCreated();
                         }
                     });
 
@@ -899,7 +324,7 @@ public class VertretungsAPI {
                     ((Activity) context).runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            handler.onError(e);
+                            createDataFromFileListener.onError(e);
                         }
                     });
                 }
@@ -909,14 +334,578 @@ public class VertretungsAPI {
 
     }
 
-    public static abstract class AsyncLoginResponseHandler {
+    /**
+     * Fragt nacheinander alle Informationen ab: klassenList, freieTageList, tagList
+     *
+     * @param dayCount                wie viele Tage maximal abgefragt werden
+     * @param allInfoResponseListener ein Handler um die Antwort zu handhaben
+     */
+    public void getAllInfo(final int dayCount, final AllInfoResponseListener allInfoResponseListener) {
+
+        String url = "http://kepler.c.sn.schule.de/stuplanindiware/VmobilS/mobdaten/Klassen.xml";
+        AuthedStringRequest request = new AuthedStringRequest(url, new Response.Listener<String>() {
+            @Override
+            public void onResponse(String response) {
+
+                VertretungsData vertretungsData = VertretungsData.getsInstance();
+
+                //Klassenliste
+                try {
+                    vertretungsData.setKlassenList(makeKlassen(response));
+                } catch (Exception e) {
+                    allInfoResponseListener.onOtherError(e);
+                    return;
+                }
+                allInfoResponseListener.onKlassenListFinished();
+
+                //freie Tage
+                try {
+                    vertretungsData.setFreieTageList(makeFreieTage(response));
+                } catch (Exception e) {
+                    allInfoResponseListener.onOtherError(e);
+                    return;
+                }
+
+                allInfoResponseListener.onProgress(100 / (dayCount * 2 + 1));
+
+                //Tag Liste
+                downloadDays(dayCount, 0, new DownloadDaysListener() {
+                    @Override
+                    public void onFinished() {
+                        allInfoResponseListener.onSuccess();
+                    }
+
+                    @Override
+                    public void onError(Throwable throwable) {
+                        allInfoResponseListener.onOtherError(throwable);
+                    }
+
+                    @Override
+                    public void onDayAdded(int position) {
+                        allInfoResponseListener.onDayAdded(position);
+                    }
+
+                    @Override
+                    public void onProgress(double progress) {
+                        allInfoResponseListener.onProgress(100 / (dayCount * 2 + 1) + progress / (100 / (dayCount * 2 + 1)));
+                    }
+                });
+
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                if (error.networkResponse.statusCode == 401) {
+                    allInfoResponseListener.onNoAccess();
+                } else {
+                    allInfoResponseListener.onNoConnection();
+                }
+            }
+        });
+        request.setBasicAuth(username, password);
+
+        VolleySingelton.getsInstance().getRequestQueue().add(request);
+    }
+
+    /**
+     * Erzeugt aus dem XML String die klassenlist
+     *
+     * @param xml der XML String
+     * @return die KlassenList
+     * @throws XmlPullParserException es gab einen Fehler bei der Umwandlung
+     * @throws IOException            der XML String ist Fehlerhaft
+     */
+    private ArrayList<Klasse> makeKlassen(String xml) throws XmlPullParserException, IOException {
+
+        XmlPullParserFactory xmlPullParserFactory = XmlPullParserFactory.newInstance();
+        XmlPullParser pullParser = xmlPullParserFactory.newPullParser();
+        InputStream is = new ByteArrayInputStream(xml.getBytes("UTF-8"));
+        pullParser.setInput(is, "UTF-8");
+
+        ArrayList<Klasse> klassenList = new ArrayList<>();
+        ArrayList<Kurs> currentKursList = new ArrayList<>();
+        Klasse currentKlasse = new Klasse("");
+
+        int event = pullParser.getEventType();
+        while (event != XmlPullParser.END_DOCUMENT) {
+
+            String name = pullParser.getName();
+            switch (event) {
+                case XmlPullParser.START_TAG:
+                    if (name.equals("Kurz")) {
+                        currentKlasse = new Klasse(pullParser.nextText());
+                        currentKursList = new ArrayList<>();
+                    }
+                    if (name.equals("KKz")) {
+                        String lehrer = pullParser.getAttributeValue(null, "KLe");
+                        currentKursList.add(new Kurs(pullParser.nextText(), lehrer));
+                    }
+                    break;
+                case XmlPullParser.END_TAG:
+                    if (name.equals("Kurse")) {
+                        currentKlasse.setKurse(currentKursList);
+                        klassenList.add(currentKlasse);
+                    }
+                    break;
+            }
+            event = pullParser.next();
+
+        }
+
+        return klassenList;
+
+    }
+
+    /**
+     * Erzeugt aus dem XML String eine freieTageList
+     *
+     * @param xml der XML String
+     * @return die freieTageList
+     * @throws XmlPullParserException es gab einen Fehler bei der Umwandlung
+     * @throws IOException            der XML String ist Fehlerhaft
+     */
+    private ArrayList<Date> makeFreieTage(String xml) throws XmlPullParserException, IOException {
+
+        XmlPullParserFactory xmlPullParserFactory = XmlPullParserFactory.newInstance();
+        XmlPullParser pullParser = xmlPullParserFactory.newPullParser();
+        InputStream is = new ByteArrayInputStream(xml.getBytes("UTF-8"));
+        pullParser.setInput(is, "UTF-8");
+
+        ArrayList<Date> dateList = new ArrayList<>();
+
+        int event = pullParser.getEventType();
+        boolean abbruch = false;
+        while (event != XmlPullParser.END_DOCUMENT && !abbruch) {
+
+            String name = pullParser.getName();
+            switch (event) {
+                case XmlPullParser.START_TAG:
+                    if (name.equals("ft")) {
+                        String dateString = pullParser.nextText();
+                        Date date = new SimpleDateFormat("yyMMdd").parse(dateString, new ParsePosition(0));
+                        dateList.add(date);
+                    }
+                    break;
+                case XmlPullParser.END_TAG:
+                    if (name.equals("freietage")) {
+                        abbruch = true;
+                    }
+                    break;
+            }
+            event = pullParser.next();
+
+        }
+
+        try {
+            Date date = new SimpleDateFormat("yyMMdd").parse("150615");
+            dateList.add(date);
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+
+        return dateList;
+
+    }
+
+    /**
+     * Berechnet den nächsten Schultag anhand von Wochenenden und der freieTageList
+     * @param startDate Datum ab dem geschaut wird (kann nicht zurückgegeben werden)
+     * @return Datum des nächsten Schultages nach dem startDate
+     */
+    private Date nextSchoolDay(Date startDate) {
+
+        Calendar nextCalendar = Calendar.getInstance();
+        nextCalendar.setTime(startDate);
+        Date nextDate;
+
+        do {
+            nextCalendar.add(Calendar.DAY_OF_YEAR, 1);
+            nextDate = nextCalendar.getTime();
+
+        } while (isntSchoolDay(nextDate));
+
+        return nextDate;
+
+    }
+
+    /**
+     * Gibt zurück ob das gegebene Datum kein Schultag ist
+     * @param date Datum das geprüft werden soll
+     * @return ist der Datum kein Schultag
+     */
+    private boolean isntSchoolDay(Date date) {
+
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(date);
+
+        int dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK);
+
+        return (dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY || VertretungsData.getsInstance().getFreieTageList().contains(date));
+    }
+
+    /**
+     * Läd eine bestimmte Anzahl Tage heruter und fügt sie der tagList hinzu
+     * @param count wieviele Schultage insgasamm heruntergeladen werden sollen
+     * @param skip wie viele Schultage sollen übersprungen werden
+     * @param downloadDaysListener ein Listener für Sucess / Progress / Error
+     */
+    public void downloadDays(final int count, int skip, final DownloadDaysListener downloadDaysListener) {
+
+        Date startDate = Calendar.getInstance().getTime();
+
+        if (isntSchoolDay(startDate)) startDate = nextSchoolDay(startDate);
+
+        for (int i = 0; i < skip; i++) {
+            startDate = nextSchoolDay(startDate);
+        }
+
+        VertretungsData vertretungsData = VertretungsData.getsInstance();
+
+        if (vertretungsData.getTagList() == null)
+            vertretungsData.setTagList(new ArrayList<Tag>());
+
+        final Tag[] tagArray = new Tag[count];
+        Date date = startDate;
+        pendingDownloads = count * 2;
+
+        for (int i = 0; i < count; i++) {
+
+            String dateString = new SimpleDateFormat("yyyMMdd", Locale.GERMAN).format(date);
+            String stundenPlanUrl = "http://kepler.c.sn.schule.de/stuplanindiware/VmobilS/mobdaten/PlanKl" + dateString + ".xml";
+            String vertretungsPlanUrl = "http://kepler.c.sn.schule.de/stuplanindiware/VplanonlineS/vdaten/VplanKl" + dateString + ".xml";
+
+            //Ruft Stundenplan für den tag ab
+
+            final int finalI = i;
+            final int finalSkip = skip;
+            final Date finalDate = date;
+            AuthedStringRequest stundenplanRequest = new AuthedStringRequest(stundenPlanUrl, new Response.Listener<String>() {
+                @Override
+                public void onResponse(String response) {
+
+                    ArrayList<StuPlaKlasse> stundenList = null;
+                    try {
+                        stundenList = makeStundenPlanList(response);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    String zeitStempel = response.substring(response.indexOf("<zeitstempel>") + 13, response.indexOf("</zeitstempel>"));
+
+                    boolean finished = true;
+                    if (tagArray[finalI] == null) {
+                        tagArray[finalI] = new Tag();
+                        finished = false;
+                    }
+
+                    tagArray[finalI].setStuplaKlasseList(stundenList);
+                    tagArray[finalI].setZeitStempel(zeitStempel);
+
+                    if (finished) {
+                        if (tagArray[finalI].getVertretungsList() == null) {
+                            tagArray[finalI].setVertretungsList(createFallbackVerterungsList(stundenList));
+                            String datumString = new SimpleDateFormat("EEEE, dd. MMMM yyyy", Locale.GERMAN).format(finalDate);
+                            tagArray[finalI].setDatumString(datumString);
+                        }
+                        tagArray[finalI].setDatum(finalDate);
+                        addTag(tagArray[finalI], finalI);
+                        downloadDaysListener.onDayAdded(finalI + finalSkip);
+                    }
+
+                    pendingDownloads--;
+                    downloadDaysListener.onProgress((count - pendingDownloads) * 100 / count);
+                    if (pendingDownloads == 0) downloadDaysListener.onFinished();
+
+                }
+            }, new Response.ErrorListener() {
+                @Override
+                public void onErrorResponse(VolleyError error) {
+
+                    if (error.networkResponse.statusCode != 401)
+                        downloadDaysListener.onError(error.getCause());
+
+                    boolean finished = true;
+                    if (tagArray[finalI] == null) {
+                        tagArray[finalI] = new Tag();
+                        finished = false;
+                    }
+
+                    if (finished) {
+                        if (tagArray[finalI].getVertretungsList()!=null) {
+                            addTag(tagArray[finalI], finalI);
+                            downloadDaysListener.onDayAdded(finalI + finalSkip);
+                        }
+                    }
+
+                    pendingDownloads--;
+                    downloadDaysListener.onProgress((count - pendingDownloads) * 100 / count);
+                    if (pendingDownloads == 0) downloadDaysListener.onFinished();
+                }
+            });
+            stundenplanRequest.setBasicAuth(username, password);
+
+            //Ruft Vertretungsplan für den Tag ab
+            AuthedStringRequest vertretungsplanRequest = new AuthedStringRequest(vertretungsPlanUrl, new Response.Listener<String>() {
+                @Override
+                public void onResponse(String response) {
+
+                    ArrayList<Vertretung> vertretungsList = null;
+                    try {
+                        vertretungsList = makeVertretungsList(response);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    String datumString = response.substring(response.indexOf("<titel>") + 7, response.indexOf("</titel>"));
+
+                    boolean finished = true;
+                    if (tagArray[finalI] == null) {
+                        tagArray[finalI] = new Tag();
+                        finished = false;
+                    }
+
+                    tagArray[finalI].setVertretungsList(vertretungsList);
+                    tagArray[finalI].setDatumString(datumString);
+
+                    if (finished) {
+                        if (tagArray[finalI].getVertretungsList() == null) {
+                            tagArray[finalI].setStuplaKlasseList(new ArrayList<StuPlaKlasse>());
+                            String zeitstempelString = response.substring(response.indexOf("<datum>") + 7, response.indexOf("</datum>"));
+                            tagArray[finalI].setZeitStempel(zeitstempelString);
+                        }
+                        tagArray[finalI].setDatum(finalDate);
+                        addTag(tagArray[finalI], finalI);
+                        downloadDaysListener.onDayAdded(finalI + finalSkip);
+                    }
+
+                    pendingDownloads--;
+                    downloadDaysListener.onProgress((count - pendingDownloads) * 100 / count);
+                    if (pendingDownloads == 0) downloadDaysListener.onFinished();
+
+                }
+            }, new Response.ErrorListener() {
+                @Override
+                public void onErrorResponse(VolleyError error) {
+
+                    if (error.networkResponse.statusCode != 401)
+                        downloadDaysListener.onError(error.getCause());
+
+                    boolean finished = true;
+                    if (tagArray[finalI] == null) {
+                        tagArray[finalI] = new Tag();
+                        finished = false;
+                    }
+
+                    if (finished) {
+                        if (tagArray[finalI].getStuplaKlasseList()!=null) {
+                            addTag(tagArray[finalI], finalI);
+                            downloadDaysListener.onDayAdded(finalI + finalSkip);
+                        }
+                    }
+
+                    pendingDownloads--;
+                    downloadDaysListener.onProgress((count - pendingDownloads) * 100 / count);
+                    if (pendingDownloads == 0) downloadDaysListener.onFinished();
+                }
+            });
+            vertretungsplanRequest.setBasicAuth(username, password);
+
+            VolleySingelton.getsInstance().getRequestQueue().add(stundenplanRequest);
+            VolleySingelton.getsInstance().getRequestQueue().add(vertretungsplanRequest);
+
+            date = nextSchoolDay(date);
+
+        }
+
+    }
+
+    /**
+     * Fügt einen Tag zur Liste hinzu bzw. updated ihn falls schon vorhanden
+     * @param tag Der hinzu zu fügende Tag
+     */
+    private void addTag(Tag tag, int position) {
+
+        //falls Tag schon vorhanden, updaten
+        VertretungsData vertretungsData = VertretungsData.getsInstance();
+        if (position < vertretungsData.getTagList().size() && vertretungsData.getTagList().get(position) != null) {
+            vertretungsData.getTagList().remove(position);
+            vertretungsData.getTagList().add(position, tag);
+        } else {
+            vertretungsData.getTagList().add(tag);
+        }
+
+    }
+
+    /**
+     * Erzeugt aus dem XML String eine stundenPlanList
+     *
+     * @param xml der XML String
+     * @return die stundenPlanList
+     * @throws XmlPullParserException es gab einen Fehler bei der Umwandlung
+     * @throws IOException            der XML String ist Fehlerhaft
+     */
+    private ArrayList<StuPlaKlasse> makeStundenPlanList(String xml) throws XmlPullParserException, IOException {
+
+        XmlPullParserFactory xmlPullParserFactory = XmlPullParserFactory.newInstance();
+        XmlPullParser pullParser = xmlPullParserFactory.newPullParser();
+        InputStream is = new ByteArrayInputStream(xml.getBytes("UTF-8"));
+        pullParser.setInput(is, "UTF-8");
+
+        ArrayList<StuPlaKlasse> stundenPlanList = new ArrayList<>();
+        StuPlaKlasse currentStuPlaKlasse = new StuPlaKlasse();
+        ArrayList<Stunde> currentStundeList = new ArrayList<>();
+        Stunde currentStunde = new Stunde();
+
+        int event = pullParser.getEventType();
+        while (event != XmlPullParser.END_DOCUMENT) {
+
+            String name = pullParser.getName();
+            switch (event) {
+                case XmlPullParser.START_TAG:
+                    if (name.equals("Kurz")) {
+                        currentStuPlaKlasse = new StuPlaKlasse();
+                        currentStuPlaKlasse.setName(pullParser.nextText());
+                        currentStundeList = new ArrayList<>();
+                    }
+                    if (name.equals("St")) {
+                        currentStunde = new Stunde();
+                        currentStunde.setStunde(pullParser.nextText());
+                    }
+                    if (name.equals("Fa")) {
+                        currentStunde.setFachg(pullParser.getAttributeCount() > 0);
+                        String fach = pullParser.nextText();
+                        if (fach.startsWith("&nbsp")) {
+                            currentStunde.setFach("");
+                        } else {
+                            currentStunde.setFach(fach);
+                        }
+                    }
+                    if (name.equals("Ku2")) {
+                        currentStunde.setKurs(pullParser.nextText());
+                    }
+                    if (name.equals("Ra")) {
+                        String raum = pullParser.nextText();
+                        if (raum.startsWith("&nbsp")) {
+                            currentStunde.setRaum("");
+                        } else {
+                            currentStunde.setRaum(raum);
+                        }
+                    }
+                    if (name.equals("If")) {
+                        String info = pullParser.nextText();
+                        if (info == null || info.startsWith("&nbsp")) {
+                            currentStunde.setInfo("");
+                        } else {
+                            currentStunde.setInfo(info);
+                        }
+                    }
+                    break;
+                case XmlPullParser.END_TAG:
+                    if (name.equals("Std")) {
+                        currentStundeList.add(currentStunde);
+                    }
+                    if (name.equals("Kl")) {
+                        currentStuPlaKlasse.setStundenList(currentStundeList);
+                        stundenPlanList.add(currentStuPlaKlasse);
+                    }
+                    break;
+            }
+            event = pullParser.next();
+
+        }
+
+        return stundenPlanList;
+
+    }
+
+    /**
+     * Erzeugt aus dem XML String eine vertretungsPlanList
+     * @param xml der XML String
+     * @return die vertretungsplanList
+     * @throws XmlPullParserException es gab einen Fehler bei der Umwandlung
+     * @throws IOException der XML String ist Fehlerhaft
+     */
+    private ArrayList<Vertretung> makeVertretungsList(String xml) throws XmlPullParserException, IOException {
+
+        XmlPullParserFactory xmlPullParserFactory = XmlPullParserFactory.newInstance();
+        XmlPullParser pullParser = xmlPullParserFactory.newPullParser();
+        InputStream is = new ByteArrayInputStream(xml.getBytes("UTF-8"));
+        pullParser.setInput(is, "UTF-8");
+
+        ArrayList<Vertretung> vertretungsList = new ArrayList<>();
+        Vertretung vertretung = new Vertretung();
+
+        int event = pullParser.getEventType();
+        while (event != XmlPullParser.END_DOCUMENT) {
+
+            String name = pullParser.getName();
+            switch (event) {
+                case XmlPullParser.START_TAG:
+                    if (name.equals("klasse")) {
+                        vertretung = new Vertretung();
+                        vertretung.setKlasse(pullParser.nextText());
+                    }
+                    if (name.equals("stunde")) {
+                        vertretung.setStunde(pullParser.nextText());
+                    }
+                    if (name.equals("fach")) {
+                        vertretung.setFach(pullParser.nextText());
+                    }
+                    if (name.equals("raum")) {
+                        vertretung.setRaum(pullParser.nextText());
+                    }
+                    if (name.equals("info")) {
+                        vertretung.setInfo(pullParser.nextText());
+                    }
+                    break;
+                case XmlPullParser.END_TAG:
+                    if (name.equals("aktion")) {
+                        vertretungsList.add(vertretung);
+                    }
+                    break;
+            }
+            event = pullParser.next();
+
+        }
+
+        return vertretungsList;
+
+    }
+
+    /**
+     * Erstellt selbst einen Vertretungsplan aus dem Stundenplan falls dieser nicht abgerufen werden kann
+     * @param stuPlaKlasseList die stundenplanList mit der verglichen wird
+     * @return der Vertretungsplan
+     */
+    private ArrayList<Vertretung> createFallbackVerterungsList(ArrayList<StuPlaKlasse> stuPlaKlasseList) {
+
+        ArrayList<Vertretung> vertretungsList = new ArrayList<>();
+
+        for (StuPlaKlasse stuPlaKlasse : stuPlaKlasseList) {
+
+            for (Stunde stunde : stuPlaKlasse.getStundenList()) {
+
+                if (!(stunde.isFachg() || stunde.isRaumg())) continue;
+
+                String stundenName = stuPlaKlasse.getName();
+                if (stunde.getKurs() != null && !stunde.getKurs().trim().isEmpty()) {
+                    stundenName = stundenName + " / " + stunde.getKurs();
+                }
+
+                vertretungsList.add(new Vertretung(stundenName, stunde.getStunde(), stunde.getFach(), stunde.getRaum(), stunde.getInfo()));
+            }
+
+        }
+
+        return vertretungsList;
+    }
+
+    public static abstract class AsyncLoginResponseListener {
 
         public abstract void onLoggedIn();
 
         public abstract void onLoginFailed(Throwable throwable);
     }
 
-    public static abstract class AsyncVertretungsResponseHandler {
+    public static abstract class AllInfoResponseListener {
 
         public abstract void onSuccess();
 
@@ -930,7 +919,7 @@ public class VertretungsAPI {
 
         }
 
-        public void onDayAdded() {
+        public void onDayAdded(int position) {
 
         }
 
@@ -939,7 +928,7 @@ public class VertretungsAPI {
         }
     }
 
-    public static abstract class GetDaysHandler {
+    public static abstract class DownloadDaysListener {
 
         public abstract void onFinished();
 
@@ -949,35 +938,16 @@ public class VertretungsAPI {
 
         }
 
-        public void onDayAdded() {
+        public void onDayAdded(int position) {
 
         }
     }
 
-    private static abstract class DownloadDaysHandler {
+    public static abstract class CreateDataFromFileListener {
 
-        public abstract void onFinished();
-
-        public abstract void onError(Throwable throwable);
-
-        public void onProgress(int count, double progress) {
-
-        }
-
-        public void onDayAdded() {
-
-        }
-    }
-
-    public static abstract class CreateFromFileHandler {
-
-        public abstract void onCreated(VertretungsAPI vertretungsAPI);
+        public abstract void onCreated();
 
         public abstract void onError(Throwable throwable);
-
-        public void onProgress(double progress) {
-
-        }
 
     }
 

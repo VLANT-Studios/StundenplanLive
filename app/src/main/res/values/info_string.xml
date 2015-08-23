@@ -2,7 +2,9 @@
 <resources>
     <string name="infoDialog_text"><![CDATA[
         <h2>Infos</h2>
-        Diese App wird entwickelt von <b>Conrad Schmidt</b>. Um an die erforderlichen Daten zu gelangen, greift die App auf den Online-Stundenplan Indiware mobil von Uwe Kannenberg zu.
+        <b>JKG Vertretung Version %s</b>
+        <br>
+        <br>Diese App wird entwickelt von <b>Conrad Schmidt</b>. Um an die erforderlichen Daten zu gelangen, greift die App auf den Online-Stundenplan Indiware mobil von Uwe Kannenberg zu.
         <br>Bei Problemen mit der App, oder bei anderen Anfragen zu der App, wendet euch bitte an meine E-Mail Adresse: <a href="mailto:info@conradowatz.de">info@conradowatz.de</a>.
         <br>
         <br>Da diese App Open-Source ist, könnt ihr den kompletten Source Code auf GitHub finden (wen es interessiert).
@@ -11,7 +13,7 @@
         <h2>Lizenzen</h2>
         Diese App verwendet folgende Libarys:
         <br> • Material Drawer (Copyright © 2015 Mike Penz)
-        <br> • Async Http Client (Copyright © 2011-2014 James Smith [james@loopj.com])
+        <br> • Volley (Copyright © 2015 The Android Open Source Project)
         <br> • Material-ish Progress (Copyright © 2014 Nico Hormazábal)
         <br> • EventBus (von greenrobot)
         <br>

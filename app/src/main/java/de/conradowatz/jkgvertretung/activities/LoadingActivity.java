@@ -16,7 +16,7 @@ import com.pnikosis.materialishprogress.ProgressWheel;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.tools.PreferenceReader;
 import de.conradowatz.jkgvertretung.tools.VertretungsAPI;
-import de.greenrobot.event.EventBus;
+import de.conradowatz.jkgvertretung.tools.VertretungsData;
 
 public class LoadingActivity extends AppCompatActivity {
 
@@ -38,8 +38,6 @@ public class LoadingActivity extends AppCompatActivity {
 
     private String username;
     private String password;
-
-    private EventBus eventBus = EventBus.getDefault();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -81,12 +79,12 @@ public class LoadingActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
 
-            Intent backToMain = new Intent();
-            backToMain.putExtra("ExitCode", "ReLog");
-            setResult(RESULT_OK, backToMain);
-            finish();
-
-        }});
+                Intent backToMain = new Intent();
+                backToMain.putExtra("ExitCode", "ReLog");
+                setResult(RESULT_OK, backToMain);
+                finish();
+            }
+        });
 
         username = PreferenceReader.readStringFromPreferences(this, "username", "");
         password = PreferenceReader.readStringFromPreferences(this, "password", "");
@@ -100,14 +98,17 @@ public class LoadingActivity extends AppCompatActivity {
      */
     private void downloadData() {
 
-        final VertretungsAPI vertretungsAPI = new VertretungsAPI(username, password);
+        VertretungsAPI vertretungsAPI = new VertretungsAPI(username, password);
 
-        vertretungsAPI.getAllInfo(3, new VertretungsAPI.AsyncVertretungsResponseHandler() {
+        vertretungsAPI.getAllInfo(3, new VertretungsAPI.AllInfoResponseListener() {
             @Override
             public void onSuccess() {
 
-                if (vertretungsAPI.getTagList().size()>0) {
-                    eventBus.post(vertretungsAPI);
+                if (VertretungsData.getsInstance().getTagList().size() > 0) {
+
+                    Intent backToMain = new Intent();
+                    backToMain.putExtra("ExitCode", "LoadingDone");
+                    setResult(RESULT_OK, backToMain);
                     finish();
                 } else {
                     onNoAccess();

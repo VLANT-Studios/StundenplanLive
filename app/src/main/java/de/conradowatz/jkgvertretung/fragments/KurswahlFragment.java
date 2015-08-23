@@ -18,10 +18,12 @@ import java.util.ArrayList;
 
 import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
-import de.conradowatz.jkgvertretung.activities.MainActivity;
 import de.conradowatz.jkgvertretung.tools.PreferenceReader;
+import de.conradowatz.jkgvertretung.tools.VertretungsData;
 import de.conradowatz.jkgvertretung.variables.Klasse;
+import de.conradowatz.jkgvertretung.variables.KlassenlistUpdatedEvent;
 import de.conradowatz.jkgvertretung.variables.Kurs;
+import de.greenrobot.event.EventBus;
 
 
 public class KurswahlFragment extends Fragment {
@@ -40,6 +42,8 @@ public class KurswahlFragment extends Fragment {
     private boolean isLoaded;
     private int selected;
 
+    private EventBus eventBus = EventBus.getDefault();
+
     public KurswahlFragment() {
         // Required empty public constructor
     }
@@ -52,6 +56,8 @@ public class KurswahlFragment extends Fragment {
         //Analytics
         MyApplication analytics = (MyApplication) getActivity().getApplication();
         analytics.fireScreenHit("Kurswahl");
+
+        eventBus.register(this);
 
         contentView = inflater.inflate(R.layout.fragment_kurswahl, container, false);
 
@@ -87,10 +93,7 @@ public class KurswahlFragment extends Fragment {
             }
         });
 
-        MainActivity mainActivity = (MainActivity) getActivity();
-        if (mainActivity.vertretungsAPI == null) return contentView;
-
-        showKlassen(mainActivity.vertretungsAPI.getKlassenList());
+        showKlassen();
 
         if (savedInstanceState != null) {
 
@@ -172,13 +175,11 @@ public class KurswahlFragment extends Fragment {
 
     /**
      * Läd alle Klassen in den Spinner
-     *
-     * @param klassenList die Klassenlist der VertretungsAPI
      */
-    private void showKlassen(final ArrayList<Klasse> klassenList) {
+    private void showKlassen() {
 
         ArrayList<String> klassennamenListe = new ArrayList<>();
-        for (Klasse klasse : klassenList) {
+        for (Klasse klasse : VertretungsData.getsInstance().getKlassenList()) {
             klassennamenListe.add(klasse.getName());
         }
 
@@ -190,7 +191,7 @@ public class KurswahlFragment extends Fragment {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 if (position != selected) {
-                    showKurse(klassenList, position);
+                    showKurse(position);
                     selected = position;
                 }
             }
@@ -244,12 +245,11 @@ public class KurswahlFragment extends Fragment {
 
     /**
      * Zeigt alle Kurse einer Klasse als Checkboxen
-     * @param klassenList die KlassenList der VertretungsAPI
      * @param position der Index der Klasse
      */
-    private void showKurse(ArrayList<Klasse> klassenList, int position) {
+    private void showKurse(int position) {
 
-        ArrayList<Kurs> alleKurse = klassenList.get(position).getKurse();
+        ArrayList<Kurs> alleKurse = VertretungsData.getsInstance().getKlassenList().get(position).getKurse();
 
         int size = alleKurse.size();
 
@@ -336,11 +336,16 @@ public class KurswahlFragment extends Fragment {
      * Läd die KlassenList neu
      * Wird gecallt wenn die Liste aktualisiert wurde
      */
-    public void onKlassenListUpdated() {
+    public void onEvent(KlassenlistUpdatedEvent event) {
 
-        MainActivity mainActivity = (MainActivity) getActivity();
-        if (mainActivity.vertretungsAPI.getKlassenList()==null) return;
-        showKlassen(mainActivity.vertretungsAPI.getKlassenList());
+        if (contentView == null || VertretungsData.getsInstance().getKlassenList() == null) return;
+        showKlassen();
 
+    }
+
+    @Override
+    public void onPause() {
+        eventBus.unregister(this);
+        super.onPause();
     }
 }

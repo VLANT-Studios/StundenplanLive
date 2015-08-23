@@ -1,6 +1,7 @@
 package de.conradowatz.jkgvertretung;
 
 import android.app.Application;
+import android.content.Context;
 
 import com.google.android.gms.analytics.GoogleAnalytics;
 import com.google.android.gms.analytics.HitBuilders;
@@ -10,9 +11,21 @@ public class MyApplication extends Application {
 
     public static GoogleAnalytics analytics;
     public static Tracker tracker;
+    private static MyApplication sInstance;
+
+    public static MyApplication getsInstance() {
+        return sInstance;
+    }
+
+    public static Context getAppContext() {
+        return sInstance.getApplicationContext();
+    }
 
     @Override
     public void onCreate() {
+        super.onCreate();
+        sInstance = this;
+
         analytics = GoogleAnalytics.getInstance(this);
         analytics.setLocalDispatchPeriod(600);
 

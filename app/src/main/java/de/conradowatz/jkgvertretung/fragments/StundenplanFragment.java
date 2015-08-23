@@ -4,8 +4,8 @@ package de.conradowatz.jkgvertretung.fragments;
 import android.os.Bundle;
 import android.support.design.widget.TabLayout;
 import android.support.v4.app.Fragment;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.view.ViewPager;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -14,9 +14,11 @@ import java.util.ArrayList;
 
 import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
-import de.conradowatz.jkgvertretung.activities.MainActivity;
-import de.conradowatz.jkgvertretung.adapters.StundenPageAdapter;
+import de.conradowatz.jkgvertretung.adapters.StundenplanPagerAdapter;
+import de.conradowatz.jkgvertretung.tools.VertretungsData;
+import de.conradowatz.jkgvertretung.variables.DayUpdatedEvent;
 import de.conradowatz.jkgvertretung.variables.Tag;
+import de.greenrobot.event.EventBus;
 
 public class StundenplanFragment extends Fragment {
 
@@ -30,6 +32,8 @@ public class StundenplanFragment extends Fragment {
     private TabLayout tabs;
 
     private int mode;
+
+    private EventBus eventBus = EventBus.getDefault();
 
     public StundenplanFragment() {
         // Required empty public constructor
@@ -53,6 +57,8 @@ public class StundenplanFragment extends Fragment {
         MyApplication analytics = (MyApplication) getActivity().getApplication();
         analytics.fireScreenHit("Stundenplan");
 
+        eventBus.register(this);
+
         if (savedInstanceState == null) {
 
             Bundle arguments = getArguments();
@@ -66,40 +72,50 @@ public class StundenplanFragment extends Fragment {
         viewPager = (ViewPager) contentView.findViewById(R.id.viewPager);
         tabs = (TabLayout) contentView.findViewById(R.id.materialTabs);
 
-        MainActivity mainActivity = (MainActivity) getActivity();
-        if (mainActivity.vertretungsAPI==null) return contentView;
-
-        ArrayList<String> titles = new ArrayList<>();
-        for (Tag tag : mainActivity.vertretungsAPI.getTagList()) {
-            titles.add(tag.getDatumString().split(",")[0]);
-        }
-        StundenPageAdapter adapter = new StundenPageAdapter(getChildFragmentManager(), mode, titles);
-        viewPager.setAdapter(adapter);
-
-        tabs.setTabTextColors(getResources().getColor(R.color.white), getResources().getColor(R.color.white));
-        tabs.setTabMode(TabLayout.MODE_SCROLLABLE);
-        tabs.setupWithViewPager(viewPager);
+        setUpViewPager();
 
         return contentView;
+    }
+
+    private void setUpViewPager() {
+
+        ArrayList<String> titles = new ArrayList<>();
+        for (Tag tag : VertretungsData.getsInstance().getTagList()) {
+            titles.add(tag.getDatumString().split(",")[0]);
+        }
+        StundenplanPagerAdapter adapter = new StundenplanPagerAdapter(getChildFragmentManager(), mode, titles);
+        viewPager.setAdapter(adapter);
+
+        tabs.setTabTextColors(ContextCompat.getColor(getContext(), R.color.white), ContextCompat.getColor(getContext(), R.color.white));
+        tabs.setTabMode(TabLayout.MODE_SCROLLABLE);
+        tabs.setupWithViewPager(viewPager);
     }
 
     /**
      * Läd den ViewPager neu, wenn Tage hinzugefügt wurden
      */
-    public void onDayAdded() {
+    public void onEvent(DayUpdatedEvent event) {
 
-        if (viewPager!=null) {
+        if (viewPager == null) return;
+
+        if (event.getPosition() > viewPager.getAdapter().getCount()) {
+
             viewPager.getAdapter().notifyDataSetChanged();
             tabs.setupWithViewPager(viewPager);
         }
+
     }
 
     @Override
     public void onSaveInstanceState(Bundle outState) {
 
-        Log.d("JKGDEBUG", "saveinstance parent");
-
         outState.putInt("mode", mode);
         super.onSaveInstanceState(outState);
+    }
+
+    @Override
+    public void onStop() {
+        eventBus.unregister(this);
+        super.onStop();
     }
 }

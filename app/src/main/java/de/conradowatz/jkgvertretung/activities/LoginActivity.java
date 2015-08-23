@@ -69,7 +69,7 @@ public class LoginActivity extends AppCompatActivity {
         passwordInput.getEditText().setEnabled(false);
         usernameInput.getEditText().setEnabled(false);
 
-        new VertretungsAPI().checkLogin(benutzerName, passwort, new VertretungsAPI.AsyncLoginResponseHandler() {
+        VertretungsAPI.checkLogin(benutzerName, passwort, new VertretungsAPI.AsyncLoginResponseListener() {
 
             @Override
             public void onLoggedIn() {

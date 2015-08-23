@@ -11,6 +11,19 @@ public class Tag {
     private ArrayList<StuPlaKlasse> stuplaKlasseList;
     private ArrayList<Vertretung> vertretungsList;
 
+    public Tag(Date datum, String datumString, String zeitStempel, ArrayList<StuPlaKlasse> stuplaKlasseList, ArrayList<Vertretung> vertretungsList) {
+
+        this.datum = datum;
+        this.datumString = datumString;
+        this.zeitStempel = zeitStempel;
+        this.stuplaKlasseList = stuplaKlasseList;
+        this.vertretungsList = vertretungsList;
+    }
+
+    public Tag() {
+
+    }
+
     public Date getDatum() {
         return datum;
     }
@@ -49,18 +62,5 @@ public class Tag {
 
     public void setVertretungsList(ArrayList<Vertretung> vertretungsList) {
         this.vertretungsList = vertretungsList;
-    }
-
-    public Tag(Date datum, String datumString, String zeitStempel, ArrayList<StuPlaKlasse> stuplaKlasseList, ArrayList<Vertretung> vertretungsList) {
-
-        this.datum = datum;
-        this.datumString = datumString;
-        this.zeitStempel = zeitStempel;
-        this.stuplaKlasseList = stuplaKlasseList;
-        this.vertretungsList = vertretungsList;
-    }
-
-    public Tag() {
-
     }
 }
