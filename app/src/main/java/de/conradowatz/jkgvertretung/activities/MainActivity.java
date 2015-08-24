@@ -52,11 +52,14 @@ public class MainActivity extends AppCompatActivity {
     private static final String EXTRA_CUSTOM_TABS_TOOLBAR_COLOR = "android.support.CUSTOM_TABS:toolbar_color";
     private Toolbar toolbar;
     private Drawer navigationDrawer;
-    private Menu menu;
+    private MenuItem refreshItem;
     private int currentlySelected;
-    private boolean isRefreshing;
+    private Boolean isRefreshing;
     private boolean isInfoDialog;
     private boolean isNoAccesDialog;
+
+    private boolean isActive;
+    private boolean noactiveStartscreen;
 
     private String username;
     private String password;
@@ -74,16 +77,22 @@ public class MainActivity extends AppCompatActivity {
         buildDrawer();
         PreferenceManager.setDefaultValues(this, R.xml.settings, false);
 
+        isActive = true;
 
         if (savedInstanceState != null && (VertretungsData.getsInstance().getTagList() != null || getLastCustomNonConfigurationInstance() != null)) {
 
             //App noch im Speicher, wiederherstellen
             CharSequence title = savedInstanceState.getCharSequence("title");
-            getSupportActionBar().setTitle(title);
+            if (getSupportActionBar() != null) getSupportActionBar().setTitle(title);
             int selection = savedInstanceState.getInt("selection");
             if (selection >= 0) navigationDrawer.setSelection(selection, false);
             currentlySelected = savedInstanceState.getInt("currentlySelected");
-            isRefreshing = PreferenceReader.readBooleanFromPreferences(this, "isRefreshing", false);
+            if (isRefreshing == null) isRefreshing = savedInstanceState.getBoolean("isRefreshing");
+            noactiveStartscreen = savedInstanceState.getBoolean("noactiveStartscreen");
+            if (noactiveStartscreen) {
+                showStartScreen();
+                noactiveStartscreen = false;
+            }
             isInfoDialog = savedInstanceState.getBoolean("isInfoDialog");
             isNoAccesDialog = savedInstanceState.getBoolean("isNoAccesDialog");
 
@@ -100,6 +109,8 @@ public class MainActivity extends AppCompatActivity {
 
             //App starten
             currentlySelected = -1;
+            isRefreshing = false;
+            PreferenceReader.saveBooleanToPrefernces(this, "stopRefreshing", false);
             initializeLoadingData();
 
         }
@@ -233,16 +244,16 @@ public class MainActivity extends AppCompatActivity {
 
         if (identifier == 1) {
             ft.replace(R.id.container, StundenplanFragment.newInstance(StundenplanFragment.MODE_STUNDENPLAN)).commit();
-            getSupportActionBar().setTitle("Mein Stundenplan");
+            toolbar.setTitle("Mein Stundenplan");
         } else if (identifier == 2) {
             ft.replace(R.id.container, StundenplanFragment.newInstance(StundenplanFragment.MODE_VERTRETUNGSPLAN)).commit();
-            getSupportActionBar().setTitle("Mein Vertretungsplan");
+            toolbar.setTitle("Mein Vertretungsplan");
         } else if (identifier == 3) {
             ft.replace(R.id.container, new KurswahlFragment()).commit();
-            getSupportActionBar().setTitle("Klassen- / Kurswahl");
+            toolbar.setTitle("Klassen- / Kurswahl");
         } else if (identifier == 4) {
             ft.replace(R.id.container, StundenplanFragment.newInstance(StundenplanFragment.MODE_ALGVERTRETUNGSPLAN)).commit();
-            getSupportActionBar().setTitle("Allgemeiner Vertretungsplan");
+            toolbar.setTitle("Allgemeiner Vertretungsplan");
         }
     }
 
@@ -273,17 +284,17 @@ public class MainActivity extends AppCompatActivity {
         if (keineKlasse) {
 
             //Falls noch keine Klasse gewählt ist, zur Klassen-/Kurswahl springen
-            navigationDrawer.setSelection(2, false);
-            currentlySelected = 2;
+            navigationDrawer.setSelection(3, false);
+            currentlySelected = 3;
             setFragment(3);
 
         } else {
 
             //Ansonsten zum Stundenplan springen
-            int startScreen = Integer.parseInt(PreferenceReader.readStringFromPreferences(this, "startScreen", "0"));
+            int startScreen = Integer.parseInt(PreferenceReader.readStringFromPreferences(this, "startScreen", "1"));
             navigationDrawer.setSelection(startScreen, false);
             currentlySelected = startScreen;
-            setFragment(startScreen + 1);
+            setFragment(startScreen);
 
         }
 
@@ -345,7 +356,8 @@ public class MainActivity extends AppCompatActivity {
                             }
 
                             //wenn es fertig ist, Fragment öffnen
-                            showStartScreen();
+                            if (isActive) showStartScreen();
+                            else noactiveStartscreen = true;
 
                             //Daten aktualisieren aus dem Interwebs
                             boolean doRefresh = PreferenceReader.readBooleanFromPreferences(context, "doRefreshAtStart", true);
@@ -521,12 +533,9 @@ public class MainActivity extends AppCompatActivity {
 
         getMenuInflater().inflate(R.menu.menu_main, menu);
 
-        this.menu = menu; //Menu für alle Methoden verfügbar machen
-
-        Log.d("JKGDEBUG", "options menu, isRefreshing: " + isRefreshing);
+        refreshItem = menu.findItem(R.id.action_refresh); //Menu für alle Methoden verfügbar machen
 
         if (isRefreshing) { //Falls noch Daten geladen werden, das auch zeigen
-            isRefreshing = false;
             showRefresh();
         }
 
@@ -568,7 +577,6 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * Läd alle Daten (klassenList, freieTageList, tagList) neu herunter
-     *
      * @param dayCount Anzahl der zu downloadenden Tage
      */
     private void redownloadData(int dayCount) {
@@ -639,8 +647,12 @@ public class MainActivity extends AppCompatActivity {
      */
     private void showRefresh() {
 
-        if (menu == null) return;
-        MenuItem item = menu.findItem(R.id.action_refresh);
+        if (refreshItem == null) return;
+        boolean stopRefreshing = PreferenceReader.readBooleanFromPreferences(getApplicationContext(), "stopRefreshing", true);
+        if (stopRefreshing) return;
+
+        isRefreshing = true;
+        PreferenceReader.saveBooleanToPrefernces(this, "stopRefreshing", false);
 
         //Das Refresh Item durch ein ImageView, was sich dreht austauschen
         LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
@@ -648,12 +660,31 @@ public class MainActivity extends AppCompatActivity {
 
         Animation rotation = AnimationUtils.loadAnimation(this, R.anim.rotate);
         rotation.setRepeatCount(Animation.INFINITE);
+        rotation.setAnimationListener(new Animation.AnimationListener() {
+            @Override
+            public void onAnimationStart(Animation animation) {
+
+            }
+
+            @Override
+            public void onAnimationEnd(Animation animation) {
+
+            }
+
+            @Override
+            public void onAnimationRepeat(Animation animation) {
+
+                boolean stopRefreshing = PreferenceReader.readBooleanFromPreferences(getApplicationContext(), "stopRefreshing", true);
+                if (stopRefreshing) {
+                    isRefreshing = false;
+                    refreshItem.getActionView().clearAnimation();
+                    refreshItem.setActionView(null);
+                }
+            }
+        });
         iv.startAnimation(rotation);
 
-        item.setActionView(iv);
-
-        isRefreshing = true;
-        PreferenceReader.saveBooleanToPrefernces(this, "isRefreshing", true);
+        refreshItem.setActionView(iv);
     }
 
     /**
@@ -661,15 +692,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void stopRefresh() {
 
-        if (menu == null) return;
-        MenuItem item = menu.findItem(R.id.action_refresh);
-        if (item.getActionView() == null) return;
-        //Das Refresh Item zurücktauschen
-        item.getActionView().clearAnimation();
-        item.setActionView(null);
-
-        isRefreshing = false;
-        PreferenceReader.saveBooleanToPrefernces(this, "isRefreshing", false);
+        PreferenceReader.saveBooleanToPrefernces(this, "stopRefreshing", true);
     }
 
     @Override
@@ -691,14 +714,33 @@ public class MainActivity extends AppCompatActivity {
         outState.putCharSequence("title", toolbar.getTitle());
         outState.putBoolean("isInfoDialog", isInfoDialog);
         outState.putBoolean("isNoAccesDialog", isNoAccesDialog);
+        outState.putBoolean("noactiveStartscreen", noactiveStartscreen);
         outState.putString("username", username);
         outState.putString("password", password);
-        PreferenceReader.saveBooleanToPrefernces(this, "isRefreshing", isRefreshing);
+        outState.putBoolean("isRefreshing", isRefreshing);
+
         super.onSaveInstanceState(outState);
     }
 
     @Override
     public Object onRetainCustomNonConfigurationInstance() {
         return VertretungsData.getsInstance();
+    }
+
+    @Override
+    protected void onResume() {
+
+        isActive = true;
+        if (noactiveStartscreen) {
+            showStartScreen();
+            noactiveStartscreen = false;
+        }
+        super.onResume();
+    }
+
+    @Override
+    protected void onPause() {
+        isActive = false;
+        super.onPause();
     }
 }

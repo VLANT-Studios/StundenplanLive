@@ -5,8 +5,8 @@
         <item>Mein Vertretungsplan</item>
     </string-array>
     <string-array name="settings_screen_title_values">
-        <item>0</item>
         <item>1</item>
+        <item>2</item>
     </string-array>
 
     <string-array name="settings_day_count">

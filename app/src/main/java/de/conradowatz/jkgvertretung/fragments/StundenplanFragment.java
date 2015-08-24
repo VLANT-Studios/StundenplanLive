@@ -10,14 +10,10 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
-import java.util.ArrayList;
-
 import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.adapters.StundenplanPagerAdapter;
-import de.conradowatz.jkgvertretung.tools.VertretungsData;
 import de.conradowatz.jkgvertretung.variables.DayUpdatedEvent;
-import de.conradowatz.jkgvertretung.variables.Tag;
 import de.greenrobot.event.EventBus;
 
 public class StundenplanFragment extends Fragment {
@@ -79,11 +75,7 @@ public class StundenplanFragment extends Fragment {
 
     private void setUpViewPager() {
 
-        ArrayList<String> titles = new ArrayList<>();
-        for (Tag tag : VertretungsData.getsInstance().getTagList()) {
-            titles.add(tag.getDatumString().split(",")[0]);
-        }
-        StundenplanPagerAdapter adapter = new StundenplanPagerAdapter(getChildFragmentManager(), mode, titles);
+        StundenplanPagerAdapter adapter = new StundenplanPagerAdapter(getChildFragmentManager(), mode);
         viewPager.setAdapter(adapter);
 
         tabs.setTabTextColors(ContextCompat.getColor(getContext(), R.color.white), ContextCompat.getColor(getContext(), R.color.white));

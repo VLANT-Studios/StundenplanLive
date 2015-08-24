@@ -212,7 +212,6 @@ public class VertretungsAPI {
                         total.append(line);
                     }
                     JSONObject alleDaten = new JSONObject(total.toString());
-
                     //Klassenliste
                     ArrayList<Klasse> klassenList1 = new ArrayList<>();
                     JSONArray klassenListArray = alleDaten.getJSONArray("klassenList");
@@ -372,6 +371,7 @@ public class VertretungsAPI {
                 downloadDays(dayCount, 0, new DownloadDaysListener() {
                     @Override
                     public void onFinished() {
+
                         allInfoResponseListener.onSuccess();
                     }
 

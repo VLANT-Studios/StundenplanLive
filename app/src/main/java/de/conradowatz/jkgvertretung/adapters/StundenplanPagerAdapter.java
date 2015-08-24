@@ -5,19 +5,16 @@ import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentStatePagerAdapter;
 
-import java.util.ArrayList;
-
 import de.conradowatz.jkgvertretung.fragments.StundenplanPageFragment;
+import de.conradowatz.jkgvertretung.tools.VertretungsData;
 
 public class StundenplanPagerAdapter extends FragmentStatePagerAdapter {
 
     private int mode;
-    private ArrayList<String> titles;
 
-    public StundenplanPagerAdapter(FragmentManager fm, int mode, ArrayList<String> titles) {
+    public StundenplanPagerAdapter(FragmentManager fm, int mode) {
         super(fm);
         this.mode = mode;
-        this.titles = titles;
     }
 
     @Override
@@ -27,12 +24,12 @@ public class StundenplanPagerAdapter extends FragmentStatePagerAdapter {
 
     @Override
     public int getCount() {
-        return titles.size();
+        return VertretungsData.getsInstance().getTagList().size();
     }
 
     @Override
     public CharSequence getPageTitle(int position) {
-        return titles.get(position);
+        return VertretungsData.getsInstance().getTagList().get(position).getDatumString().split(",")[0];
     }
 
 

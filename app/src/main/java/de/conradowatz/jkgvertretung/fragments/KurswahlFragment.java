@@ -338,8 +338,8 @@ public class KurswahlFragment extends Fragment {
      */
     public void onEvent(KlassenlistUpdatedEvent event) {
 
-        if (contentView == null || VertretungsData.getsInstance().getKlassenList() == null) return;
-        showKlassen();
+        if (contentView != null && VertretungsData.getsInstance().getKlassenList() != null)
+            showKlassen();
 
     }
 
