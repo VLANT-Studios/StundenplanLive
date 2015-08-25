@@ -62,6 +62,13 @@ public class StundenPlanRecyclerAdapter extends RecyclerView.Adapter<StundenPlan
 
     }
 
+    public static StundenPlanRecyclerAdapter newKlassenplanplanInstance(Tag tag, int klasseIndex) {
+
+        ArrayList<Stunde> stundenList = tag.getStuplaKlasseList().get(klasseIndex).getStundenList();
+        return new StundenPlanRecyclerAdapter(tag, stundenList, null, MODE_STUNDENPLAN, stundenList.size() == 0);
+
+    }
+
     public static StundenPlanRecyclerAdapter newVertretungsplanInstance(Tag tag, String klassenString, ArrayList<String> nichtKurse) {
 
         ArrayList<Vertretung> vertretungsList = new ArrayList<>();

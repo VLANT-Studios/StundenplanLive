@@ -395,7 +395,7 @@ public class VertretungsAPI {
         }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError error) {
-                if (error.networkResponse.statusCode == 401) {
+                if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
                     allInfoResponseListener.onNoAccess();
                 } else {
                     allInfoResponseListener.onNoConnection();
@@ -620,7 +620,7 @@ public class VertretungsAPI {
                 @Override
                 public void onErrorResponse(VolleyError error) {
 
-                    if (error.networkResponse.statusCode != 401)
+                    if (error.networkResponse != null && error.networkResponse.statusCode != 401)
                         downloadDaysListener.onError(error.getCause());
 
                     boolean finished = true;
@@ -654,6 +654,7 @@ public class VertretungsAPI {
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
+
                     String datumString = response.substring(response.indexOf("<titel>") + 7, response.indexOf("</titel>"));
 
                     boolean finished = true;
@@ -685,8 +686,8 @@ public class VertretungsAPI {
                 @Override
                 public void onErrorResponse(VolleyError error) {
 
-                    if (error.networkResponse.statusCode != 401)
-                        downloadDaysListener.onError(error.getCause());
+                    if (error.networkResponse != null && error.networkResponse.statusCode != 401)
+                        downloadDaysListener.onError(new Throwable(error.getMessage()));
 
                     boolean finished = true;
                     if (tagArray[finalI] == null) {

@@ -53,7 +53,7 @@ public class MainActivity extends AppCompatActivity {
     private Toolbar toolbar;
     private Drawer navigationDrawer;
     private MenuItem refreshItem;
-    private int currentlySelected;
+    private int selectedIdentifier;
     private Boolean isRefreshing;
     private boolean isInfoDialog;
     private boolean isNoAccesDialog;
@@ -84,9 +84,8 @@ public class MainActivity extends AppCompatActivity {
             //App noch im Speicher, wiederherstellen
             CharSequence title = savedInstanceState.getCharSequence("title");
             if (getSupportActionBar() != null) getSupportActionBar().setTitle(title);
-            int selection = savedInstanceState.getInt("selection");
-            if (selection >= 0) navigationDrawer.setSelection(selection, false);
-            currentlySelected = savedInstanceState.getInt("currentlySelected");
+            selectedIdentifier = savedInstanceState.getInt("selectedIdentifier");
+            if (selectedIdentifier >= 0) navigationDrawer.setSelection(selectedIdentifier);
             if (isRefreshing == null) isRefreshing = savedInstanceState.getBoolean("isRefreshing");
             noactiveStartscreen = savedInstanceState.getBoolean("noactiveStartscreen");
             if (noactiveStartscreen) {
@@ -108,7 +107,7 @@ public class MainActivity extends AppCompatActivity {
         } else {
 
             //App starten
-            currentlySelected = -1;
+            selectedIdentifier = 1;
             isRefreshing = false;
             PreferenceReader.saveBooleanToPrefernces(this, "stopRefreshing", false);
             initializeLoadingData();
@@ -133,6 +132,7 @@ public class MainActivity extends AppCompatActivity {
                         getDefaultDrawerItem().withName("Klassen- / Kurswahl").withIcon(R.drawable.ic_check).withIdentifier(3),
                         new DividerDrawerItem(),
                         getDefaultDrawerItem().withName("Allgemeiner Vertretungsplan").withIcon(R.drawable.ic_vertretung).withIdentifier(4),
+                        getDefaultDrawerItem().withName("Klassenplan").withIcon(R.drawable.ic_stuplan).withIdentifier(5),
                         new DividerDrawerItem(),
                         getDefaultDrawerItem().withName("Einstellungen").withIcon(R.drawable.ic_settings).withIdentifier(11),
                         getDefaultDrawerItem().withName("Feedback").withIcon(R.drawable.ic_feedback).withIdentifier(12),
@@ -143,13 +143,13 @@ public class MainActivity extends AppCompatActivity {
                     public boolean onItemClick(View view, int position, IDrawerItem drawerItem) {
                         int identifier = drawerItem.getIdentifier();
                         if (identifier < 10) {
-                            if (currentlySelected != position) {
+                            if (selectedIdentifier != identifier) {
                                 setFragment(identifier);
-                                currentlySelected = position;
+                                selectedIdentifier = identifier;
                                 return false;
                             }
                         } else {
-                            navigationDrawer.setSelection(currentlySelected, false);
+                            navigationDrawer.setSelection(selectedIdentifier, false);
                             switch (identifier) {
                                 case 11:
                                     openSettings();
@@ -254,6 +254,9 @@ public class MainActivity extends AppCompatActivity {
         } else if (identifier == 4) {
             ft.replace(R.id.container, StundenplanFragment.newInstance(StundenplanFragment.MODE_ALGVERTRETUNGSPLAN)).commit();
             toolbar.setTitle("Allgemeiner Vertretungsplan");
+        } else if (identifier == 5) {
+            ft.replace(R.id.container, StundenplanFragment.newInstance(StundenplanFragment.MODE_KLASSENPLAN)).commit();
+            toolbar.setTitle("Klassenplan");
         }
     }
 
@@ -285,16 +288,20 @@ public class MainActivity extends AppCompatActivity {
 
             //Falls noch keine Klasse gewählt ist, zur Klassen-/Kurswahl springen
             navigationDrawer.setSelection(3, false);
-            currentlySelected = 3;
+            selectedIdentifier = 3;
             setFragment(3);
 
         } else {
 
             //Ansonsten zum Stundenplan springen
-            int startScreen = Integer.parseInt(PreferenceReader.readStringFromPreferences(this, "startScreen", "1"));
-            navigationDrawer.setSelection(startScreen, false);
-            currentlySelected = startScreen;
-            setFragment(startScreen);
+            int startScreenIdentifier = Integer.parseInt(PreferenceReader.readStringFromPreferences(this, "startScreen", "1"));
+            if (startScreenIdentifier < 1) {
+                PreferenceReader.saveStringToPreferences(this, "startScreen", "1");
+                startScreenIdentifier = 1;
+            }
+            navigationDrawer.setSelection(startScreenIdentifier, false);
+            selectedIdentifier = startScreenIdentifier;
+            setFragment(startScreenIdentifier);
 
         }
 
@@ -630,7 +637,7 @@ public class MainActivity extends AppCompatActivity {
 
                 //Wenn es hier ein Error gibt, hat sich warscheinlich das Online System geändert
                 Log.e("JKGDEBUG", "Error bei der Verarbeitung der Daten");
-                throwable.printStackTrace();
+                Log.e("JKGDEBUG", "Message: " + throwable);
             }
 
             private void onFinished() {
@@ -677,6 +684,7 @@ public class MainActivity extends AppCompatActivity {
                 boolean stopRefreshing = PreferenceReader.readBooleanFromPreferences(getApplicationContext(), "stopRefreshing", true);
                 if (stopRefreshing) {
                     isRefreshing = false;
+                    PreferenceReader.saveBooleanToPrefernces(getApplicationContext(), "stopRefreshing", false);
                     refreshItem.getActionView().clearAnimation();
                     refreshItem.setActionView(null);
                 }
@@ -709,8 +717,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onSaveInstanceState(Bundle outState) {
 
-        outState.putInt("selection", navigationDrawer.getCurrentSelection());
-        outState.putInt("currentlySelected", currentlySelected);
+        outState.putInt("selectedIdentifier", selectedIdentifier);
         outState.putCharSequence("title", toolbar.getTitle());
         outState.putBoolean("isInfoDialog", isInfoDialog);
         outState.putBoolean("isNoAccesDialog", isNoAccesDialog);

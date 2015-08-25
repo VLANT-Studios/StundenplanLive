@@ -11,15 +11,17 @@ import de.conradowatz.jkgvertretung.tools.VertretungsData;
 public class StundenplanPagerAdapter extends FragmentStatePagerAdapter {
 
     private int mode;
+    private Integer klassenIndex;
 
-    public StundenplanPagerAdapter(FragmentManager fm, int mode) {
+    public StundenplanPagerAdapter(FragmentManager fm, int mode, Integer klassenIndex) {
         super(fm);
         this.mode = mode;
+        this.klassenIndex = klassenIndex;
     }
 
     @Override
     public Fragment getItem(int position) {
-        return StundenplanPageFragment.newInstance(position, mode);
+        return StundenplanPageFragment.newInstance(position, mode, klassenIndex);
     }
 
     @Override
