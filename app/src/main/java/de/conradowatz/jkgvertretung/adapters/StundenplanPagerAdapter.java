@@ -12,11 +12,18 @@ public class StundenplanPagerAdapter extends FragmentStatePagerAdapter {
 
     private int mode;
     private Integer klassenIndex;
+    private int count;
 
     public StundenplanPagerAdapter(FragmentManager fm, int mode, Integer klassenIndex) {
         super(fm);
         this.mode = mode;
         this.klassenIndex = klassenIndex;
+        count = VertretungsData.getsInstance().getTagList().size();
+    }
+
+    public void dayAdded() {
+        count = VertretungsData.getsInstance().getTagList().size();
+        notifyDataSetChanged();
     }
 
     @Override
@@ -26,7 +33,7 @@ public class StundenplanPagerAdapter extends FragmentStatePagerAdapter {
 
     @Override
     public int getCount() {
-        return VertretungsData.getsInstance().getTagList().size();
+        return count;
     }
 
     @Override

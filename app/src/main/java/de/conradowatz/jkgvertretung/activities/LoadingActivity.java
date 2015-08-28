@@ -2,8 +2,11 @@ package de.conradowatz.jkgvertretung.activities;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.CardView;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -13,16 +16,26 @@ import android.widget.TextView;
 
 import com.pnikosis.materialishprogress.ProgressWheel;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.tools.PreferenceReader;
 import de.conradowatz.jkgvertretung.tools.VertretungsAPI;
 import de.conradowatz.jkgvertretung.tools.VertretungsData;
 
-public class LoadingActivity extends AppCompatActivity {
+public class LoadingActivity extends AppCompatActivity implements Handler.Callback {
 
     private static final int CONTENT_LOADING = 1;
     private static final int CONTENT_NOCONNECTION = 2;
     private static final int CONTENT_NOACCES = 3;
+
+    private final static int DATA_FINISHED = 1;
+    private final static int PROGRESS = 2;
+    private final static int NO_CONNECTION = 3;
+    private final static int NO_ACCES = 4;
+    private final static int ERROR = 5;
+
     private boolean isnoConnection = false;
 
     private TextView ladeDatenText;
@@ -36,13 +49,16 @@ public class LoadingActivity extends AppCompatActivity {
     private Button retryButton;
     private Button changepwButton;
 
-    private String username;
-    private String password;
+    private Handler taskHandler;
+    private ExecutorService pool;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_loading);
+
+        taskHandler = new Handler(this);
+        pool = Executors.newSingleThreadScheduledExecutor();
 
         ladeDatenText = (TextView) findViewById(R.id.ladeDatenText);
         errorText = (TextView) findViewById(R.id.errorText);
@@ -86,9 +102,6 @@ public class LoadingActivity extends AppCompatActivity {
             }
         });
 
-        username = PreferenceReader.readStringFromPreferences(this, "username", "");
-        password = PreferenceReader.readStringFromPreferences(this, "password", "");
-
         downloadData();
 
     }
@@ -98,46 +111,46 @@ public class LoadingActivity extends AppCompatActivity {
      */
     private void downloadData() {
 
-        VertretungsAPI vertretungsAPI = new VertretungsAPI(username, password);
-
-        vertretungsAPI.getAllInfo(3, new VertretungsAPI.AllInfoResponseListener() {
+        final String username = PreferenceReader.readStringFromPreferences(getApplicationContext(), "username", "");
+        final String password = PreferenceReader.readStringFromPreferences(getApplicationContext(), "password", "");
+        pool.submit(new Runnable() {
             @Override
-            public void onSuccess() {
+            public void run() {
 
-                if (VertretungsData.getsInstance().getTagList().size() > 0) {
+                VertretungsData.setInstance(null);
+                new VertretungsAPI(username, password).downloadAllData(3, new VertretungsAPI.DownloadAllDataResponseListener() {
 
-                    Intent backToMain = new Intent();
-                    backToMain.putExtra("ExitCode", "LoadingDone");
-                    setResult(RESULT_OK, backToMain);
-                    finish();
-                } else {
-                    onNoAccess();
-                }
-            }
+                    @Override
+                    public void onSuccess() {
+                        Message message = taskHandler.obtainMessage(DATA_FINISHED);
+                        taskHandler.sendMessage(message);
+                    }
 
-            @Override
-            public void onProgress(double progress) {
-                progressBar.setProgress((int) progress);
-            }
+                    @Override
+                    public void onNoConnection() {
+                        Message message = taskHandler.obtainMessage(NO_CONNECTION);
+                        taskHandler.sendMessage(message);
+                    }
 
-            @Override
-            public void onNoConnection() {
+                    @Override
+                    public void onNoAccess() {
+                        Message message = taskHandler.obtainMessage(NO_ACCES);
+                        taskHandler.sendMessage(message);
+                    }
 
-                contentMode(CONTENT_NOCONNECTION);
-                isnoConnection = true;
+                    @Override
+                    public void onOtherError(Throwable throwable) {
+                        Message message = taskHandler.obtainMessage(ERROR, throwable);
+                        taskHandler.sendMessage(message);
+                    }
 
-            }
+                    @Override
+                    public void onProgress(int progress) {
+                        Message message = taskHandler.obtainMessage(PROGRESS, progress, 0);
+                        taskHandler.sendMessage(message);
+                    }
+                });
 
-            @Override
-            public void onNoAccess() {
-
-                contentMode(CONTENT_NOACCES);
-
-            }
-
-            @Override
-            public void onOtherError(Throwable e) {
-                e.printStackTrace();
             }
         });
 
@@ -191,5 +204,69 @@ public class LoadingActivity extends AppCompatActivity {
         backToMain.putExtra("ExitCode", "Exit");
         setResult(RESULT_OK, backToMain);
         finish();
+    }
+
+    @Override
+    public boolean handleMessage(Message message) {
+
+        switch (message.what) {
+            case DATA_FINISHED:
+                onDataFinished();
+                break;
+            case PROGRESS:
+                onProgress(message.arg1);
+                break;
+            case NO_CONNECTION:
+                onNoConnection();
+                break;
+            case NO_ACCES:
+                onNoAccess();
+                break;
+            case ERROR:
+                onError((Throwable) message.obj);
+                break;
+            default:
+                return false;
+        }
+        return true;
+    }
+
+    private void onDataFinished() {
+
+        if (VertretungsData.getsInstance().getTagList().size() > 0) {
+
+            Intent backToMain = new Intent();
+            backToMain.putExtra("ExitCode", "LoadingDone");
+            setResult(RESULT_OK, backToMain);
+            finish();
+        } else {
+            onNoAccess();
+        }
+
+    }
+
+    private void onProgress(int progress) {
+
+        progressBar.setProgress(progress);
+    }
+
+    private void onNoConnection() {
+
+        contentMode(CONTENT_NOCONNECTION);
+        isnoConnection = true;
+
+    }
+
+    private void onNoAccess() {
+
+        contentMode(CONTENT_NOACCES);
+
+    }
+
+    private void onError(Throwable throwable) {
+
+        Log.e("JKGDEBUG", "Fehler beim Download oder der Verarbeitung der Daten!");
+        Log.e("JKGDEBUG", "Message: "+throwable.getMessage());
+
     }
 }

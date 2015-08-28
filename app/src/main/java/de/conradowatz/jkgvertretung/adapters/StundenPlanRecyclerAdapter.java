@@ -46,25 +46,29 @@ public class StundenPlanRecyclerAdapter extends RecyclerView.Adapter<StundenPlan
 
     public static StundenPlanRecyclerAdapter newStundenplanInstance(Tag tag, int klasseIndex, ArrayList<String> nichtKurse) {
 
-        StuPlaKlasse stuPlaKlasse = tag.getStuplaKlasseList().get(klasseIndex);
         ArrayList<Stunde> stundenList = new ArrayList<>();
-        for (Stunde stunde : stuPlaKlasse.getStundenList()) {
+        if (tag.getStuplaKlasseList().size() > klasseIndex) {
+            StuPlaKlasse stuPlaKlasse = tag.getStuplaKlasseList().get(klasseIndex);
+            for (Stunde stunde : stuPlaKlasse.getStundenList()) {
 
-            if (nichtKurse.contains(stunde.getKurs())
-                    || nichtKurse.contains(stunde.getFach())
-                    || nichtKurse.contains(stunde.getInfo().split(" ")[0]))
-                continue;
+                if (nichtKurse.contains(stunde.getKurs())
+                        || nichtKurse.contains(stunde.getFach())
+                        || nichtKurse.contains(stunde.getInfo().split(" ")[0]))
+                    continue;
 
-            stundenList.add(stunde);
+                stundenList.add(stunde);
+            }
         }
-
         return new StundenPlanRecyclerAdapter(tag, stundenList, null, MODE_STUNDENPLAN, stundenList.size() == 0);
 
     }
 
     public static StundenPlanRecyclerAdapter newKlassenplanplanInstance(Tag tag, int klasseIndex) {
 
-        ArrayList<Stunde> stundenList = tag.getStuplaKlasseList().get(klasseIndex).getStundenList();
+        ArrayList<Stunde> stundenList = new ArrayList<>();
+        if (tag.getStuplaKlasseList().size() > klasseIndex) {
+            stundenList = tag.getStuplaKlasseList().get(klasseIndex).getStundenList();
+        }
         return new StundenPlanRecyclerAdapter(tag, stundenList, null, MODE_STUNDENPLAN, stundenList.size() == 0);
 
     }

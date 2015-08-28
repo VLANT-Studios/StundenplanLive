@@ -7,6 +7,7 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
@@ -38,6 +39,7 @@ import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.fragments.KurswahlFragment;
 import de.conradowatz.jkgvertretung.fragments.StundenplanFragment;
+import de.conradowatz.jkgvertretung.fragments.TaskFragment;
 import de.conradowatz.jkgvertretung.tools.PreferenceReader;
 import de.conradowatz.jkgvertretung.tools.VertretungsAPI;
 import de.conradowatz.jkgvertretung.tools.VertretungsData;
@@ -46,24 +48,21 @@ import de.conradowatz.jkgvertretung.variables.KlassenlistUpdatedEvent;
 import de.greenrobot.event.EventBus;
 
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements TaskFragment.TaskCallbacks {
 
     private static final String EXTRA_CUSTOM_TABS_SESSION_ID = "android.support.CUSTOM_TABS:session_id";
     private static final String EXTRA_CUSTOM_TABS_TOOLBAR_COLOR = "android.support.CUSTOM_TABS:toolbar_color";
+    private static final String TAG_TASK_FRAGMENT = "task_fragment";
     private Toolbar toolbar;
     private Drawer navigationDrawer;
     private MenuItem refreshItem;
     private int selectedIdentifier;
-    private Boolean isRefreshing;
+    private boolean isRefreshing;
     private boolean isInfoDialog;
     private boolean isNoAccesDialog;
-
     private boolean isActive;
     private boolean noactiveStartscreen;
-
-    private String username;
-    private String password;
-
+    private TaskFragment taskFragment;
     private EventBus eventBus = EventBus.getDefault();
 
     @Override
@@ -75,9 +74,19 @@ public class MainActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
 
         buildDrawer();
-        PreferenceManager.setDefaultValues(this, R.xml.settings, false);
+        PreferenceManager.setDefaultValues(getApplicationContext(), R.xml.settings, false);
 
         isActive = true;
+
+        FragmentManager fm = getSupportFragmentManager();
+        taskFragment = (TaskFragment) fm.findFragmentByTag(TAG_TASK_FRAGMENT);
+
+        // If the Fragment is non-null, then it is currently being
+        // retained across a configuration change.
+        if (taskFragment == null) {
+            taskFragment = new TaskFragment();
+            fm.beginTransaction().add(taskFragment, TAG_TASK_FRAGMENT).commit();
+        }
 
         if (savedInstanceState != null && (VertretungsData.getsInstance().getTagList() != null || getLastCustomNonConfigurationInstance() != null)) {
 
@@ -86,7 +95,14 @@ public class MainActivity extends AppCompatActivity {
             if (getSupportActionBar() != null) getSupportActionBar().setTitle(title);
             selectedIdentifier = savedInstanceState.getInt("selectedIdentifier");
             if (selectedIdentifier >= 0) navigationDrawer.setSelection(selectedIdentifier);
-            if (isRefreshing == null) isRefreshing = savedInstanceState.getBoolean("isRefreshing");
+            isRefreshing = savedInstanceState.getBoolean("isRefreshing");
+            if (isRefreshing) {
+                boolean stopRefresh = PreferenceReader.readBooleanFromPreferences(getApplicationContext(), "stopRefresh", false);
+                if (stopRefresh) {
+                    isRefreshing = false;
+                    PreferenceReader.saveBooleanToPrefernces(getApplicationContext(), "stopRefresh", false);
+                }
+            }
             noactiveStartscreen = savedInstanceState.getBoolean("noactiveStartscreen");
             if (noactiveStartscreen) {
                 showStartScreen();
@@ -98,9 +114,6 @@ public class MainActivity extends AppCompatActivity {
             if (VertretungsData.getsInstance().getTagList() == null)
                 VertretungsData.setInstance((VertretungsData) getLastCustomNonConfigurationInstance());
 
-            username = savedInstanceState.getString("username");
-            password = savedInstanceState.getString("password");
-
             if (isInfoDialog) showInfoDialog();
             if (isNoAccesDialog) showFetchErrorDialog();
 
@@ -108,8 +121,6 @@ public class MainActivity extends AppCompatActivity {
 
             //App starten
             selectedIdentifier = 1;
-            isRefreshing = false;
-            PreferenceReader.saveBooleanToPrefernces(this, "stopRefreshing", false);
             initializeLoadingData();
 
         }
@@ -219,7 +230,7 @@ public class MainActivity extends AppCompatActivity {
         String url = "http://conradowatz.de/android-apps/jkg-vertretung-support/";
         Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
         intent.putExtra(EXTRA_CUSTOM_TABS_SESSION_ID, -1); // -1 or any valid session id returned from newSession() call
-        intent.putExtra(EXTRA_CUSTOM_TABS_TOOLBAR_COLOR, ContextCompat.getColor(this, R.color.primary));
+        intent.putExtra(EXTRA_CUSTOM_TABS_TOOLBAR_COLOR, ContextCompat.getColor(getApplicationContext(), R.color.primary));
         startActivity(intent);
 
     }
@@ -229,7 +240,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void openSettings() {
 
-        Intent openSettingsIntent = new Intent(this, SettingsActivity.class);
+        Intent openSettingsIntent = new Intent(getApplicationContext(), SettingsActivity.class);
         startActivity(openSettingsIntent);
 
     }
@@ -261,29 +272,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Leitet das Laden der Daten ein; Prüft ob Benutzerdaten vorhanden sind und öffnet falls nötig die LoginActivity
-     */
-    private void initializeLoadingData() {
-
-        //Wenn nicht eingeloggt, LoginActivity starten
-        if (PreferenceReader.readStringFromPreferences(this, "username", "null").equals("null")) {
-            Intent startLoginIntent = new Intent(this, LoginActivity.class);
-            final int result = 1;
-            startActivityForResult(startLoginIntent, result);
-        } else {
-            //Ansonsten Daten laden
-            username = PreferenceReader.readStringFromPreferences(this, "username", "");
-            password = PreferenceReader.readStringFromPreferences(this, "password", "");
-            loadData();
-        }
-    }
-
-    /**
      * wechselt zum vom Nutzer als Startscreen festgelegten Fragment
      */
     private void showStartScreen() {
 
-        boolean keineKlasse = PreferenceReader.readIntFromPreferences(this, "meineKlasseInt", -1) == -1;
+        boolean keineKlasse = PreferenceReader.readIntFromPreferences(getApplicationContext(), "meineKlasseInt", -1) == -1;
         if (keineKlasse) {
 
             //Falls noch keine Klasse gewählt ist, zur Klassen-/Kurswahl springen
@@ -294,9 +287,9 @@ public class MainActivity extends AppCompatActivity {
         } else {
 
             //Ansonsten zum Stundenplan springen
-            int startScreenIdentifier = Integer.parseInt(PreferenceReader.readStringFromPreferences(this, "startScreen", "1"));
+            int startScreenIdentifier = Integer.parseInt(PreferenceReader.readStringFromPreferences(getApplicationContext(), "startScreen", "1"));
             if (startScreenIdentifier < 1) {
-                PreferenceReader.saveStringToPreferences(this, "startScreen", "1");
+                PreferenceReader.saveStringToPreferences(getApplicationContext(), "startScreen", "1");
                 startScreenIdentifier = 1;
             }
             navigationDrawer.setSelection(startScreenIdentifier, false);
@@ -308,34 +301,19 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Wird aufgerufen wenn die LoadingActivity beendet wurde und die ersten 3 tage geladen hat
+     * Leitet das Laden der Daten ein; Prüft ob Benutzerdaten vorhanden sind und öffnet falls nötig die LoginActivity
      */
-    private void loadingDone() {
+    private void initializeLoadingData() {
 
-        showStartScreen();
-
-        //Daten als Saved Session speichern
-        VertretungsAPI.saveDataToFile(this);
-
-        //mehr Tage im Hintergrund laden
-        int dayCount = Integer.parseInt(PreferenceReader.readStringFromPreferences(this, "maxDaysToFetchStart", "14"));
-        if (VertretungsData.getsInstance().getTagList().size() == 3 && dayCount > 3) {
-
-            //Ladesymbol zeigen
-            showRefresh();
-
-            downloadTagList(dayCount - 3, 3);
+        //Wenn nicht eingeloggt, LoginActivity starten
+        if (PreferenceReader.readStringFromPreferences(getApplicationContext(), "username", "null").equals("null")) {
+            Intent startLoginIntent = new Intent(getApplicationContext(), LoginActivity.class);
+            final int result = 1;
+            startActivityForResult(startLoginIntent, result);
+        } else {
+            //Ansonsten Daten laden
+            loadData();
         }
-    }
-
-    /**
-     * Wird aufgerufen wenn die LoginActivity beendet wurde und sich erfolgreich eingeloggt hat
-     */
-    private void loggedIn() {
-
-        username = PreferenceReader.readStringFromPreferences(this, "username", "");
-        password = PreferenceReader.readStringFromPreferences(this, "password", "");
-        loadData();
     }
 
     /**
@@ -345,54 +323,16 @@ public class MainActivity extends AppCompatActivity {
     private void loadData() {
 
         //Schauen on eine SavedSession im Speicher ist
-        final File savedSessionFile = new File(getFilesDir(), VertretungsAPI.SAVE_FILE_NAE);
+        File savedSessionFile = new File(getFilesDir(), VertretungsAPI.SAVE_FILE_NAE);
         if (savedSessionFile.exists()) {
 
             //Saved Session laden
-            final MainActivity context = this;
-            VertretungsAPI.createDataFromFile(
-                    this, new VertretungsAPI.CreateDataFromFileListener() {
-                        @Override
-                        public void onCreated() {
-
-                            //Wenn die Tage nicht mehr aktuell sind, neue laden
-                            if (VertretungsData.getsInstance().getTagList().size() == 0) {
-                                boolean deleted = savedSessionFile.delete();
-                                loadData();
-                                return;
-                            }
-
-                            //wenn es fertig ist, Fragment öffnen
-                            if (isActive) showStartScreen();
-                            else noactiveStartscreen = true;
-
-                            //Daten aktualisieren aus dem Interwebs
-                            boolean doRefresh = PreferenceReader.readBooleanFromPreferences(context, "doRefreshAtStart", true);
-                            if (doRefresh) {
-
-                                showRefresh();
-                                int dayCount = Integer.parseInt(PreferenceReader.readStringFromPreferences(context, "maxDaysToFetchStart", "14"));
-                                redownloadData(dayCount);
-                            }
-
-                        }
-
-                        @Override
-                        public void onError(Throwable throwable) {
-
-                            //Falls es einnen Fehler gab (z.B. neue App Version nicht mit Saved Session kompatibel), neu herunterladen
-                            Log.e("JKGDEBUG", "Error loading data from storage. Redownload it...");
-                            throwable.printStackTrace();
-                            boolean deleted = savedSessionFile.delete();
-                            loadData();
-                        }
-                    }
-            );
+            taskFragment.createDataFromFile();
 
         } else {
 
             //Daten aus dem Interwebs herunterladen, dazu LoadingActivity starten
-            Intent startLoadingIntent = new Intent(this, LoadingActivity.class);
+            Intent startLoadingIntent = new Intent(getApplicationContext(), LoadingActivity.class);
             final int result = 1;
             startActivityForResult(startLoadingIntent, result);
 
@@ -401,43 +341,83 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Läd Tage neu herunter
-     *
-     * @param days     Anzahl der Tage
-     * @param skipDays Wieviele tage es (ab heute) überspringen soll
+     * Wird aufgerufen wenn VertretungsData erfolgreich aus dem App Speicher erstellt wurde
      */
-    private void downloadTagList(int days, final int skipDays) {
+    @Override
+    public void onDataCreated() {
 
-        final MainActivity context = this;
-        new VertretungsAPI(username, password).downloadDays(days, skipDays, new VertretungsAPI.DownloadDaysListener() {
+        //wenn es fertig ist, Fragment öffnen
+        if (isActive) showStartScreen();
+        else noactiveStartscreen = true;
 
-            @Override
-            public void onFinished() {
+        //Daten aktualisieren aus dem Interwebs
+        boolean doRefresh = PreferenceReader.readBooleanFromPreferences(getApplicationContext(), "doRefreshAtStart", true);
+        if (doRefresh) {
 
-                //Wenn Tage geladen wurden, diese speichern
-                if (VertretungsData.getsInstance().getTagList().size() > skipDays)
-                    VertretungsAPI.saveDataToFile(context);
+            showRefresh();
+            int dayCount = Integer.parseInt(PreferenceReader.readStringFromPreferences(getApplicationContext(), "maxDaysToFetchStart", "14"));
+            taskFragment.downloadAllData(dayCount);
+        }
 
-                //Ladesymbol anhalten
-                stopRefresh();
+    }
 
-            }
+    /**
+     * Wird gecallt wenn es einen Fehler beim Laden der VertretungsData aus dem Speicher gab
+     * @param throwable der Fehler
+     */
+    @Override
+    public void onDataCreateError(Throwable throwable) {
 
-            @Override
-            public void onDayAdded(int position) {
+        //Falls es einnen Fehler gab (z.B. neue App Version nicht mit Saved Session kompatibel), neu herunterladen
+        Log.e("JKGDEBUG", "Fehler beim Laden der Daten aus dem Speicher.");
+        Log.e("JKGDEBUG", "Message: " + throwable.getMessage());
 
-                //Fragments aktualisieren
-                informFragmentsDayAdded(position);
-            }
+        File savedSessionFile = new File(getFilesDir(), VertretungsAPI.SAVE_FILE_NAE);
+        boolean deleted = savedSessionFile.delete();
+        loadData();
 
-            @Override
-            public void onError(Throwable throwable) {
+    }
 
-                //Wenn es hier ein Error gibt, hat sich warscheinlich das Online System geändert
-                Log.e("JKGDEBUG", "Error bei der Verarbeitung der Daten");
-                throwable.printStackTrace();
-            }
-        });
+    /**
+     * Wird gecallt wenn das Laden von einzelnen Tagen (nach dem Beenden der LoadingActivity) erfolgreich beendet wurde
+     *
+     * @param skipDays wie viele Tage übersprungen wurden
+     */
+    @Override
+    public void onUpdateDaysFinished(int skipDays) {
+
+        //Wenn Tage geladen wurden, diese speichern
+        if (VertretungsData.getsInstance().getTagList().size() > skipDays)
+            taskFragment.saveDataToFile();
+
+        //Ladesymbol anhalten
+        stopRefresh();
+
+    }
+
+    /**
+     * Informiert die Fragments, dass ein Tag hinzugefügt bzw geupdatet wurde
+     *
+     * @param position welcher Tag wurde hinzugefügt / geupdatet
+     */
+    @Override
+    public void onDayAdded(int position) {
+
+        eventBus.post(new DayUpdatedEvent(position));
+
+    }
+
+    /**
+     * Wird gecallt wenn es einen unbekannten Fehler beim Herunterladen von Daten gab
+     *
+     * @param throwable der Fehler
+     */
+    @Override
+    public void onDownloadError(Throwable throwable) {
+
+        //Wenn es hier ein Error gibt, hat sich warscheinlich das Online System geändert
+        Log.e("JKGDEBUG", "Fehler beim Download oder Verarbeiten der Daten");
+        Log.e("JKGDEBUG", "Message: " + throwable.getMessage());
 
     }
 
@@ -448,7 +428,6 @@ public class MainActivity extends AppCompatActivity {
 
         isNoAccesDialog = true;
 
-        final MainActivity context = this;
         final AlertDialog alertD = new AlertDialog.Builder(this).create();
         LayoutInflater layoutInflater = getLayoutInflater();
         View promptView = layoutInflater.inflate(R.layout.no_acces_dialog, null);
@@ -471,8 +450,8 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
 
                 showRefresh();
-                int dayCount = Integer.parseInt(PreferenceReader.readStringFromPreferences(context, "maxDaysToFetch", "14"));
-                redownloadData(dayCount);
+                int dayCount = Integer.parseInt(PreferenceReader.readStringFromPreferences(getApplicationContext(), "maxDaysToFetch", "14"));
+                taskFragment.downloadAllData(dayCount);
 
                 alertD.cancel();
                 isNoAccesDialog = false;
@@ -489,16 +468,6 @@ public class MainActivity extends AppCompatActivity {
 
         alertD.setView(promptView);
         alertD.show();
-
-    }
-
-    /**
-     * Informiert die Fragments, dass ein Tag hinzugefügt bzw geupdatet wurde
-     * @param position welcher Tag wurde hinzugefügt / geupdatet
-     */
-    private void informFragmentsDayAdded(int position) {
-
-        eventBus.post(new DayUpdatedEvent(position));
 
     }
 
@@ -525,13 +494,44 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
+     * Wird aufgerufen wenn die LoadingActivity beendet wurde und die ersten 3 Tage geladen hat
+     */
+    private void loadingDone() {
+
+        if (isActive) showStartScreen();
+        else noactiveStartscreen = true;
+
+        //Daten als Saved Session speichern
+        taskFragment.saveDataToFile();
+
+        //mehr Tage im Hintergrund laden
+        int dayCount = Integer.parseInt(PreferenceReader.readStringFromPreferences(getApplicationContext(), "maxDaysToFetchStart", "14"));
+        if (VertretungsData.getsInstance().getTagList().size() == 3 && dayCount > 3) {
+
+            //Ladesymbol zeigen
+            showRefresh();
+
+            //Callback auf onUpdateDaysFinished
+            taskFragment.updateDays(dayCount - 3, 3);
+        }
+    }
+
+    /**
+     * Wird aufgerufen wenn die LoginActivity beendet wurde und sich erfolgreich eingeloggt hat
+     */
+    private void loggedIn() {
+
+        loadData();
+    }
+
+    /**
      * Löscht die Benutzerdaten und initialisert das Laden neu
      */
     private void relog() {
 
         //Benutzerdaten leeren und LoginActivity starten
-        PreferenceReader.saveStringToPreferences(this, "username", "null");
-        PreferenceReader.saveStringToPreferences(this, "password", "null");
+        PreferenceReader.saveStringToPreferences(getApplicationContext(), "username", "null");
+        PreferenceReader.saveStringToPreferences(getApplicationContext(), "password", "null");
         initializeLoadingData();
     }
 
@@ -577,76 +577,57 @@ public class MainActivity extends AppCompatActivity {
         showRefresh();
 
         //Daten im Hintergrund laden
-        int dayCount = Integer.parseInt(PreferenceReader.readStringFromPreferences(this, "maxDaysToFetchRefresh", "14"));
-        redownloadData(dayCount);
+        int dayCount = Integer.parseInt(PreferenceReader.readStringFromPreferences(getApplicationContext(), "maxDaysToFetchRefresh", "14"));
+        taskFragment.downloadAllData(dayCount);
 
     }
 
     /**
-     * Läd alle Daten (klassenList, freieTageList, tagList) neu herunter
-     * @param dayCount Anzahl der zu downloadenden Tage
+     * Wird gecallt wenn downloadAllData beendet wurde
      */
-    private void redownloadData(int dayCount) {
+    @Override
+    public void onRefreshFinished() {
 
-        final MainActivity context = this;
-        new VertretungsAPI(username, password).getAllInfo(dayCount, new VertretungsAPI.AllInfoResponseListener() {
+        if (VertretungsData.getsInstance().getTagList().size() > 0) {
 
-            @Override
-            public void onSuccess() {
-                if (VertretungsData.getsInstance().getTagList().size() > 0) {
+            Toast.makeText(getApplicationContext(), "Daten erfolgreich aktualisiert", Toast.LENGTH_SHORT).show();
+            taskFragment.saveDataToFile();
+            stopRefresh();
 
-                    Toast.makeText(context, "Daten erfolgreich aktualisiert", Toast.LENGTH_SHORT).show();
-                    onFinished();
+        } else {
 
-                } else {
+            onNoAccess();
+        }
 
-                    onNoAccess();
-                }
-            }
+    }
 
-            @Override
-            public void onNoConnection() {
+    /**
+     * Wird gecallt wenn bei downloadAllData keine Verbindung hergestellt werden konnte
+     */
+    @Override
+    public void onRefreshNoConnection() {
 
-                Toast.makeText(context, "Keine Verbindung zum Server!", Toast.LENGTH_LONG).show();
-                onFinished();
+        Toast.makeText(getApplicationContext(), "Keine Verbindung zum Server!", Toast.LENGTH_LONG).show();
+        stopRefresh();
+    }
 
-            }
+    /**
+     * Wird gecallt wenn sich die KlassenList Verändert haben könnte
+     */
+    @Override
+    public void onKlassenListUpdated() {
 
-            @Override
-            public void onDayAdded(int position) {
+        eventBus.post(new KlassenlistUpdatedEvent());
+    }
 
-                informFragmentsDayAdded(position);
-            }
+    /**
+     * Wird gecallt wenn der Server die Verbindungsabfrage mit 401 ablehnt
+     */
+    @Override
+    public void onNoAccess() {
 
-            @Override
-            public void onKlassenListFinished() {
-
-                eventBus.post(new KlassenlistUpdatedEvent());
-            }
-
-            @Override
-            public void onNoAccess() {
-
-                showFetchErrorDialog();
-                onFinished();
-
-            }
-
-            @Override
-            public void onOtherError(Throwable throwable) {
-
-                //Wenn es hier ein Error gibt, hat sich warscheinlich das Online System geändert
-                Log.e("JKGDEBUG", "Error bei der Verarbeitung der Daten");
-                Log.e("JKGDEBUG", "Message: " + throwable);
-            }
-
-            private void onFinished() {
-
-                VertretungsAPI.saveDataToFile(context);
-                stopRefresh();
-            }
-        });
-
+        showFetchErrorDialog();
+        stopRefresh();
     }
 
     /**
@@ -655,17 +636,14 @@ public class MainActivity extends AppCompatActivity {
     private void showRefresh() {
 
         if (refreshItem == null) return;
-        boolean stopRefreshing = PreferenceReader.readBooleanFromPreferences(getApplicationContext(), "stopRefreshing", true);
-        if (stopRefreshing) return;
 
         isRefreshing = true;
-        PreferenceReader.saveBooleanToPrefernces(this, "stopRefreshing", false);
 
         //Das Refresh Item durch ein ImageView, was sich dreht austauschen
         LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         ImageView iv = (ImageView) inflater.inflate(R.layout.refresh_icon, null);
 
-        Animation rotation = AnimationUtils.loadAnimation(this, R.anim.rotate);
+        Animation rotation = AnimationUtils.loadAnimation(getApplicationContext(), R.anim.rotate);
         rotation.setRepeatCount(Animation.INFINITE);
         rotation.setAnimationListener(new Animation.AnimationListener() {
             @Override
@@ -681,10 +659,8 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onAnimationRepeat(Animation animation) {
 
-                boolean stopRefreshing = PreferenceReader.readBooleanFromPreferences(getApplicationContext(), "stopRefreshing", true);
-                if (stopRefreshing) {
+                if (!isRefreshing && refreshItem != null && refreshItem.getActionView() != null) {
                     isRefreshing = false;
-                    PreferenceReader.saveBooleanToPrefernces(getApplicationContext(), "stopRefreshing", false);
                     refreshItem.getActionView().clearAnimation();
                     refreshItem.setActionView(null);
                 }
@@ -700,7 +676,9 @@ public class MainActivity extends AppCompatActivity {
      */
     private void stopRefresh() {
 
-        PreferenceReader.saveBooleanToPrefernces(this, "stopRefreshing", true);
+        isRefreshing = false;
+        if (!isActive)
+            PreferenceReader.saveBooleanToPrefernces(getApplicationContext(), "stopRefresh", true);
     }
 
     @Override
@@ -722,8 +700,6 @@ public class MainActivity extends AppCompatActivity {
         outState.putBoolean("isInfoDialog", isInfoDialog);
         outState.putBoolean("isNoAccesDialog", isNoAccesDialog);
         outState.putBoolean("noactiveStartscreen", noactiveStartscreen);
-        outState.putString("username", username);
-        outState.putString("password", password);
         outState.putBoolean("isRefreshing", isRefreshing);
 
         super.onSaveInstanceState(outState);

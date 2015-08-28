@@ -9,6 +9,8 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
 import com.pnikosis.materialishprogress.ProgressWheel;
 
 import de.conradowatz.jkgvertretung.R;
@@ -60,8 +62,8 @@ public class LoginActivity extends AppCompatActivity {
      * Überprüft die eingegebenen Benutzerdaten
      */
     private void login() {
-        final String benutzerName = usernameInput.getEditText().getText().toString();
-        final String passwort = passwordInput.getEditText().getText().toString();
+        final String username = usernameInput.getEditText().getText().toString();
+        final String password = passwordInput.getEditText().getText().toString();
 
         loginButton.setVisibility(View.INVISIBLE);
         loginProgressWheel.setVisibility(View.VISIBLE);
@@ -69,34 +71,41 @@ public class LoginActivity extends AppCompatActivity {
         passwordInput.getEditText().setEnabled(false);
         usernameInput.getEditText().setEnabled(false);
 
-        VertretungsAPI.checkLogin(benutzerName, passwort, new VertretungsAPI.AsyncLoginResponseListener() {
-
+        VertretungsAPI.checkLogin(username, password, new Response.Listener<String>() {
             @Override
-            public void onLoggedIn() {
-
-                PreferenceReader.saveStringToPreferences(getApplicationContext(), "username", benutzerName);
-                PreferenceReader.saveStringToPreferences(getApplicationContext(), "password", passwort);
-
-                //Anwendung schließen
-                Intent backToMain = new Intent();
-                backToMain.putExtra("ExitCode", "LoggedIn");
-                setResult(RESULT_OK, backToMain);
-                finish();
-
+            public void onResponse(String response) {
+                onLoggedIn(username, password);
             }
-
+        }, new Response.ErrorListener() {
             @Override
-            public void onLoginFailed(Throwable throwable) {
-                throwable.printStackTrace();
-
-                loginButton.setVisibility(View.VISIBLE);
-                loginProgressWheel.setVisibility(View.INVISIBLE);
-                passwordInput.getEditText().setEnabled(true);
-                usernameInput.getEditText().setEnabled(true);
-                loginErrorText.setVisibility(View.VISIBLE);
-                loginErrorText.setText("Fehler bei der Anmeldung!");
+            public void onErrorResponse(VolleyError error) {
+                if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
+                    onLoginError("Ungültige Daten!");
+                } else onLoginError("Fehler bei der Verbindung zum Server");
             }
         });
+    }
+
+    private void onLoggedIn(String username, String password) {
+
+        PreferenceReader.saveStringToPreferences(getApplicationContext(), "username", username);
+        PreferenceReader.saveStringToPreferences(getApplicationContext(), "password", password);
+
+        //Anwendung schließen
+        Intent backToMain = new Intent();
+        backToMain.putExtra("ExitCode", "LoggedIn");
+        setResult(RESULT_OK, backToMain);
+        finish();
+    }
+
+    private void onLoginError(String error) {
+
+        loginButton.setVisibility(View.VISIBLE);
+        loginProgressWheel.setVisibility(View.INVISIBLE);
+        passwordInput.getEditText().setEnabled(true);
+        usernameInput.getEditText().setEnabled(true);
+        loginErrorText.setVisibility(View.VISIBLE);
+        loginErrorText.setText(error);
 
     }
 

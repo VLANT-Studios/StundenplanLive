@@ -1,7 +1,6 @@
 package de.conradowatz.jkgvertretung.tools;
 
 
-import android.app.Activity;
 import android.content.Context;
 import android.util.Log;
 
@@ -57,279 +56,250 @@ public class VertretungsAPI {
      *
      * @param username             der Benutzername
      * @param password             das Passwort
-     * @param loginResponseHandler ein Handler um die Antwort zu handhaben
+     * @param listener             ein Listener um die Antwort zu handhaben
+     * @param errorListener        ein Listener um die Antwort zu handhaben
      */
-    public static void checkLogin(String username, String password, final AsyncLoginResponseListener loginResponseHandler) {
+    public static void checkLogin(String username, String password, Response.Listener<String> listener, Response.ErrorListener errorListener) {
 
         String url = "http://kepler.c.sn.schule.de/stuplanindiware/VmobilS/mobdaten/Klassen.xml";
-        AuthedStringRequest request = new AuthedStringRequest(url, new Response.Listener<String>() {
-            @Override
-            public void onResponse(String response) {
-                loginResponseHandler.onLoggedIn();
-            }
-        }, new Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(VolleyError error) {
-                loginResponseHandler.onLoginFailed(error.getCause());
-            }
-        });
+        AuthedStringRequest request = new AuthedStringRequest(url, listener, errorListener);
         request.setBasicAuth(username, password);
         VolleySingelton.getsInstance().getRequestQueue().add(request);
     }
 
     /**
      * Speichert den derzeitigen Zustand der VertretungsData in den AppSpeicher
+     *
      * @param context Context zum Zugriff auf den App-Speicher
      */
     public static void saveDataToFile(final Context context) {
 
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
+        VertretungsData vertretungsData = VertretungsData.getsInstance();
 
-                VertretungsData vertretungsData = VertretungsData.getsInstance();
+        try {
 
-                try {
+            JSONObject alleDaten = new JSONObject();
 
-                    JSONObject alleDaten = new JSONObject();
-
-                    //Klassenliste
-                    JSONArray klassenListArray = new JSONArray();
-                    for (Klasse klasse : vertretungsData.getKlassenList()) {
-                        JSONObject klasseObject = new JSONObject();
-                        klasseObject.put("name", klasse.getName());
-                        //Kurse
-                        JSONArray kurseArray = new JSONArray();
-                        for (Kurs kurs : klasse.getKurse()) {
-                            JSONObject kursObject = new JSONObject();
-                            kursObject.put("name", kurs.getName());
-                            kursObject.put("lehrer", kurs.getLehrer());
-                            kurseArray.put(kursObject);
-                        }
-                        klasseObject.put("kurse", kurseArray);
-                        klassenListArray.put(klasseObject);
-                    }
-                    alleDaten.put("klassenList", klassenListArray);
-
-                    //Freie Tage
-                    JSONArray freieTageListArray = new JSONArray();
-                    for (Date date : vertretungsData.getFreieTageList()) {
-                        String stringDate = new SimpleDateFormat("ddMMyyyy").format(date);
-                        freieTageListArray.put(stringDate);
-                    }
-                    alleDaten.put("freieTageList", freieTageListArray);
-
-                    //Tage
-                    JSONArray tagListArray = new JSONArray();
-                    for (Tag tag : vertretungsData.getTagList()) {
-                        JSONObject tagObject = new JSONObject();
-                        String dateString = new SimpleDateFormat("ddMMyyyy").format(tag.getDatum());
-                        tagObject.put("datum", dateString);
-                        tagObject.put("datumString", tag.getDatumString());
-                        tagObject.put("zeitStempel", tag.getZeitStempel());
-
-                        //StuPlaKlassen Liste
-                        JSONArray stuPlaKlasseListArray = new JSONArray();
-                        for (StuPlaKlasse stuPlaKlasse : tag.getStuplaKlasseList()) {
-                            JSONObject stuPlaKlasseObject = new JSONObject();
-                            stuPlaKlasseObject.put("name", stuPlaKlasse.getName());
-                            JSONArray stundenListArray = new JSONArray();
-                            for (Stunde stunde : stuPlaKlasse.getStundenList()) {
-                                JSONObject stundeObject = new JSONObject();
-                                stundeObject.put("stunde", stunde.getStunde());
-                                stundeObject.put("fach", stunde.getFach());
-                                stundeObject.put("fachg", stunde.isFachg());
-                                stundeObject.put("raum", stunde.getRaum());
-                                stundeObject.put("raumg", stunde.isRaumg());
-                                stundeObject.put("kurs", stunde.getKurs());
-                                stundeObject.put("info", stunde.getInfo());
-                                stundenListArray.put(stundeObject);
-                            }
-                            stuPlaKlasseObject.put("stundenList", stundenListArray);
-                            stuPlaKlasseListArray.put(stuPlaKlasseObject);
-                        }
-                        tagObject.put("stuPlaKlasseList", stuPlaKlasseListArray);
-
-                        //Vertretungs Liste
-                        JSONArray vertretungsListArray = new JSONArray();
-                        for (Vertretung vertretung : tag.getVertretungsList()) {
-                            JSONObject vertretungObject = new JSONObject();
-                            vertretungObject.put("klasse", vertretung.getKlasse());
-                            vertretungObject.put("stunde", vertretung.getStunde());
-                            vertretungObject.put("fach", vertretung.getFach());
-                            vertretungObject.put("raum", vertretung.getRaum());
-                            vertretungObject.put("info", vertretung.getInfo());
-                            vertretungsListArray.put(vertretungObject);
-                        }
-                        tagObject.put("vertretungsList", vertretungsListArray);
-
-                        tagListArray.put(tagObject);
-                    }
-                    alleDaten.put("tagList", tagListArray);
-
-                    //JSON speichern
-                    String dataToSave = alleDaten.toString();
-
-                    FileOutputStream outputStream = context.openFileOutput(SAVE_FILE_NAE, Context.MODE_PRIVATE);
-                    outputStream.write(dataToSave.getBytes(Charset.forName("UTF-8")));
-                    outputStream.close();
-
-                } catch (Exception e) {
-
-                    Log.e("JKGDEBUG", "Error saving session");
-                    e.printStackTrace();
-
+            //Klassenliste
+            JSONArray klassenListArray = new JSONArray();
+            for (Klasse klasse : vertretungsData.getKlassenList()) {
+                JSONObject klasseObject = new JSONObject();
+                klasseObject.put("name", klasse.getName());
+                //Kurse
+                JSONArray kurseArray = new JSONArray();
+                for (Kurs kurs : klasse.getKurse()) {
+                    JSONObject kursObject = new JSONObject();
+                    kursObject.put("name", kurs.getName());
+                    kursObject.put("lehrer", kurs.getLehrer());
+                    kurseArray.put(kursObject);
                 }
-
+                klasseObject.put("kurse", kurseArray);
+                klassenListArray.put(klasseObject);
             }
-        }).start();
+            alleDaten.put("klassenList", klassenListArray);
+
+            //Freie Tage
+            JSONArray freieTageListArray = new JSONArray();
+            for (Date date : vertretungsData.getFreieTageList()) {
+                String stringDate = new SimpleDateFormat("ddMMyyyy", Locale.GERMAN).format(date);
+                freieTageListArray.put(stringDate);
+            }
+            alleDaten.put("freieTageList", freieTageListArray);
+
+            //Tage
+            JSONArray tagListArray = new JSONArray();
+            for (Tag tag : vertretungsData.getTagList()) {
+                JSONObject tagObject = new JSONObject();
+                String dateString = new SimpleDateFormat("ddMMyyyy", Locale.GERMAN).format(tag.getDatum());
+                tagObject.put("datum", dateString);
+                tagObject.put("datumString", tag.getDatumString());
+                tagObject.put("zeitStempel", tag.getZeitStempel());
+
+                //StuPlaKlassen Liste
+                JSONArray stuPlaKlasseListArray = new JSONArray();
+                for (StuPlaKlasse stuPlaKlasse : tag.getStuplaKlasseList()) {
+                    JSONObject stuPlaKlasseObject = new JSONObject();
+                    stuPlaKlasseObject.put("name", stuPlaKlasse.getName());
+                    JSONArray stundenListArray = new JSONArray();
+                    for (Stunde stunde : stuPlaKlasse.getStundenList()) {
+                        JSONObject stundeObject = new JSONObject();
+                        stundeObject.put("stunde", stunde.getStunde());
+                        stundeObject.put("fach", stunde.getFach());
+                        stundeObject.put("fachg", stunde.isFachg());
+                        stundeObject.put("raum", stunde.getRaum());
+                        stundeObject.put("raumg", stunde.isRaumg());
+                        stundeObject.put("kurs", stunde.getKurs());
+                        stundeObject.put("info", stunde.getInfo());
+                        stundenListArray.put(stundeObject);
+                    }
+                    stuPlaKlasseObject.put("stundenList", stundenListArray);
+                    stuPlaKlasseListArray.put(stuPlaKlasseObject);
+                }
+                tagObject.put("stuPlaKlasseList", stuPlaKlasseListArray);
+
+                //Vertretungs Liste
+                JSONArray vertretungsListArray = new JSONArray();
+                for (Vertretung vertretung : tag.getVertretungsList()) {
+                    JSONObject vertretungObject = new JSONObject();
+                    vertretungObject.put("klasse", vertretung.getKlasse());
+                    vertretungObject.put("stunde", vertretung.getStunde());
+                    vertretungObject.put("fach", vertretung.getFach());
+                    vertretungObject.put("raum", vertretung.getRaum());
+                    vertretungObject.put("info", vertretung.getInfo());
+                    vertretungsListArray.put(vertretungObject);
+                }
+                tagObject.put("vertretungsList", vertretungsListArray);
+
+                tagListArray.put(tagObject);
+            }
+            alleDaten.put("tagList", tagListArray);
+
+            //JSON speichern
+            String dataToSave = alleDaten.toString();
+
+            FileOutputStream outputStream = context.openFileOutput(SAVE_FILE_NAE, Context.MODE_PRIVATE);
+            outputStream.write(dataToSave.getBytes(Charset.forName("UTF-8")));
+            outputStream.close();
+
+        } catch (Exception e) {
+
+            Log.e("JKGDEBUG", "Error saving session");
+            e.printStackTrace();
+
+        }
 
     }
 
     /**
-     * Ruft die VertretungsData aus dem App Speicher ab, falls diese vorhanden ist; läuft in eigenem Thread
+     * Ruft die VertretungsData aus dem App Speicher ab, falls diese vorhanden ist
      *
      * @param context                    die Activity für den handler und als Context für den Zugriff auf den AppSpeicher
      * @param createDataFromFileListener ein Listener für Created / Error
      */
     public static void createDataFromFile(final Context context, final CreateDataFromFileListener createDataFromFileListener) {
 
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
 
-                Calendar heute = Calendar.getInstance();
-                VertretungsData vertretungsData = VertretungsData.getsInstance();
+        Calendar heute = Calendar.getInstance();
+        VertretungsData vertretungsData = VertretungsData.getsInstance();
 
-                try {
+        try {
 
-                    //Read Data
-                    FileInputStream inputStream = context.openFileInput(SAVE_FILE_NAE);
-                    BufferedReader r = new BufferedReader(new InputStreamReader(inputStream));
-                    StringBuilder total = new StringBuilder(inputStream.available());
-                    String line;
-                    while ((line = r.readLine()) != null) {
-                        total.append(line);
-                    }
-                    JSONObject alleDaten = new JSONObject(total.toString());
-                    //Klassenliste
-                    ArrayList<Klasse> klassenList1 = new ArrayList<>();
-                    JSONArray klassenListArray = alleDaten.getJSONArray("klassenList");
-                    for (int i = 0; i < klassenListArray.length(); i++) {
-                        JSONObject klasseObject = klassenListArray.getJSONObject(i);
-                        String name = klasseObject.getString("name");
-                        //Kurse
-                        ArrayList<Kurs> kurse = new ArrayList<>();
-                        JSONArray kurseArray = klasseObject.getJSONArray("kurse");
-                        for (int j = 0; j < kurseArray.length(); j++) {
-                            JSONObject kursObject = kurseArray.getJSONObject(j);
-                            Kurs kurs = new Kurs(
-                                    kursObject.getString("name"),
-                                    kursObject.getString("lehrer")
-                            );
-                            kurse.add(kurs);
-                        }
-                        klassenList1.add(new Klasse(
-                                name,
-                                kurse
-                        ));
-
-                    }
-                    vertretungsData.setKlassenList(klassenList1);
-
-
-                    //Freie Tage
-                    ArrayList<Date> freieTageList1 = new ArrayList<>();
-                    JSONArray freieTageListArray = alleDaten.getJSONArray("freieTageList");
-                    for (int i = 0; i < freieTageListArray.length(); i++) {
-                        String stringDate = freieTageListArray.getString(i);
-                        freieTageList1.add(new SimpleDateFormat("ddMMyyyy").parse(stringDate));
-                    }
-                    vertretungsData.setFreieTageList(freieTageList1);
-
-                    //Tage
-                    ArrayList<Tag> tagList1 = new ArrayList<>();
-                    JSONArray tagListArray = alleDaten.getJSONArray("tagList");
-                    for (int i = 0; i < tagListArray.length(); i++) {
-                        Tag tag = new Tag();
-                        JSONObject tagObject = tagListArray.getJSONObject(i);
-                        String dateString = tagObject.getString("datum");
-                        Date datum = new SimpleDateFormat("ddMMyyyy").parse(dateString);
-
-                        //Wenn Tag ist älter als heute -> nicht zeigen
-                        Calendar tagCalendar = Calendar.getInstance();
-                        tagCalendar.setTime(datum);
-                        if (tagCalendar.get(Calendar.DAY_OF_YEAR) < heute.get(Calendar.DAY_OF_YEAR))
-                            continue;
-
-                        tag.setDatum(datum);
-                        tag.setDatumString(tagObject.getString("datumString"));
-                        tag.setZeitStempel(tagObject.getString("zeitStempel"));
-
-                        //StuPlaKlassen Liste
-                        ArrayList<StuPlaKlasse> stuPlaKlasseList = new ArrayList<>();
-                        JSONArray stuPlaKlasseListArray = tagObject.getJSONArray("stuPlaKlasseList");
-                        for (int j = 0; j < stuPlaKlasseListArray.length(); j++) {
-                            StuPlaKlasse stuPlaKlasse = new StuPlaKlasse();
-                            JSONObject stuPlaKlasseObject = stuPlaKlasseListArray.getJSONObject(j);
-                            stuPlaKlasse.setName(stuPlaKlasseObject.getString("name"));
-                            ArrayList<Stunde> stundenList = new ArrayList<>();
-                            JSONArray stundenListArray = stuPlaKlasseObject.getJSONArray("stundenList");
-                            for (int k = 0; k < stundenListArray.length(); k++) {
-                                JSONObject stundeObject = stundenListArray.getJSONObject(k);
-                                stundenList.add(new Stunde(
-                                        stundeObject.getString("stunde"),
-                                        stundeObject.getString("fach"),
-                                        stundeObject.has("kurs") ? stundeObject.getString("kurs") : null,
-                                        stundeObject.getBoolean("fachg"),
-                                        stundeObject.getString("raum"),
-                                        stundeObject.getBoolean("raumg"),
-                                        stundeObject.getString("info")
-                                ));
-                            }
-                            stuPlaKlasse.setStundenList(stundenList);
-                            stuPlaKlasseList.add(stuPlaKlasse);
-                        }
-                        tag.setStuplaKlasseList(stuPlaKlasseList);
-
-                        //Vertretungs Liste
-                        ArrayList<Vertretung> vertretungsList = new ArrayList<>();
-                        JSONArray vertretungsListArray = tagObject.getJSONArray("vertretungsList");
-                        for (int j = 0; j < vertretungsListArray.length(); j++) {
-                            JSONObject vertretungObject = vertretungsListArray.getJSONObject(j);
-                            vertretungsList.add(new Vertretung(
-                                    vertretungObject.getString("klasse"),
-                                    vertretungObject.getString("stunde"),
-                                    vertretungObject.getString("fach"),
-                                    vertretungObject.getString("raum"),
-                                    vertretungObject.getString("info")
-                            ));
-                        }
-                        tag.setVertretungsList(vertretungsList);
-
-                        tagList1.add(tag);
-                    }
-                    vertretungsData.setTagList(tagList1);
-
-                    ((Activity) context).runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            createDataFromFileListener.onCreated();
-                        }
-                    });
-
-                } catch (final Exception e) {
-
-                    ((Activity) context).runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            createDataFromFileListener.onError(e);
-                        }
-                    });
+            //Read Data
+            FileInputStream inputStream = context.openFileInput(SAVE_FILE_NAE);
+            BufferedReader r = new BufferedReader(new InputStreamReader(inputStream));
+            StringBuilder total = new StringBuilder(inputStream.available());
+            String line;
+            while ((line = r.readLine()) != null) {
+                total.append(line);
+            }
+            JSONObject alleDaten = new JSONObject(total.toString());
+            //Klassenliste
+            ArrayList<Klasse> klassenList1 = new ArrayList<>();
+            JSONArray klassenListArray = alleDaten.getJSONArray("klassenList");
+            for (int i = 0; i < klassenListArray.length(); i++) {
+                JSONObject klasseObject = klassenListArray.getJSONObject(i);
+                String name = klasseObject.getString("name");
+                //Kurse
+                ArrayList<Kurs> kurse = new ArrayList<>();
+                JSONArray kurseArray = klasseObject.getJSONArray("kurse");
+                for (int j = 0; j < kurseArray.length(); j++) {
+                    JSONObject kursObject = kurseArray.getJSONObject(j);
+                    Kurs kurs = new Kurs(
+                            kursObject.getString("name"),
+                            kursObject.getString("lehrer")
+                    );
+                    kurse.add(kurs);
                 }
+                klassenList1.add(new Klasse(
+                        name,
+                        kurse
+                ));
 
             }
-        }).start();
+            vertretungsData.setKlassenList(klassenList1);
+
+
+            //Freie Tage
+            ArrayList<Date> freieTageList1 = new ArrayList<>();
+            JSONArray freieTageListArray = alleDaten.getJSONArray("freieTageList");
+            for (int i = 0; i < freieTageListArray.length(); i++) {
+                String stringDate = freieTageListArray.getString(i);
+                freieTageList1.add(new SimpleDateFormat("ddMMyyyy", Locale.GERMAN).parse(stringDate));
+            }
+            vertretungsData.setFreieTageList(freieTageList1);
+
+            //Tage
+            ArrayList<Tag> tagList1 = new ArrayList<>();
+            JSONArray tagListArray = alleDaten.getJSONArray("tagList");
+            for (int i = 0; i < tagListArray.length(); i++) {
+                Tag tag = new Tag();
+                JSONObject tagObject = tagListArray.getJSONObject(i);
+                String dateString = tagObject.getString("datum");
+                Date datum = new SimpleDateFormat("ddMMyyyy", Locale.GERMAN).parse(dateString);
+
+                //Wenn Tag ist älter als heute -> nicht zeigen
+                Calendar tagCalendar = Calendar.getInstance();
+                tagCalendar.setTime(datum);
+                if (tagCalendar.get(Calendar.DAY_OF_YEAR) < heute.get(Calendar.DAY_OF_YEAR))
+                    continue;
+
+                tag.setDatum(datum);
+                tag.setDatumString(tagObject.getString("datumString"));
+                tag.setZeitStempel(tagObject.getString("zeitStempel"));
+
+                //StuPlaKlassen Liste
+                ArrayList<StuPlaKlasse> stuPlaKlasseList = new ArrayList<>();
+                JSONArray stuPlaKlasseListArray = tagObject.getJSONArray("stuPlaKlasseList");
+                for (int j = 0; j < stuPlaKlasseListArray.length(); j++) {
+                    StuPlaKlasse stuPlaKlasse = new StuPlaKlasse();
+                    JSONObject stuPlaKlasseObject = stuPlaKlasseListArray.getJSONObject(j);
+                    stuPlaKlasse.setName(stuPlaKlasseObject.getString("name"));
+                    ArrayList<Stunde> stundenList = new ArrayList<>();
+                    JSONArray stundenListArray = stuPlaKlasseObject.getJSONArray("stundenList");
+                    for (int k = 0; k < stundenListArray.length(); k++) {
+                        JSONObject stundeObject = stundenListArray.getJSONObject(k);
+                        stundenList.add(new Stunde(
+                                stundeObject.getString("stunde"),
+                                stundeObject.getString("fach"),
+                                stundeObject.has("kurs") ? stundeObject.getString("kurs") : null,
+                                stundeObject.getBoolean("fachg"),
+                                stundeObject.getString("raum"),
+                                stundeObject.getBoolean("raumg"),
+                                stundeObject.getString("info")
+                        ));
+                    }
+                    stuPlaKlasse.setStundenList(stundenList);
+                    stuPlaKlasseList.add(stuPlaKlasse);
+                }
+                tag.setStuplaKlasseList(stuPlaKlasseList);
+
+                //Vertretungs Liste
+                ArrayList<Vertretung> vertretungsList = new ArrayList<>();
+                JSONArray vertretungsListArray = tagObject.getJSONArray("vertretungsList");
+                for (int j = 0; j < vertretungsListArray.length(); j++) {
+                    JSONObject vertretungObject = vertretungsListArray.getJSONObject(j);
+                    vertretungsList.add(new Vertretung(
+                            vertretungObject.getString("klasse"),
+                            vertretungObject.getString("stunde"),
+                            vertretungObject.getString("fach"),
+                            vertretungObject.getString("raum"),
+                            vertretungObject.getString("info")
+                    ));
+                }
+                tag.setVertretungsList(vertretungsList);
+
+                tagList1.add(tag);
+            }
+            vertretungsData.setTagList(tagList1);
+
+            if (vertretungsData.getTagList().size() == 0)
+                createDataFromFileListener.onError(new Throwable("Tagliste nicht mehr aktuell!"));
+            else createDataFromFileListener.onCreated();
+
+        } catch (Exception e) {
+
+            createDataFromFileListener.onError(e);
+        }
 
     }
 
@@ -337,9 +307,9 @@ public class VertretungsAPI {
      * Fragt nacheinander alle Informationen ab: klassenList, freieTageList, tagList
      *
      * @param dayCount                wie viele Tage maximal abgefragt werden
-     * @param allInfoResponseListener ein Handler um die Antwort zu handhaben
+     * @param downloadAllDataResponseListener ein Handler um die Antwort zu handhaben
      */
-    public void getAllInfo(final int dayCount, final AllInfoResponseListener allInfoResponseListener) {
+    public void downloadAllData(final int dayCount, final DownloadAllDataResponseListener downloadAllDataResponseListener) {
 
         String url = "http://kepler.c.sn.schule.de/stuplanindiware/VmobilS/mobdaten/Klassen.xml";
         AuthedStringRequest request = new AuthedStringRequest(url, new Response.Listener<String>() {
@@ -352,42 +322,44 @@ public class VertretungsAPI {
                 try {
                     vertretungsData.setKlassenList(makeKlassen(response));
                 } catch (Exception e) {
-                    allInfoResponseListener.onOtherError(e);
+                    downloadAllDataResponseListener.onOtherError(e);
                     return;
                 }
-                allInfoResponseListener.onKlassenListFinished();
+                downloadAllDataResponseListener.onKlassenListFinished();
 
                 //freie Tage
                 try {
                     vertretungsData.setFreieTageList(makeFreieTage(response));
                 } catch (Exception e) {
-                    allInfoResponseListener.onOtherError(e);
+                    downloadAllDataResponseListener.onOtherError(e);
                     return;
                 }
 
-                allInfoResponseListener.onProgress(100 / (dayCount * 2 + 1));
+                downloadAllDataResponseListener.onProgress(100 / (dayCount * 2 + 1));
 
                 //Tag Liste
                 downloadDays(dayCount, 0, new DownloadDaysListener() {
                     @Override
                     public void onFinished() {
 
-                        allInfoResponseListener.onSuccess();
+                        downloadAllDataResponseListener.onSuccess();
                     }
 
                     @Override
                     public void onError(Throwable throwable) {
-                        allInfoResponseListener.onOtherError(throwable);
+                        downloadAllDataResponseListener.onOtherError(throwable);
                     }
 
                     @Override
                     public void onDayAdded(int position) {
-                        allInfoResponseListener.onDayAdded(position);
+                        downloadAllDataResponseListener.onDayAdded(position);
                     }
 
                     @Override
-                    public void onProgress(double progress) {
-                        allInfoResponseListener.onProgress(100 / (dayCount * 2 + 1) + progress / (100 / (dayCount * 2 + 1)));
+                    public void onProgress(int progress) {
+
+                        float endProgress = 100 / (dayCount * 2 + 1) + progress / (100 / (dayCount * 2 + 1));
+                        downloadAllDataResponseListener.onProgress(Math.round(endProgress));
                     }
                 });
 
@@ -396,9 +368,9 @@ public class VertretungsAPI {
             @Override
             public void onErrorResponse(VolleyError error) {
                 if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
-                    allInfoResponseListener.onNoAccess();
+                    downloadAllDataResponseListener.onNoAccess();
                 } else {
-                    allInfoResponseListener.onNoConnection();
+                    downloadAllDataResponseListener.onNoConnection();
                 }
             }
         });
@@ -482,7 +454,7 @@ public class VertretungsAPI {
                 case XmlPullParser.START_TAG:
                     if (name.equals("ft")) {
                         String dateString = pullParser.nextText();
-                        Date date = new SimpleDateFormat("yyMMdd").parse(dateString, new ParsePosition(0));
+                        Date date = new SimpleDateFormat("yyMMdd", Locale.GERMAN).parse(dateString, new ParsePosition(0));
                         dateList.add(date);
                     }
                     break;
@@ -497,7 +469,7 @@ public class VertretungsAPI {
         }
 
         try {
-            Date date = new SimpleDateFormat("yyMMdd").parse("150615");
+            Date date = new SimpleDateFormat("yyMMdd", Locale.GERMAN).parse("150615");
             dateList.add(date);
         } catch (ParseException e) {
             e.printStackTrace();
@@ -509,6 +481,7 @@ public class VertretungsAPI {
 
     /**
      * Berechnet den nächsten Schultag anhand von Wochenenden und der freieTageList
+     *
      * @param startDate Datum ab dem geschaut wird (kann nicht zurückgegeben werden)
      * @return Datum des nächsten Schultages nach dem startDate
      */
@@ -530,6 +503,7 @@ public class VertretungsAPI {
 
     /**
      * Gibt zurück ob das gegebene Datum kein Schultag ist
+     *
      * @param date Datum das geprüft werden soll
      * @return ist der Datum kein Schultag
      */
@@ -545,8 +519,9 @@ public class VertretungsAPI {
 
     /**
      * Läd eine bestimmte Anzahl Tage heruter und fügt sie der tagList hinzu
-     * @param count wieviele Schultage insgasamm heruntergeladen werden sollen
-     * @param skip wie viele Schultage sollen übersprungen werden
+     *
+     * @param count                wieviele Schultage insgasamm heruntergeladen werden sollen
+     * @param skip                 wie viele Schultage sollen übersprungen werden
      * @param downloadDaysListener ein Listener für Sucess / Progress / Error
      */
     public void downloadDays(final int count, int skip, final DownloadDaysListener downloadDaysListener) {
@@ -574,7 +549,7 @@ public class VertretungsAPI {
             String stundenPlanUrl = "http://kepler.c.sn.schule.de/stuplanindiware/VmobilS/mobdaten/PlanKl" + dateString + ".xml";
             String vertretungsPlanUrl = "http://kepler.c.sn.schule.de/stuplanindiware/VplanonlineS/vdaten/VplanKl" + dateString + ".xml";
 
-            //Ruft Stundenplan für den tag ab
+            //Ruft Stundenplan für den Tag ab
 
             final int finalI = i;
             final int finalSkip = skip;
@@ -607,12 +582,13 @@ public class VertretungsAPI {
                             tagArray[finalI].setDatumString(datumString);
                         }
                         tagArray[finalI].setDatum(finalDate);
-                        addTag(tagArray[finalI], finalI);
+                        addTag(tagArray[finalI], downloadDaysListener);
                         downloadDaysListener.onDayAdded(finalI + finalSkip);
                     }
 
                     pendingDownloads--;
-                    downloadDaysListener.onProgress((count - pendingDownloads) * 100 / count);
+                    float progress = (count - pendingDownloads) * 100 / count;
+                    downloadDaysListener.onProgress(Math.round(progress));
                     if (pendingDownloads == 0) downloadDaysListener.onFinished();
 
                 }
@@ -630,14 +606,17 @@ public class VertretungsAPI {
                     }
 
                     if (finished) {
-                        if (tagArray[finalI].getVertretungsList()!=null) {
-                            addTag(tagArray[finalI], finalI);
+                        if (tagArray[finalI].getVertretungsList() != null) {
+                            tagArray[finalI].setDatum(finalDate);
+                            addTag(tagArray[finalI], downloadDaysListener);
                             downloadDaysListener.onDayAdded(finalI + finalSkip);
+
                         }
                     }
 
                     pendingDownloads--;
-                    downloadDaysListener.onProgress((count - pendingDownloads) * 100 / count);
+                    float progress = (count - pendingDownloads) * 100 / count;
+                    downloadDaysListener.onProgress(Math.round(progress));
                     if (pendingDownloads == 0) downloadDaysListener.onFinished();
                 }
             });
@@ -667,18 +646,23 @@ public class VertretungsAPI {
                     tagArray[finalI].setDatumString(datumString);
 
                     if (finished) {
-                        if (tagArray[finalI].getVertretungsList() == null) {
+                        if (tagArray[finalI].getStuplaKlasseList() == null) {
                             tagArray[finalI].setStuplaKlasseList(new ArrayList<StuPlaKlasse>());
                             String zeitstempelString = response.substring(response.indexOf("<datum>") + 7, response.indexOf("</datum>"));
                             tagArray[finalI].setZeitStempel(zeitstempelString);
                         }
                         tagArray[finalI].setDatum(finalDate);
-                        addTag(tagArray[finalI], finalI);
+                        addTag(tagArray[finalI], downloadDaysListener);
                         downloadDaysListener.onDayAdded(finalI + finalSkip);
+                    } else {
+                        tagArray[finalI].setStuplaKlasseList(new ArrayList<StuPlaKlasse>());
+                        String zeitstempelString = response.substring(response.indexOf("<datum>") + 7, response.indexOf("</datum>"));
+                        tagArray[finalI].setZeitStempel(zeitstempelString);
                     }
 
                     pendingDownloads--;
-                    downloadDaysListener.onProgress((count - pendingDownloads) * 100 / count);
+                    float progress = (count - pendingDownloads) * 100 / count;
+                    downloadDaysListener.onProgress(Math.round(progress));
                     if (pendingDownloads == 0) downloadDaysListener.onFinished();
 
                 }
@@ -696,14 +680,20 @@ public class VertretungsAPI {
                     }
 
                     if (finished) {
-                        if (tagArray[finalI].getStuplaKlasseList()!=null) {
-                            addTag(tagArray[finalI], finalI);
+                        if (tagArray[finalI].getStuplaKlasseList() != null) {
+
+                            tagArray[finalI].setVertretungsList(createFallbackVerterungsList(tagArray[finalI].getStuplaKlasseList()));
+                            String datumString = new SimpleDateFormat("EEEE, dd. MMMM yyyy", Locale.GERMAN).format(finalDate);
+                            tagArray[finalI].setDatumString(datumString);
+                            tagArray[finalI].setDatum(finalDate);
+                            addTag(tagArray[finalI], downloadDaysListener);
                             downloadDaysListener.onDayAdded(finalI + finalSkip);
                         }
                     }
 
                     pendingDownloads--;
-                    downloadDaysListener.onProgress((count - pendingDownloads) * 100 / count);
+                    float progress = (count - pendingDownloads) * 100 / count;
+                    downloadDaysListener.onProgress(Math.round(progress));
                     if (pendingDownloads == 0) downloadDaysListener.onFinished();
                 }
             });
@@ -720,18 +710,44 @@ public class VertretungsAPI {
 
     /**
      * Fügt einen Tag zur Liste hinzu bzw. updated ihn falls schon vorhanden
-     * @param tag Der hinzu zu fügende Tag
+     *
+     * @param neuerTag Der hinzu zu fügende Tag
      */
-    private void addTag(Tag tag, int position) {
+    private void addTag(Tag neuerTag, DownloadDaysListener callback) {
 
-        //falls Tag schon vorhanden, updaten
+        Calendar neuerTagC = Calendar.getInstance();
+        neuerTagC.setTime(neuerTag.getDatum());
         VertretungsData vertretungsData = VertretungsData.getsInstance();
-        if (position < vertretungsData.getTagList().size() && vertretungsData.getTagList().get(position) != null) {
-            vertretungsData.getTagList().remove(position);
-            vertretungsData.getTagList().add(position, tag);
-        } else {
-            vertretungsData.getTagList().add(tag);
+
+        for (int i = 0; i < vertretungsData.getTagList().size(); i++) {
+
+            Tag tag = vertretungsData.getTagList().get(i);
+            Calendar tagC = Calendar.getInstance();
+            tagC.setTime(tag.getDatum());
+            //falls Tag schon vorhanden, updaten
+            if (tagC.get(Calendar.DAY_OF_YEAR) == neuerTagC.get(Calendar.DAY_OF_YEAR)) {
+
+                vertretungsData.getTagList().remove(i);
+                vertretungsData.getTagList().add(i, neuerTag);
+                callback.onDayAdded(i);
+                return;
+            }
+            //falls nicht, einordnen
+            if (neuerTagC.get(Calendar.DAY_OF_YEAR) < tagC.get(Calendar.DAY_OF_YEAR)) {
+
+                vertretungsData.getTagList().add(i, neuerTag);
+                callback.onDayAdded(i);
+                int toUpdate = vertretungsData.getTagList().size() - 1 - i;
+                for (int j = 0; j < toUpdate; j++) {
+                    callback.onDayAdded(vertretungsData.getTagList().size() - 1 - j);
+                }
+                return;
+            }
         }
+
+        //falls neu, hinzufügen
+        vertretungsData.getTagList().add(neuerTag);
+        callback.onDayAdded(vertretungsData.getTagList().size() - 1);
 
     }
 
@@ -819,10 +835,11 @@ public class VertretungsAPI {
 
     /**
      * Erzeugt aus dem XML String eine vertretungsPlanList
+     *
      * @param xml der XML String
      * @return die vertretungsplanList
      * @throws XmlPullParserException es gab einen Fehler bei der Umwandlung
-     * @throws IOException der XML String ist Fehlerhaft
+     * @throws IOException            der XML String ist Fehlerhaft
      */
     private ArrayList<Vertretung> makeVertretungsList(String xml) throws XmlPullParserException, IOException {
 
@@ -873,6 +890,7 @@ public class VertretungsAPI {
 
     /**
      * Erstellt selbst einen Vertretungsplan aus dem Stundenplan falls dieser nicht abgerufen werden kann
+     *
      * @param stuPlaKlasseList die stundenplanList mit der verglichen wird
      * @return der Vertretungsplan
      */
@@ -906,7 +924,7 @@ public class VertretungsAPI {
         public abstract void onLoginFailed(Throwable throwable);
     }
 
-    public static abstract class AllInfoResponseListener {
+    public static abstract class DownloadAllDataResponseListener {
 
         public abstract void onSuccess();
 
@@ -914,17 +932,17 @@ public class VertretungsAPI {
 
         public abstract void onNoAccess();
 
-        public abstract void onOtherError(Throwable e);
+        public abstract void onOtherError(Throwable throwable);
 
-        public void onProgress(double progress) {
-
-        }
-
-        public void onDayAdded(int position) {
+        public void onProgress(int progress) {
 
         }
 
         public void onKlassenListFinished() {
+
+        }
+
+        public void onDayAdded(int position) {
 
         }
     }
@@ -935,13 +953,11 @@ public class VertretungsAPI {
 
         public abstract void onError(Throwable throwable);
 
-        public void onProgress(double progress) {
+        public void onProgress(int progress) {
 
         }
 
-        public void onDayAdded(int position) {
-
-        }
+        public abstract void onDayAdded(int position);
     }
 
     public static abstract class CreateDataFromFileListener {

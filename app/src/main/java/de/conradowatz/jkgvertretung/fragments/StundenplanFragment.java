@@ -6,7 +6,6 @@ import android.support.design.widget.TabLayout;
 import android.support.v4.app.Fragment;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.view.ViewPager;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -19,6 +18,7 @@ import java.util.ArrayList;
 import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.adapters.StundenplanPagerAdapter;
+import de.conradowatz.jkgvertretung.tools.PreferenceReader;
 import de.conradowatz.jkgvertretung.tools.VertretungsData;
 import de.conradowatz.jkgvertretung.variables.DayUpdatedEvent;
 import de.conradowatz.jkgvertretung.variables.Klasse;
@@ -38,6 +38,7 @@ public class StundenplanFragment extends Fragment {
     private Spinner spinner;
 
     private int mode;
+    private int viewpagerCount;
     private Integer klassenIndex;
 
     private EventBus eventBus = EventBus.getDefault();
@@ -69,6 +70,7 @@ public class StundenplanFragment extends Fragment {
         } else {
 
             mode = savedInstanceState.getInt("mode");
+            viewpagerCount = savedInstanceState.getInt("viewpagerCount");
             klassenIndex = savedInstanceState.getInt("klassenIndex");
         }
 
@@ -98,9 +100,9 @@ public class StundenplanFragment extends Fragment {
 
             spinner = (Spinner) contentView.findViewById(R.id.spinner);
             setUpSpinner();
-            if (klassenIndex != null) setUpViewPager(klassenIndex);
+            if (klassenIndex != null) setUpViewPager(klassenIndex, null);
         } else {
-            setUpViewPager(null);
+            setUpViewPager(null, null);
         }
 
         return contentView;
@@ -120,9 +122,10 @@ public class StundenplanFragment extends Fragment {
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+
                 if (klassenIndex == null || position != klassenIndex) {
-                    Log.d("JKGDEBUG", "Ich mach doch schon!");
-                    setUpViewPager(position);
+                    int lastposition = viewPager.getCurrentItem();
+                    setUpViewPager(position, lastposition);
                     klassenIndex = position;
                 }
             }
@@ -133,17 +136,28 @@ public class StundenplanFragment extends Fragment {
             }
         });
 
+        int meineKlasseInt = PreferenceReader.readIntFromPreferences(getActivity(), "meineKlasseInt", -1);
+        if (meineKlasseInt >= 0) {
+            spinner.setSelection(meineKlasseInt);
+        }
+
     }
 
-    private void setUpViewPager(Integer klassenIndex) {
+    private void setUpViewPager(Integer klassenIndex, Integer lastPosition) {
 
+        boolean firstStart = viewPager.getAdapter() == null;
         StundenplanPagerAdapter adapter = new StundenplanPagerAdapter(getChildFragmentManager(), mode, klassenIndex);
         viewPager.setAdapter(adapter);
 
-        tabs.setTabTextColors(ContextCompat.getColor(getContext(), R.color.white), ContextCompat.getColor(getContext(), R.color.white));
-        tabs.setTabMode(TabLayout.MODE_SCROLLABLE);
-        tabs.setupWithViewPager(viewPager);
-        tabs.setScrollPosition(0, 0, true);
+        if (firstStart) {
+            tabs.setTabTextColors(ContextCompat.getColor(getContext(), R.color.white), ContextCompat.getColor(getContext(), R.color.white));
+            tabs.setTabMode(TabLayout.MODE_SCROLLABLE);
+            tabs.setupWithViewPager(viewPager);
+        }
+
+        if (lastPosition != null) viewPager.setCurrentItem(lastPosition);
+
+        viewpagerCount = adapter.getCount();
     }
 
     /**
@@ -153,10 +167,10 @@ public class StundenplanFragment extends Fragment {
 
         if (viewPager == null) return;
 
-        if (event.getPosition() > viewPager.getAdapter().getCount()) {
+        if (event.getPosition() > viewPager.getAdapter().getCount() - 1) {
 
-            viewPager.getAdapter().notifyDataSetChanged();
-            tabs.setupWithViewPager(viewPager);
+            ((StundenplanPagerAdapter) viewPager.getAdapter()).dayAdded();
+            tabs.setTabsFromPagerAdapter(viewPager.getAdapter());
         }
 
     }
@@ -165,6 +179,7 @@ public class StundenplanFragment extends Fragment {
     public void onSaveInstanceState(Bundle outState) {
 
         outState.putInt("mode", mode);
+        outState.putInt("viewpagerCount", viewpagerCount);
         if (klassenIndex != null) outState.putInt("klassenIndex", klassenIndex);
         super.onSaveInstanceState(outState);
     }
