@@ -11,6 +11,7 @@
     <color name="icons">#212121</color>
     <color name="divider">#ffd1d1d1</color>
     <color name="white">#FFFFFF</color>
+    <color name="tabs_unselected">#a3ffffff</color>
     <color name="grey">#f1f1f1</color>
     <color name="warn_text">#ffb20000</color>
 </resources>

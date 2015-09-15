@@ -94,6 +94,7 @@ public class LoginActivity extends AppCompatActivity {
         //Anwendung schließen
         Intent backToMain = new Intent();
         backToMain.putExtra("ExitCode", "LoggedIn");
+        backToMain.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
         setResult(RESULT_OK, backToMain);
         finish();
     }
@@ -115,6 +116,7 @@ public class LoginActivity extends AppCompatActivity {
         //Anwendung schließen
         Intent backToMain = new Intent();
         backToMain.putExtra("ExitCode", "Exit");
+        backToMain.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
         setResult(RESULT_OK, backToMain);
         finish();
     }

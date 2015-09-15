@@ -88,7 +88,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
             fm.beginTransaction().add(taskFragment, TAG_TASK_FRAGMENT).commit();
         }
 
-        if (savedInstanceState != null && (VertretungsData.getsInstance().getTagList() != null || getLastCustomNonConfigurationInstance() != null)) {
+        if (savedInstanceState != null && (VertretungsData.getInstance().getTagList() != null || getLastCustomNonConfigurationInstance() != null)) {
 
             //App noch im Speicher, wiederherstellen
             CharSequence title = savedInstanceState.getCharSequence("title");
@@ -111,7 +111,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
             isInfoDialog = savedInstanceState.getBoolean("isInfoDialog");
             isNoAccesDialog = savedInstanceState.getBoolean("isNoAccesDialog");
 
-            if (VertretungsData.getsInstance().getTagList() == null)
+            if (VertretungsData.getInstance().getTagList() == null)
                 VertretungsData.setInstance((VertretungsData) getLastCustomNonConfigurationInstance());
 
             if (isInfoDialog) showInfoDialog();
@@ -154,7 +154,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
                     public boolean onItemClick(View view, int position, IDrawerItem drawerItem) {
                         int identifier = drawerItem.getIdentifier();
                         if (identifier < 10) {
-                            if (selectedIdentifier != identifier) {
+                            if (selectedIdentifier != identifier && VertretungsData.getInstance().getTagList() != null) {
                                 setFragment(identifier);
                                 selectedIdentifier = identifier;
                                 return false;
@@ -227,6 +227,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
         MyApplication analytics = (MyApplication) getApplication();
         analytics.fireEvent("NavDrawer", "Feedback");
 
+
         String url = "http://conradowatz.de/android-apps/jkg-vertretung-support/";
         Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
         intent.putExtra(EXTRA_CUSTOM_TABS_SESSION_ID, -1); // -1 or any valid session id returned from newSession() call
@@ -242,6 +243,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
 
         Intent openSettingsIntent = new Intent(getApplicationContext(), SettingsActivity.class);
         startActivity(openSettingsIntent);
+        overridePendingTransition(R.anim.slide_in_right, 0);
 
     }
 
@@ -308,8 +310,8 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
         //Wenn nicht eingeloggt, LoginActivity starten
         if (PreferenceReader.readStringFromPreferences(getApplicationContext(), "username", "null").equals("null")) {
             Intent startLoginIntent = new Intent(getApplicationContext(), LoginActivity.class);
-            final int result = 1;
-            startActivityForResult(startLoginIntent, result);
+            startLoginIntent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
+            startActivityForResult(startLoginIntent, 1);
         } else {
             //Ansonsten Daten laden
             loadData();
@@ -323,7 +325,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
     private void loadData() {
 
         //Schauen on eine SavedSession im Speicher ist
-        File savedSessionFile = new File(getFilesDir(), VertretungsAPI.SAVE_FILE_NAE);
+        File savedSessionFile = new File(getFilesDir(), VertretungsAPI.SAVE_FILE_NAME);
         if (savedSessionFile.exists()) {
 
             //Saved Session laden
@@ -333,8 +335,8 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
 
             //Daten aus dem Interwebs herunterladen, dazu LoadingActivity starten
             Intent startLoadingIntent = new Intent(getApplicationContext(), LoadingActivity.class);
-            final int result = 1;
-            startActivityForResult(startLoadingIntent, result);
+            startLoadingIntent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
+            startActivityForResult(startLoadingIntent, 1);
 
         }
 
@@ -372,10 +374,12 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
         Log.e("JKGDEBUG", "Fehler beim Laden der Daten aus dem Speicher.");
         Log.e("JKGDEBUG", "Message: " + throwable.getMessage());
 
-        File savedSessionFile = new File(getFilesDir(), VertretungsAPI.SAVE_FILE_NAE);
+        File savedSessionFile = new File(getFilesDir(), VertretungsAPI.SAVE_FILE_NAME);
         boolean deleted = savedSessionFile.delete();
         loadData();
 
+        if (!throwable.getMessage().startsWith("Tagliste nicht mehr aktuell"))
+            ((MyApplication) getApplication()).fireException(throwable);
     }
 
     /**
@@ -387,7 +391,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
     public void onUpdateDaysFinished(int skipDays) {
 
         //Wenn Tage geladen wurden, diese speichern
-        if (VertretungsData.getsInstance().getTagList().size() > skipDays)
+        if (VertretungsData.getInstance().getTagList().size() > skipDays)
             taskFragment.saveDataToFile();
 
         //Ladesymbol anhalten
@@ -418,6 +422,8 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
         //Wenn es hier ein Error gibt, hat sich warscheinlich das Online System geändert
         Log.e("JKGDEBUG", "Fehler beim Download oder Verarbeiten der Daten");
         Log.e("JKGDEBUG", "Message: " + throwable.getMessage());
+
+        ((MyApplication) getApplication()).fireException(throwable);
 
     }
 
@@ -474,7 +480,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 
-        if (data == null) return;
+        if (data == null || requestCode != 1) return;
         String response = data.getStringExtra("ExitCode");
         switch (response) {
             case "Exit":            //Anwendung schließen, falls von Activity gewünscht
@@ -506,7 +512,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
 
         //mehr Tage im Hintergrund laden
         int dayCount = Integer.parseInt(PreferenceReader.readStringFromPreferences(getApplicationContext(), "maxDaysToFetchStart", "14"));
-        if (VertretungsData.getsInstance().getTagList().size() == 3 && dayCount > 3) {
+        if (VertretungsData.getInstance().getTagList().size() == 3 && dayCount > 3) {
 
             //Ladesymbol zeigen
             showRefresh();
@@ -588,7 +594,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
     @Override
     public void onRefreshFinished() {
 
-        if (VertretungsData.getsInstance().getTagList().size() > 0) {
+        if (VertretungsData.getInstance().getTagList().size() > 0) {
 
             Toast.makeText(getApplicationContext(), "Daten erfolgreich aktualisiert", Toast.LENGTH_SHORT).show();
             taskFragment.saveDataToFile();
@@ -707,7 +713,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
 
     @Override
     public Object onRetainCustomNonConfigurationInstance() {
-        return VertretungsData.getsInstance();
+        return VertretungsData.getInstance();
     }
 
     @Override

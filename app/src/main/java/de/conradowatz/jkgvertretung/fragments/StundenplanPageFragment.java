@@ -79,8 +79,8 @@ public class StundenplanPageFragment extends Fragment {
 
         int meinKlassenIndex = PreferenceReader.readIntFromPreferences(getActivity(), "meineKlasseInt", 0);
         ArrayList<String> nichtKurse = PreferenceReader.readStringListFromPreferences(getActivity(), "meineNichtKurse");
-        String meinKlassenString = VertretungsData.getsInstance().getKlassenList().get(meinKlassenIndex).getName();
-        ArrayList<Tag> tagList = VertretungsData.getsInstance().getTagList();
+        String meinKlassenString = VertretungsData.getInstance().getKlassenList().get(meinKlassenIndex).getName();
+        ArrayList<Tag> tagList = VertretungsData.getInstance().getTagList();
 
         StundenPlanRecyclerAdapter adapter;
         if (mode == StundenplanFragment.MODE_STUNDENPLAN)

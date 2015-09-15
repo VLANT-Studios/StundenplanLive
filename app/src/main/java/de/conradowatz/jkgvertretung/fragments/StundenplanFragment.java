@@ -111,7 +111,7 @@ public class StundenplanFragment extends Fragment {
     private void setUpSpinner() {
 
         ArrayList<String> klassennamenListe = new ArrayList<>();
-        for (Klasse klasse : VertretungsData.getsInstance().getKlassenList()) {
+        for (Klasse klasse : VertretungsData.getInstance().getKlassenList()) {
             klassennamenListe.add(klasse.getName());
         }
 
@@ -146,11 +146,12 @@ public class StundenplanFragment extends Fragment {
     private void setUpViewPager(Integer klassenIndex, Integer lastPosition) {
 
         boolean firstStart = viewPager.getAdapter() == null;
+        if (VertretungsData.getInstance().getTagList() == null) return;
         StundenplanPagerAdapter adapter = new StundenplanPagerAdapter(getChildFragmentManager(), mode, klassenIndex);
         viewPager.setAdapter(adapter);
 
         if (firstStart) {
-            tabs.setTabTextColors(ContextCompat.getColor(getContext(), R.color.white), ContextCompat.getColor(getContext(), R.color.white));
+            tabs.setTabTextColors(ContextCompat.getColor(getContext(), R.color.tabs_unselected), ContextCompat.getColor(getContext(), R.color.white));
             tabs.setTabMode(TabLayout.MODE_SCROLLABLE);
             tabs.setupWithViewPager(viewPager);
         }

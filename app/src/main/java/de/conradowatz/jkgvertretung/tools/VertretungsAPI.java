@@ -38,7 +38,7 @@ import de.conradowatz.jkgvertretung.variables.Vertretung;
 
 public class VertretungsAPI {
 
-    public static String SAVE_FILE_NAE = "savedSession.json";
+    public static String SAVE_FILE_NAME = "savedSession.json";
 
     private String username;
     private String password;
@@ -74,7 +74,7 @@ public class VertretungsAPI {
      */
     public static void saveDataToFile(final Context context) {
 
-        VertretungsData vertretungsData = VertretungsData.getsInstance();
+        VertretungsData vertretungsData = VertretungsData.getInstance();
 
         try {
 
@@ -157,7 +157,7 @@ public class VertretungsAPI {
             //JSON speichern
             String dataToSave = alleDaten.toString();
 
-            FileOutputStream outputStream = context.openFileOutput(SAVE_FILE_NAE, Context.MODE_PRIVATE);
+            FileOutputStream outputStream = context.openFileOutput(SAVE_FILE_NAME, Context.MODE_PRIVATE);
             outputStream.write(dataToSave.getBytes(Charset.forName("UTF-8")));
             outputStream.close();
 
@@ -180,12 +180,12 @@ public class VertretungsAPI {
 
 
         Calendar heute = Calendar.getInstance();
-        VertretungsData vertretungsData = VertretungsData.getsInstance();
+        VertretungsData vertretungsData = VertretungsData.getInstance();
 
         try {
 
             //Read Data
-            FileInputStream inputStream = context.openFileInput(SAVE_FILE_NAE);
+            FileInputStream inputStream = context.openFileInput(SAVE_FILE_NAME);
             BufferedReader r = new BufferedReader(new InputStreamReader(inputStream));
             StringBuilder total = new StringBuilder(inputStream.available());
             String line;
@@ -316,7 +316,7 @@ public class VertretungsAPI {
             @Override
             public void onResponse(String response) {
 
-                VertretungsData vertretungsData = VertretungsData.getsInstance();
+                VertretungsData vertretungsData = VertretungsData.getInstance();
 
                 //Klassenliste
                 try {
@@ -514,7 +514,7 @@ public class VertretungsAPI {
 
         int dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK);
 
-        return (dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY || VertretungsData.getsInstance().getFreieTageList().contains(date));
+        return (dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY || VertretungsData.getInstance().getFreieTageList().contains(date));
     }
 
     /**
@@ -534,7 +534,7 @@ public class VertretungsAPI {
             startDate = nextSchoolDay(startDate);
         }
 
-        VertretungsData vertretungsData = VertretungsData.getsInstance();
+        VertretungsData vertretungsData = VertretungsData.getInstance();
 
         if (vertretungsData.getTagList() == null)
             vertretungsData.setTagList(new ArrayList<Tag>());
@@ -717,7 +717,7 @@ public class VertretungsAPI {
 
         Calendar neuerTagC = Calendar.getInstance();
         neuerTagC.setTime(neuerTag.getDatum());
-        VertretungsData vertretungsData = VertretungsData.getsInstance();
+        VertretungsData vertretungsData = VertretungsData.getInstance();
 
         for (int i = 0; i < vertretungsData.getTagList().size(); i++) {
 

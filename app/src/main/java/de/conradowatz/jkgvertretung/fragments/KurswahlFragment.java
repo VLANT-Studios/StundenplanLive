@@ -179,7 +179,7 @@ public class KurswahlFragment extends Fragment {
     private void showKlassen() {
 
         ArrayList<String> klassennamenListe = new ArrayList<>();
-        for (Klasse klasse : VertretungsData.getsInstance().getKlassenList()) {
+        for (Klasse klasse : VertretungsData.getInstance().getKlassenList()) {
             klassennamenListe.add(klasse.getName());
         }
 
@@ -249,7 +249,7 @@ public class KurswahlFragment extends Fragment {
      */
     private void showKurse(int position) {
 
-        ArrayList<Kurs> alleKurse = VertretungsData.getsInstance().getKlassenList().get(position).getKurse();
+        ArrayList<Kurs> alleKurse = VertretungsData.getInstance().getKlassenList().get(position).getKurse();
 
         int size = alleKurse.size();
 
@@ -338,7 +338,7 @@ public class KurswahlFragment extends Fragment {
      */
     public void onEvent(KlassenlistUpdatedEvent event) {
 
-        if (contentView != null && VertretungsData.getsInstance().getKlassenList() != null)
+        if (contentView != null && VertretungsData.getInstance().getKlassenList() != null)
             showKlassen();
 
     }

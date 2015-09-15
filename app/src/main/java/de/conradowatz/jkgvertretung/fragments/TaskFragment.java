@@ -58,6 +58,7 @@ public class TaskFragment extends Fragment implements Handler.Callback {
     @Override
     public boolean handleMessage(Message message) {
 
+        if (context == null) return false;
         TaskCallbacks taskCallbacks = (TaskCallbacks) context;
         switch (message.what) {
             case DATA_CREATED:
@@ -154,12 +155,12 @@ public class TaskFragment extends Fragment implements Handler.Callback {
      */
     public void updateDays(final int days, final int skipDays) {
 
-        final String username = PreferenceReader.readStringFromPreferences(appContext, "username", "");
-        final String password = PreferenceReader.readStringFromPreferences(appContext, "password", "");
         pool.submit(new Runnable() {
             @Override
             public void run() {
 
+                final String username = PreferenceReader.readStringFromPreferences(appContext, "username", "");
+                final String password = PreferenceReader.readStringFromPreferences(appContext, "password", "");
                 new VertretungsAPI(username, password).downloadDays(days, skipDays, new VertretungsAPI.DownloadDaysListener() {
                     @Override
                     public void onFinished() {
@@ -193,13 +194,12 @@ public class TaskFragment extends Fragment implements Handler.Callback {
      */
     public void downloadAllData(final int dayCount) {
 
-        final String username = PreferenceReader.readStringFromPreferences(appContext, "username", "");
-        final String password = PreferenceReader.readStringFromPreferences(appContext, "password", "");
-
         pool.submit(new Runnable() {
             @Override
             public void run() {
 
+                final String username = PreferenceReader.readStringFromPreferences(appContext, "username", "");
+                final String password = PreferenceReader.readStringFromPreferences(appContext, "password", "");
                 new VertretungsAPI(username, password).downloadAllData(dayCount, new VertretungsAPI.DownloadAllDataResponseListener() {
                     @Override
                     public void onSuccess() {

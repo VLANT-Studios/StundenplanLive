@@ -18,7 +18,7 @@ public class VertretungsData {
 
     }
 
-    public static VertretungsData getsInstance() {
+    public static VertretungsData getInstance() {
 
         if (sInstance == null) sInstance = new VertretungsData();
         return sInstance;

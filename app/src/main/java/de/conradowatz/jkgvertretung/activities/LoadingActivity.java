@@ -19,6 +19,7 @@ import com.pnikosis.materialishprogress.ProgressWheel;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.tools.PreferenceReader;
 import de.conradowatz.jkgvertretung.tools.VertretungsAPI;
@@ -97,6 +98,7 @@ public class LoadingActivity extends AppCompatActivity implements Handler.Callba
 
                 Intent backToMain = new Intent();
                 backToMain.putExtra("ExitCode", "ReLog");
+                backToMain.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
                 setResult(RESULT_OK, backToMain);
                 finish();
             }
@@ -202,6 +204,7 @@ public class LoadingActivity extends AppCompatActivity implements Handler.Callba
         //Anwendung schließen
         Intent backToMain = new Intent();
         backToMain.putExtra("ExitCode", "Exit");
+        backToMain.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
         setResult(RESULT_OK, backToMain);
         finish();
     }
@@ -233,7 +236,7 @@ public class LoadingActivity extends AppCompatActivity implements Handler.Callba
 
     private void onDataFinished() {
 
-        if (VertretungsData.getsInstance().getTagList().size() > 0) {
+        if (VertretungsData.getInstance().getTagList().size() > 0) {
 
             Intent backToMain = new Intent();
             backToMain.putExtra("ExitCode", "LoadingDone");
@@ -267,6 +270,8 @@ public class LoadingActivity extends AppCompatActivity implements Handler.Callba
 
         Log.e("JKGDEBUG", "Fehler beim Download oder der Verarbeitung der Daten!");
         Log.e("JKGDEBUG", "Message: "+throwable.getMessage());
+
+        ((MyApplication) getApplication()).fireException(throwable);
 
     }
 }

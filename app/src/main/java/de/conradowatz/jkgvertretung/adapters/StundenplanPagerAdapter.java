@@ -18,11 +18,11 @@ public class StundenplanPagerAdapter extends FragmentStatePagerAdapter {
         super(fm);
         this.mode = mode;
         this.klassenIndex = klassenIndex;
-        count = VertretungsData.getsInstance().getTagList().size();
+        count = VertretungsData.getInstance().getTagList().size();
     }
 
     public void dayAdded() {
-        count = VertretungsData.getsInstance().getTagList().size();
+        count = VertretungsData.getInstance().getTagList().size();
         notifyDataSetChanged();
     }
 
@@ -38,7 +38,7 @@ public class StundenplanPagerAdapter extends FragmentStatePagerAdapter {
 
     @Override
     public CharSequence getPageTitle(int position) {
-        return VertretungsData.getsInstance().getTagList().get(position).getDatumString().split(",")[0];
+        return VertretungsData.getInstance().getTagList().get(position).getDatumString().split(",")[0];
     }
 
 
