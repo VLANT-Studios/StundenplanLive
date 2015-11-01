@@ -421,6 +421,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
 
         //Wenn es hier ein Error gibt, hat sich warscheinlich das Online System geändert
         Log.e("JKGDEBUG", "Fehler beim Download oder Verarbeiten der Daten");
+        if (throwable == null) return;
         Log.e("JKGDEBUG", "Message: " + throwable.getMessage());
 
         ((MyApplication) getApplication()).fireException(throwable);

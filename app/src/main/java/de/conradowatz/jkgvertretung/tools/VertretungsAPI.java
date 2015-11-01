@@ -61,7 +61,7 @@ public class VertretungsAPI {
      */
     public static void checkLogin(String username, String password, Response.Listener<String> listener, Response.ErrorListener errorListener) {
 
-        String url = "http://kepler.c.sn.schule.de/stuplanindiware/VmobilS/mobdaten/Klassen.xml";
+        String url = "http://kepler-chemnitz.de/stuplanindiware/VmobilS/mobdaten/Klassen.xml";
         AuthedStringRequest request = new AuthedStringRequest(url, listener, errorListener);
         request.setBasicAuth(username, password);
         VolleySingelton.getsInstance().getRequestQueue().add(request);
@@ -311,7 +311,7 @@ public class VertretungsAPI {
      */
     public void downloadAllData(final int dayCount, final DownloadAllDataResponseListener downloadAllDataResponseListener) {
 
-        String url = "http://kepler.c.sn.schule.de/stuplanindiware/VmobilS/mobdaten/Klassen.xml";
+        String url = "http://kepler-chemnitz.de/stuplanindiware/VmobilS/mobdaten/Klassen.xml";
         AuthedStringRequest request = new AuthedStringRequest(url, new Response.Listener<String>() {
             @Override
             public void onResponse(String response) {
@@ -546,8 +546,8 @@ public class VertretungsAPI {
         for (int i = 0; i < count; i++) {
 
             String dateString = new SimpleDateFormat("yyyMMdd", Locale.GERMAN).format(date);
-            String stundenPlanUrl = "http://kepler.c.sn.schule.de/stuplanindiware/VmobilS/mobdaten/PlanKl" + dateString + ".xml";
-            String vertretungsPlanUrl = "http://kepler.c.sn.schule.de/stuplanindiware/VplanonlineS/vdaten/VplanKl" + dateString + ".xml";
+            String stundenPlanUrl = "http://kepler-chemnitz.de/stuplanindiware/VmobilS/mobdaten/PlanKl" + dateString + ".xml";
+            String vertretungsPlanUrl = "http://kepler-chemnitz.de/stuplanindiware/VplanonlineS/vdaten/VplanKl" + dateString + ".xml";
 
             //Ruft Stundenplan für den Tag ab
 
@@ -596,7 +596,7 @@ public class VertretungsAPI {
                 @Override
                 public void onErrorResponse(VolleyError error) {
 
-                    if (error.networkResponse != null && error.networkResponse.statusCode != 401)
+                    if (error.networkResponse != null && error.networkResponse.statusCode != 404)
                         downloadDaysListener.onError(error.getCause());
 
                     boolean finished = true;
@@ -670,7 +670,7 @@ public class VertretungsAPI {
                 @Override
                 public void onErrorResponse(VolleyError error) {
 
-                    if (error.networkResponse != null && error.networkResponse.statusCode != 401)
+                    if (error.networkResponse != null && error.networkResponse.statusCode != 404)
                         downloadDaysListener.onError(new Throwable(error.getMessage()));
 
                     boolean finished = true;
