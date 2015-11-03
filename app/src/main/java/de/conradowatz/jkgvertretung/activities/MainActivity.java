@@ -215,6 +215,12 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
                 isInfoDialog = false;
             }
         });
+        infoDialogB.setOnCancelListener(new DialogInterface.OnCancelListener() {
+            @Override
+            public void onCancel(DialogInterface dialog) {
+                isInfoDialog = false;
+            }
+        });
         infoDialogB.show();
     }
 
