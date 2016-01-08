@@ -43,6 +43,7 @@ import de.conradowatz.jkgvertretung.fragments.TaskFragment;
 import de.conradowatz.jkgvertretung.tools.PreferenceReader;
 import de.conradowatz.jkgvertretung.tools.VertretungsAPI;
 import de.conradowatz.jkgvertretung.tools.VertretungsData;
+import de.conradowatz.jkgvertretung.variables.DataReadyEvent;
 import de.conradowatz.jkgvertretung.variables.DayUpdatedEvent;
 import de.conradowatz.jkgvertretung.variables.KlassenlistUpdatedEvent;
 import de.greenrobot.event.EventBus;
@@ -88,7 +89,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
             fm.beginTransaction().add(taskFragment, TAG_TASK_FRAGMENT).commit();
         }
 
-        if (savedInstanceState != null && (VertretungsData.getInstance().getTagList() != null || getLastCustomNonConfigurationInstance() != null)) {
+        if (savedInstanceState != null && (VertretungsData.getInstance().isReady() || getLastCustomNonConfigurationInstance() != null)) {
 
             //App noch im Speicher, wiederherstellen
             CharSequence title = savedInstanceState.getCharSequence("title");
@@ -111,7 +112,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
             isInfoDialog = savedInstanceState.getBoolean("isInfoDialog");
             isNoAccesDialog = savedInstanceState.getBoolean("isNoAccesDialog");
 
-            if (VertretungsData.getInstance().getTagList() == null)
+            if (!VertretungsData.getInstance().isReady())
                 VertretungsData.setInstance((VertretungsData) getLastCustomNonConfigurationInstance());
 
             if (isInfoDialog) showInfoDialog();
@@ -154,7 +155,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
                     public boolean onItemClick(View view, int position, IDrawerItem drawerItem) {
                         int identifier = drawerItem.getIdentifier();
                         if (identifier < 10) {
-                            if (selectedIdentifier != identifier && VertretungsData.getInstance().getTagList() != null) {
+                            if (selectedIdentifier != identifier && VertretungsData.getInstance().isReady()) {
                                 setFragment(identifier);
                                 selectedIdentifier = identifier;
                                 return false;
@@ -357,6 +358,8 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
         //wenn es fertig ist, Fragment öffnen
         if (isActive) showStartScreen();
         else noactiveStartscreen = true;
+
+        eventBus.post(new DataReadyEvent());
 
         //Daten aktualisieren aus dem Interwebs
         boolean doRefresh = PreferenceReader.readBooleanFromPreferences(getApplicationContext(), "doRefreshAtStart", true);

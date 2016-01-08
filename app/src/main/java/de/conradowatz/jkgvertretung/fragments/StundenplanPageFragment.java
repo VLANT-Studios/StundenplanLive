@@ -15,6 +15,7 @@ import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.adapters.StundenPlanRecyclerAdapter;
 import de.conradowatz.jkgvertretung.tools.PreferenceReader;
 import de.conradowatz.jkgvertretung.tools.VertretungsData;
+import de.conradowatz.jkgvertretung.variables.DataReadyEvent;
 import de.conradowatz.jkgvertretung.variables.DayUpdatedEvent;
 import de.conradowatz.jkgvertretung.variables.Tag;
 import de.greenrobot.event.EventBus;
@@ -28,6 +29,7 @@ public class StundenplanPageFragment extends Fragment {
     private RecyclerView recyclerView;
 
     private EventBus eventBus = EventBus.getDefault();
+    private boolean waitingForData = false;
 
     public StundenplanPageFragment() {
 
@@ -51,8 +53,6 @@ public class StundenplanPageFragment extends Fragment {
 
         View contentView = inflater.inflate(R.layout.stundenplan_page, container, false);
 
-        eventBus.register(this);
-
         if (savedInstanceState == null) {
 
             Bundle arguments = getArguments();
@@ -70,9 +70,21 @@ public class StundenplanPageFragment extends Fragment {
         recyclerView.setHasFixedSize(true);
         recyclerView.setLayoutManager(new LinearLayoutManager(getActivity()));
 
-        setUpRecycler();
+        eventBus.register(this);
 
         return contentView;
+    }
+
+    @Override
+    public void onActivityCreated(@Nullable Bundle savedInstanceState) {
+        super.onActivityCreated(savedInstanceState);
+
+        if (!VertretungsData.getInstance().isReady()) {
+            waitingForData = true;
+            return;
+        }
+
+        setUpRecycler();
     }
 
     private void setUpRecycler() {
@@ -105,6 +117,15 @@ public class StundenplanPageFragment extends Fragment {
         }
 
 
+    }
+
+    public void onEvent(DataReadyEvent event) {
+
+        if (waitingForData) {
+            waitingForData = false;
+
+            setUpRecycler();
+        }
     }
 
     @Override

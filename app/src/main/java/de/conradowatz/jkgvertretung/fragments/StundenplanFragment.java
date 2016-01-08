@@ -20,6 +20,7 @@ import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.adapters.StundenplanPagerAdapter;
 import de.conradowatz.jkgvertretung.tools.PreferenceReader;
 import de.conradowatz.jkgvertretung.tools.VertretungsData;
+import de.conradowatz.jkgvertretung.variables.DataReadyEvent;
 import de.conradowatz.jkgvertretung.variables.DayUpdatedEvent;
 import de.conradowatz.jkgvertretung.variables.Klasse;
 import de.greenrobot.event.EventBus;
@@ -42,6 +43,7 @@ public class StundenplanFragment extends Fragment {
     private Integer klassenIndex;
 
     private EventBus eventBus = EventBus.getDefault();
+    private boolean waitingForData = false;
 
     public StundenplanFragment() {
         // Required empty public constructor
@@ -60,8 +62,6 @@ public class StundenplanFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-
-        eventBus.register(this);
 
         if (savedInstanceState == null) {
 
@@ -96,6 +96,26 @@ public class StundenplanFragment extends Fragment {
         viewPager = (ViewPager) contentView.findViewById(R.id.viewPager);
         tabs = (TabLayout) contentView.findViewById(R.id.materialTabs);
 
+        eventBus.register(this);
+
+        return contentView;
+    }
+
+    @Override
+    public void onActivityCreated(Bundle savedInstanceState) {
+        super.onActivityCreated(savedInstanceState);
+
+        if (!VertretungsData.getInstance().isReady()) {
+            waitingForData = true;
+            return;
+        }
+
+        showData();
+    }
+
+
+    private void showData() {
+
         if (mode == MODE_KLASSENPLAN) {
 
             spinner = (Spinner) contentView.findViewById(R.id.spinner);
@@ -104,8 +124,6 @@ public class StundenplanFragment extends Fragment {
         } else {
             setUpViewPager(null, null);
         }
-
-        return contentView;
     }
 
     private void setUpSpinner() {
@@ -174,6 +192,15 @@ public class StundenplanFragment extends Fragment {
             tabs.setTabsFromPagerAdapter(viewPager.getAdapter());
         }
 
+    }
+
+    public void onEvent(DataReadyEvent event) {
+
+        if (waitingForData) {
+            waitingForData = false;
+
+            showData();
+        }
     }
 
     @Override

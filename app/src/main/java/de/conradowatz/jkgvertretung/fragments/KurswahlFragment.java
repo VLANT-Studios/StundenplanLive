@@ -20,6 +20,7 @@ import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.tools.PreferenceReader;
 import de.conradowatz.jkgvertretung.tools.VertretungsData;
+import de.conradowatz.jkgvertretung.variables.DataReadyEvent;
 import de.conradowatz.jkgvertretung.variables.Klasse;
 import de.conradowatz.jkgvertretung.variables.KlassenlistUpdatedEvent;
 import de.conradowatz.jkgvertretung.variables.Kurs;
@@ -43,6 +44,7 @@ public class KurswahlFragment extends Fragment {
     private int selected;
 
     private EventBus eventBus = EventBus.getDefault();
+    private boolean waitingForData = false;
 
     public KurswahlFragment() {
         // Required empty public constructor
@@ -93,8 +95,6 @@ public class KurswahlFragment extends Fragment {
             }
         });
 
-        showKlassen();
-
         if (savedInstanceState != null) {
 
             String[] checkBoxNames = savedInstanceState.getStringArray("checkBoxNames");
@@ -127,6 +127,18 @@ public class KurswahlFragment extends Fragment {
         }
 
         return contentView;
+    }
+
+    @Override
+    public void onActivityCreated(Bundle savedInstanceState) {
+        super.onActivityCreated(savedInstanceState);
+
+        if (!VertretungsData.getInstance().isReady()) {
+            waitingForData = true;
+            return;
+        }
+
+        showKlassen();
     }
 
     /**
@@ -338,10 +350,20 @@ public class KurswahlFragment extends Fragment {
      */
     public void onEvent(KlassenlistUpdatedEvent event) {
 
-        if (contentView != null && VertretungsData.getInstance().getKlassenList() != null)
+        if (contentView != null && VertretungsData.getInstance().isReady())
             showKlassen();
 
     }
+
+    public void onEvent(DataReadyEvent event) {
+
+        if (waitingForData) {
+            waitingForData = false;
+
+            showKlassen();
+        }
+    }
+
 
     @Override
     public void onPause() {

@@ -51,7 +51,8 @@
         android:layout_height="wrap_content"
         android:layout_below="@id/cloudImage"
         android:layout_centerHorizontal="true"
-        android:text="SERVER PROBLEM"
+        android:gravity="center"
+        android:text="Keine Verbindung zum Schulserver! Tippen zum wiederholen."
         android:textColor="@color/warn_text"
         android:textSize="20sp"
         android:textStyle="bold|italic"
@@ -63,9 +64,9 @@
         android:layout_height="wrap_content"
         android:layout_centerInParent="true"
         android:layout_margin="10dp"
+        android:visibility="gone"
         card_view:cardCornerRadius="3dp"
-        card_view:cardElevation="2dp"
-        android:visibility="gone">
+        card_view:cardElevation="2dp">
 
         <LinearLayout
             android:layout_width="match_parent"

@@ -52,4 +52,9 @@ public class VertretungsData {
     public void setTagList(ArrayList<Tag> tagList) {
         this.tagList = tagList;
     }
+
+    public boolean isReady() {
+
+        return (klassenList != null && freieTageList != null && tagList != null);
+    }
 }
