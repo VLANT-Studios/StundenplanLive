@@ -240,7 +240,7 @@ public class VertretungsAPI {
                 //Wenn Tag ist älter als heute -> nicht zeigen
                 Calendar tagCalendar = Calendar.getInstance();
                 tagCalendar.setTime(datum);
-                if (tagCalendar.get(Calendar.DAY_OF_YEAR) < heute.get(Calendar.DAY_OF_YEAR))
+                if (compareDays(tagCalendar, heute) < 0)
                     continue;
 
                 tag.setDatum(datum);
@@ -299,6 +299,23 @@ public class VertretungsAPI {
         } catch (Exception e) {
 
             createDataFromFileListener.onError(e);
+        }
+
+    }
+
+    /**
+     * Vergleicht zwei gegebene Tage in ihrer Kalenderreihenfolge
+     *
+     * @param day1
+     * @param day2
+     * @return 0 bei gleichem Tag; <0 wenn day1 vor day2; >0 wenn day1 nach day2
+     */
+    private static int compareDays(Calendar day1, Calendar day2) {
+
+        if (day1.get(Calendar.YEAR) != day2.get(Calendar.YEAR)) {
+            return ((Integer) day1.get(Calendar.YEAR)).compareTo(day2.get(Calendar.YEAR));
+        } else {
+            return ((Integer) day1.get(Calendar.DAY_OF_YEAR)).compareTo(day2.get(Calendar.DAY_OF_YEAR));
         }
 
     }
@@ -725,7 +742,7 @@ public class VertretungsAPI {
             Calendar tagC = Calendar.getInstance();
             tagC.setTime(tag.getDatum());
             //falls Tag schon vorhanden, updaten
-            if (tagC.get(Calendar.DAY_OF_YEAR) == neuerTagC.get(Calendar.DAY_OF_YEAR)) {
+            if (compareDays(neuerTagC, tagC)==0) {
 
                 vertretungsData.getTagList().remove(i);
                 vertretungsData.getTagList().add(i, neuerTag);
@@ -733,7 +750,7 @@ public class VertretungsAPI {
                 return;
             }
             //falls nicht, einordnen
-            if (neuerTagC.get(Calendar.DAY_OF_YEAR) < tagC.get(Calendar.DAY_OF_YEAR)) {
+            if (compareDays(neuerTagC, tagC)<0) {
 
                 vertretungsData.getTagList().add(i, neuerTag);
                 callback.onDayAdded(i);
