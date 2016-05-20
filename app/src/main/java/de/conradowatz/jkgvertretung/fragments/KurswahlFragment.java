@@ -14,6 +14,9 @@ import android.widget.CheckBox;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+
 import java.util.ArrayList;
 
 import de.conradowatz.jkgvertretung.MyApplication;
@@ -24,7 +27,6 @@ import de.conradowatz.jkgvertretung.variables.DataReadyEvent;
 import de.conradowatz.jkgvertretung.variables.Klasse;
 import de.conradowatz.jkgvertretung.variables.KlassenlistUpdatedEvent;
 import de.conradowatz.jkgvertretung.variables.Kurs;
-import de.greenrobot.event.EventBus;
 
 
 public class KurswahlFragment extends Fragment {
@@ -146,7 +148,8 @@ public class KurswahlFragment extends Fragment {
      */
     private void saveKurse() {
 
-        PreferenceReader.saveIntToPreferences(getActivity(), "meineKlasseInt", klassenSpinner.getSelectedItemPosition());
+        int meineKlasseInt = klassenSpinner.getSelectedItemPosition();
+        PreferenceReader.saveIntToPreferences(getActivity(), "meineKlasseInt", meineKlasseInt);
 
         ArrayList<String> saveArray = new ArrayList<>();
         for (int i = 0; i < kurseLayout.getChildCount(); i++) {
@@ -158,6 +161,7 @@ public class KurswahlFragment extends Fragment {
         }
 
         PreferenceReader.saveStringListToPreferences(getActivity(), "meineNichtKurse", saveArray);
+        PreferenceReader.saveStringListToPreferences(getActivity(), "nichtKurse" + meineKlasseInt, saveArray);
 
     }
 
@@ -233,11 +237,11 @@ public class KurswahlFragment extends Fragment {
      * Selektiert die Kurse, die vom Nutzer gespeichert wurden
      * in den SharedPreferences sind alle nicht ausgewählten Kurse gespeichert
      */
-    private void loadKurse() {
+    private void loadKurse(int position) {
 
-        if (isLoaded) return;
+        //if (isLoaded) return;
 
-        ArrayList<String> meineNichtKurse = PreferenceReader.readStringListFromPreferences(getActivity(), "meineNichtKurse");
+        ArrayList<String> meineNichtKurse = PreferenceReader.readStringListFromPreferences(getActivity(), "nichtKurse" + position);
         if (meineNichtKurse != null) {
 
             for (int i = 0; i < kurseLayout.getChildCount(); i++) {
@@ -251,7 +255,7 @@ public class KurswahlFragment extends Fragment {
             }
         }
 
-        isLoaded = true;
+        //isLoaded = true;
 
     }
 
@@ -265,6 +269,7 @@ public class KurswahlFragment extends Fragment {
 
         int size = alleKurse.size();
 
+        //Manche Kurse haben den selben Namen, diese können nicht auseinander gehalten werden, also werden sie zusammen gefasst
         for (int i = 0; i < size - 1; i++) {
             for (int j = i + 1; j < size; j++) {
                 if (!alleKurse.get(j).getName().equals(alleKurse.get(i).getName())) {
@@ -297,7 +302,7 @@ public class KurswahlFragment extends Fragment {
             kurseLayout.addView(checkBox);
         }
 
-        loadKurse();
+        loadKurse(position);
 
     }
 
@@ -348,6 +353,7 @@ public class KurswahlFragment extends Fragment {
      * Läd die KlassenList neu
      * Wird gecallt wenn die Liste aktualisiert wurde
      */
+    @Subscribe
     public void onEvent(KlassenlistUpdatedEvent event) {
 
         if (contentView != null && VertretungsData.getInstance().isReady())
@@ -355,6 +361,7 @@ public class KurswahlFragment extends Fragment {
 
     }
 
+    @Subscribe
     public void onEvent(DataReadyEvent event) {
 
         if (waitingForData) {
