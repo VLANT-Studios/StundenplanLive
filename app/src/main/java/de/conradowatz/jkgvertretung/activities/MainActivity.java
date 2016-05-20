@@ -9,7 +9,6 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
-import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -33,6 +32,8 @@ import com.mikepenz.materialdrawer.model.DividerDrawerItem;
 import com.mikepenz.materialdrawer.model.PrimaryDrawerItem;
 import com.mikepenz.materialdrawer.model.interfaces.IDrawerItem;
 
+import org.greenrobot.eventbus.EventBus;
+
 import java.io.File;
 
 import de.conradowatz.jkgvertretung.MyApplication;
@@ -46,7 +47,6 @@ import de.conradowatz.jkgvertretung.tools.VertretungsData;
 import de.conradowatz.jkgvertretung.variables.DataReadyEvent;
 import de.conradowatz.jkgvertretung.variables.DayUpdatedEvent;
 import de.conradowatz.jkgvertretung.variables.KlassenlistUpdatedEvent;
-import de.greenrobot.event.EventBus;
 
 
 public class MainActivity extends AppCompatActivity implements TaskFragment.TaskCallbacks {
@@ -57,7 +57,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
     private Toolbar toolbar;
     private Drawer navigationDrawer;
     private MenuItem refreshItem;
-    private int selectedIdentifier;
+    private long selectedIdentifier;
     private boolean isRefreshing;
     private boolean isInfoDialog;
     private boolean isNoAccesDialog;
@@ -94,7 +94,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
             //App noch im Speicher, wiederherstellen
             CharSequence title = savedInstanceState.getCharSequence("title");
             if (getSupportActionBar() != null) getSupportActionBar().setTitle(title);
-            selectedIdentifier = savedInstanceState.getInt("selectedIdentifier");
+            selectedIdentifier = savedInstanceState.getLong("selectedIdentifier");
             if (selectedIdentifier >= 0) navigationDrawer.setSelection(selectedIdentifier);
             isRefreshing = savedInstanceState.getBoolean("isRefreshing");
             if (isRefreshing) {
@@ -153,7 +153,8 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
                 .withOnDrawerItemClickListener(new Drawer.OnDrawerItemClickListener() {
                     @Override
                     public boolean onItemClick(View view, int position, IDrawerItem drawerItem) {
-                        int identifier = drawerItem.getIdentifier();
+
+                        long identifier = drawerItem.getIdentifier();
                         if (identifier < 10) {
                             if (selectedIdentifier != identifier && VertretungsData.getInstance().isReady()) {
                                 setFragment(identifier);
@@ -162,16 +163,15 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
                             }
                         } else {
                             navigationDrawer.setSelection(selectedIdentifier, false);
-                            switch (identifier) {
-                                case 11:
-                                    openSettings();
-                                    return false;
-                                case 12:
-                                    openFeedbackPage();
-                                    break;
-                                case 13:
-                                    showInfoDialog();
-                                    break;
+                            if (identifier == 11) {
+                                openSettings();
+                                return false;
+                            }
+                            if (identifier == 12) {
+                                openFeedbackPage();
+                            }
+                            if (identifier == 13) {
+                                showInfoDialog();
                             }
                         }
                         return true;
@@ -237,8 +237,6 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
 
         String url = "http://conradowatz.de/android-apps/jkg-vertretung-support/";
         Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-        intent.putExtra(EXTRA_CUSTOM_TABS_SESSION_ID, -1); // -1 or any valid session id returned from newSession() call
-        intent.putExtra(EXTRA_CUSTOM_TABS_TOOLBAR_COLOR, ContextCompat.getColor(getApplicationContext(), R.color.primary));
         startActivity(intent);
 
     }
@@ -258,7 +256,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
      * Wechselt das angezeigte Fragment
      * @param identifier der Fragment identifier
      */
-    private void setFragment(int identifier) {
+    private void setFragment(long identifier) {
 
         FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
 
@@ -711,7 +709,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
     @Override
     protected void onSaveInstanceState(Bundle outState) {
 
-        outState.putInt("selectedIdentifier", selectedIdentifier);
+        outState.putLong("selectedIdentifier", selectedIdentifier);
         outState.putCharSequence("title", toolbar.getTitle());
         outState.putBoolean("isInfoDialog", isInfoDialog);
         outState.putBoolean("isNoAccesDialog", isNoAccesDialog);

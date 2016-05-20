@@ -9,6 +9,9 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+
 import java.util.ArrayList;
 
 import de.conradowatz.jkgvertretung.R;
@@ -18,7 +21,6 @@ import de.conradowatz.jkgvertretung.tools.VertretungsData;
 import de.conradowatz.jkgvertretung.variables.DataReadyEvent;
 import de.conradowatz.jkgvertretung.variables.DayUpdatedEvent;
 import de.conradowatz.jkgvertretung.variables.Tag;
-import de.greenrobot.event.EventBus;
 
 public class StundenplanPageFragment extends Fragment {
 
@@ -107,6 +109,7 @@ public class StundenplanPageFragment extends Fragment {
 
     }
 
+    @Subscribe
     public void onEvent(DayUpdatedEvent event) {
 
         if (recyclerView == null) return;
@@ -119,6 +122,7 @@ public class StundenplanPageFragment extends Fragment {
 
     }
 
+    @Subscribe
     public void onEvent(DataReadyEvent event) {
 
         if (waitingForData) {

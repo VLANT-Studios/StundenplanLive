@@ -6,6 +6,7 @@ import android.os.Handler;
 import android.os.Message;
 import android.support.v4.app.Fragment;
 
+import java.util.Date;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -101,7 +102,7 @@ public class TaskFragment extends Fragment implements Handler.Callback {
      */
     public void createDataFromFile() {
 
-        if (!isAdded()) {
+        if (getActivity() == null) {
             createDataFromFileWhenAttached = true;
             return;
         }
@@ -163,7 +164,7 @@ public class TaskFragment extends Fragment implements Handler.Callback {
                 final String password = PreferenceReader.readStringFromPreferences(appContext, "password", "");
                 new VertretungsAPI(username, password).downloadDays(days, skipDays, new VertretungsAPI.DownloadDaysListener() {
                     @Override
-                    public void onFinished() {
+                    public void onFinished(Date endDate) {
                         Message message = taskHandler.obtainMessage(UPDATE_DAYS_FINISHED, skipDays, 0);
                         taskHandler.sendMessage(message);
                     }
@@ -190,7 +191,7 @@ public class TaskFragment extends Fragment implements Handler.Callback {
      * Läd die komplette VertretungsData neu herunter
      * Callbacks: onRefreshFinished, onRefreshNoConnection, onNoAccess, onDownloadError, onDayAdded, onKlassenListUpdated
      *
-     * @param dayCount wie viele Schultage geladen werden sollen
+     * @param dayCount wie viele Schultage geladen werden sollen, 0 wenn alle
      */
     public void downloadAllData(final int dayCount) {
 

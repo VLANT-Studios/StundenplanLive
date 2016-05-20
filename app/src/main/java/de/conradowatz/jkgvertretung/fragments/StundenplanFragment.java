@@ -13,6 +13,9 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+
 import java.util.ArrayList;
 
 import de.conradowatz.jkgvertretung.MyApplication;
@@ -23,7 +26,6 @@ import de.conradowatz.jkgvertretung.tools.VertretungsData;
 import de.conradowatz.jkgvertretung.variables.DataReadyEvent;
 import de.conradowatz.jkgvertretung.variables.DayUpdatedEvent;
 import de.conradowatz.jkgvertretung.variables.Klasse;
-import de.greenrobot.event.EventBus;
 
 public class StundenplanFragment extends Fragment {
 
@@ -182,6 +184,7 @@ public class StundenplanFragment extends Fragment {
     /**
      * Läd den ViewPager neu, wenn Tage hinzugefügt wurden
      */
+    @Subscribe
     public void onEvent(DayUpdatedEvent event) {
 
         if (viewPager == null) return;
@@ -189,11 +192,12 @@ public class StundenplanFragment extends Fragment {
         if (event.getPosition() > viewPager.getAdapter().getCount() - 1) {
 
             ((StundenplanPagerAdapter) viewPager.getAdapter()).dayAdded();
-            tabs.setTabsFromPagerAdapter(viewPager.getAdapter());
+            tabs.setupWithViewPager(viewPager);
         }
 
     }
 
+    @Subscribe
     public void onEvent(DataReadyEvent event) {
 
         if (waitingForData) {
