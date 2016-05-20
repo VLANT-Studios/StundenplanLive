@@ -39,10 +39,9 @@ import de.conradowatz.jkgvertretung.variables.Vertretung;
 public class VertretungsAPI {
 
     public static String SAVE_FILE_NAME = "savedSession.json";
-
+    Date endDate = null;
     private String username;
     private String password;
-
     private int pendingDownloads = 0;
 
     public VertretungsAPI(String username, String password) {
@@ -323,10 +322,12 @@ public class VertretungsAPI {
     /**
      * Fragt nacheinander alle Informationen ab: klassenList, freieTageList, tagList
      *
-     * @param dayCount                wie viele Tage maximal abgefragt werden
+     * @param dayCount                wie viele Tage maximal abgefragt werden, 0 wenn alle verfügbaren
      * @param downloadAllDataResponseListener ein Handler um die Antwort zu handhaben
      */
     public void downloadAllData(final int dayCount, final DownloadAllDataResponseListener downloadAllDataResponseListener) {
+
+        final boolean downloadAllDays = dayCount == 0;
 
         String url = "http://kepler-chemnitz.de/stuplanindiware/VmobilS/mobdaten/Klassen.xml";
         AuthedStringRequest request = new AuthedStringRequest(url, new Response.Listener<String>() {
@@ -352,13 +353,20 @@ public class VertretungsAPI {
                     return;
                 }
 
-                downloadAllDataResponseListener.onProgress(100 / (dayCount * 2 + 1));
+                if (!downloadAllDays)
+                    downloadAllDataResponseListener.onProgress(100 / (dayCount * 2 + 1));
 
                 //Tag Liste
-                downloadDays(dayCount, 0, new DownloadDaysListener() {
+                downloadDays(downloadAllDays ? 14 : dayCount, 0, new DownloadDaysListener() {
                     @Override
-                    public void onFinished() {
+                    public void onFinished(Date endDate) {
 
+                        if (downloadAllDays) {
+                            ArrayList<Tag> tagList = VertretungsData.getInstance().getTagList();
+                            if (tagList.get(tagList.size() - 1).getDatum() == endDate) {
+                                downloadDays(14, 14, this);
+                            }
+                        }
                         downloadAllDataResponseListener.onSuccess();
                     }
 
@@ -375,6 +383,7 @@ public class VertretungsAPI {
                     @Override
                     public void onProgress(int progress) {
 
+                        if (dayCount == 0) return;
                         float endProgress = 100 / (dayCount * 2 + 1) + progress / (100 / (dayCount * 2 + 1));
                         downloadAllDataResponseListener.onProgress(Math.round(endProgress));
                     }
@@ -562,6 +571,8 @@ public class VertretungsAPI {
 
         for (int i = 0; i < count; i++) {
 
+            if (i == count - 1) endDate = date;
+
             String dateString = new SimpleDateFormat("yyyMMdd", Locale.GERMAN).format(date);
             String stundenPlanUrl = "http://kepler-chemnitz.de/stuplanindiware/VmobilS/mobdaten/PlanKl" + dateString + ".xml";
             String vertretungsPlanUrl = "http://kepler-chemnitz.de/stuplanindiware/VplanonlineS/vdaten/VplanKl" + dateString + ".xml";
@@ -600,13 +611,12 @@ public class VertretungsAPI {
                         }
                         tagArray[finalI].setDatum(finalDate);
                         addTag(tagArray[finalI], downloadDaysListener);
-                        downloadDaysListener.onDayAdded(finalI + finalSkip);
                     }
 
                     pendingDownloads--;
                     float progress = (count - pendingDownloads) * 100 / count;
                     downloadDaysListener.onProgress(Math.round(progress));
-                    if (pendingDownloads == 0) downloadDaysListener.onFinished();
+                    if (pendingDownloads == 0) downloadDaysListener.onFinished(endDate);
 
                 }
             }, new Response.ErrorListener() {
@@ -626,7 +636,6 @@ public class VertretungsAPI {
                         if (tagArray[finalI].getVertretungsList() != null) {
                             tagArray[finalI].setDatum(finalDate);
                             addTag(tagArray[finalI], downloadDaysListener);
-                            downloadDaysListener.onDayAdded(finalI + finalSkip);
 
                         }
                     }
@@ -634,7 +643,7 @@ public class VertretungsAPI {
                     pendingDownloads--;
                     float progress = (count - pendingDownloads) * 100 / count;
                     downloadDaysListener.onProgress(Math.round(progress));
-                    if (pendingDownloads == 0) downloadDaysListener.onFinished();
+                    if (pendingDownloads == 0) downloadDaysListener.onFinished(endDate);
                 }
             });
             stundenplanRequest.setBasicAuth(username, password);
@@ -670,7 +679,6 @@ public class VertretungsAPI {
                         }
                         tagArray[finalI].setDatum(finalDate);
                         addTag(tagArray[finalI], downloadDaysListener);
-                        downloadDaysListener.onDayAdded(finalI + finalSkip);
                     } else {
                         tagArray[finalI].setStuplaKlasseList(new ArrayList<StuPlaKlasse>());
                         String zeitstempelString = response.substring(response.indexOf("<datum>") + 7, response.indexOf("</datum>"));
@@ -680,7 +688,7 @@ public class VertretungsAPI {
                     pendingDownloads--;
                     float progress = (count - pendingDownloads) * 100 / count;
                     downloadDaysListener.onProgress(Math.round(progress));
-                    if (pendingDownloads == 0) downloadDaysListener.onFinished();
+                    if (pendingDownloads == 0) downloadDaysListener.onFinished(endDate);
 
                 }
             }, new Response.ErrorListener() {
@@ -704,14 +712,13 @@ public class VertretungsAPI {
                             tagArray[finalI].setDatumString(datumString);
                             tagArray[finalI].setDatum(finalDate);
                             addTag(tagArray[finalI], downloadDaysListener);
-                            downloadDaysListener.onDayAdded(finalI + finalSkip);
                         }
                     }
 
                     pendingDownloads--;
                     float progress = (count - pendingDownloads) * 100 / count;
                     downloadDaysListener.onProgress(Math.round(progress));
-                    if (pendingDownloads == 0) downloadDaysListener.onFinished();
+                    if (pendingDownloads == 0) downloadDaysListener.onFinished(endDate);
                 }
             });
             vertretungsplanRequest.setBasicAuth(username, password);
@@ -816,6 +823,7 @@ public class VertretungsAPI {
                         currentStunde.setKurs(pullParser.nextText());
                     }
                     if (name.equals("Ra")) {
+                        currentStunde.setRaumg(pullParser.getAttributeCount() > 0);
                         String raum = pullParser.nextText();
                         if (raum.startsWith("&nbsp")) {
                             currentStunde.setRaum("");
@@ -966,7 +974,7 @@ public class VertretungsAPI {
 
     public static abstract class DownloadDaysListener {
 
-        public abstract void onFinished();
+        public abstract void onFinished(Date endDate);
 
         public abstract void onError(Throwable throwable);
 
