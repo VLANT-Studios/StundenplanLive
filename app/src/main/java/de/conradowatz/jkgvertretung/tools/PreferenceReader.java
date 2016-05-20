@@ -52,7 +52,8 @@ public class PreferenceReader {
     public static ArrayList<String> readStringListFromPreferences(Context context, String preferenceName) {
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
         ArrayList<String> stringList = new ArrayList<>();
-        int count = sharedPreferences.getInt(preferenceName+"_count", 0);
+        int count = sharedPreferences.getInt(preferenceName + "_count", -1);
+        if (count < 0) return null;
         for (int i=0; i<count; i++) {
             String string = sharedPreferences.getString(preferenceName+"_"+String.valueOf(i), "");
             stringList.add(string);
