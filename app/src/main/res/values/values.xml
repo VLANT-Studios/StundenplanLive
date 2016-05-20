@@ -17,6 +17,7 @@
         <item>5 Tage</item>
         <item>6 Tage</item>
         <item>1 Woche</item>
+        <item>2 Wochen</item>
         <item>Alle verfügbaren</item>
     </string-array>
     <string-array name="settings_day_count_values">
@@ -28,5 +29,6 @@
         <item>6</item>
         <item>7</item>
         <item>14</item>
+        <item>0</item>
     </string-array>
 </resources>
