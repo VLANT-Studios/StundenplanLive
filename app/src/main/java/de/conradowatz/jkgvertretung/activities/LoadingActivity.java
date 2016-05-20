@@ -236,7 +236,7 @@ public class LoadingActivity extends AppCompatActivity implements Handler.Callba
 
     private void onDataFinished() {
 
-        if (VertretungsData.getInstance().getTagList().size() > 0) {
+        if (VertretungsData.getInstance().getTagList().size() > -1) {
 
             Intent backToMain = new Intent();
             backToMain.putExtra("ExitCode", "LoadingDone");
