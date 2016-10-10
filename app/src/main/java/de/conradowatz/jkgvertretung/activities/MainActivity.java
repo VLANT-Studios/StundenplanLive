@@ -5,8 +5,11 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.support.annotation.RequiresApi;
+import android.support.v4.app.ActivityOptionsCompat;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v7.app.AlertDialog;
@@ -14,14 +17,16 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.text.Html;
 import android.text.method.LinkMovementMethod;
+import android.transition.Slide;
+import android.transition.Transition;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
-import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -34,33 +39,30 @@ import com.mikepenz.materialdrawer.model.interfaces.IDrawerItem;
 
 import org.greenrobot.eventbus.EventBus;
 
-import java.io.File;
-
 import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
-import de.conradowatz.jkgvertretung.fragments.KurswahlFragment;
+import de.conradowatz.jkgvertretung.events.DayUpdatedEvent;
+import de.conradowatz.jkgvertretung.events.EventsChangedEvent;
+import de.conradowatz.jkgvertretung.events.KlassenlistUpdatedEvent;
+import de.conradowatz.jkgvertretung.fragments.EventFragment;
+import de.conradowatz.jkgvertretung.fragments.FreieZimmerFragment;
+import de.conradowatz.jkgvertretung.fragments.NotenUebersichtFragment;
 import de.conradowatz.jkgvertretung.fragments.StundenplanFragment;
 import de.conradowatz.jkgvertretung.fragments.TaskFragment;
-import de.conradowatz.jkgvertretung.tools.PreferenceReader;
-import de.conradowatz.jkgvertretung.tools.VertretungsAPI;
+import de.conradowatz.jkgvertretung.tools.LocalData;
+import de.conradowatz.jkgvertretung.tools.PreferenceHelper;
 import de.conradowatz.jkgvertretung.tools.VertretungsData;
-import de.conradowatz.jkgvertretung.variables.DataReadyEvent;
-import de.conradowatz.jkgvertretung.variables.DayUpdatedEvent;
-import de.conradowatz.jkgvertretung.variables.KlassenlistUpdatedEvent;
 
 
-public class MainActivity extends AppCompatActivity implements TaskFragment.TaskCallbacks {
+public class MainActivity extends AppCompatActivity implements TaskFragment.MainCallbacks {
 
-    private static final String EXTRA_CUSTOM_TABS_SESSION_ID = "android.support.CUSTOM_TABS:session_id";
-    private static final String EXTRA_CUSTOM_TABS_TOOLBAR_COLOR = "android.support.CUSTOM_TABS:toolbar_color";
-    private static final String TAG_TASK_FRAGMENT = "task_fragment";
     private Toolbar toolbar;
     private Drawer navigationDrawer;
     private MenuItem refreshItem;
     private long selectedIdentifier;
     private boolean isRefreshing;
     private boolean isInfoDialog;
-    private boolean isNoAccesDialog;
+    private boolean isNoAccessDialog;
     private boolean isActive;
     private boolean noactiveStartscreen;
     private TaskFragment taskFragment;
@@ -69,6 +71,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_main);
 
         toolbar = (Toolbar) findViewById(R.id.toolbar);
@@ -80,28 +83,36 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
         isActive = true;
 
         FragmentManager fm = getSupportFragmentManager();
-        taskFragment = (TaskFragment) fm.findFragmentByTag(TAG_TASK_FRAGMENT);
+        taskFragment = (TaskFragment) fm.findFragmentByTag(TaskFragment.TAG_TASK_FRAGMENT);
 
         // If the Fragment is non-null, then it is currently being
         // retained across a configuration change.
         if (taskFragment == null) {
             taskFragment = new TaskFragment();
-            fm.beginTransaction().add(taskFragment, TAG_TASK_FRAGMENT).commit();
+            fm.beginTransaction().add(taskFragment, TaskFragment.TAG_TASK_FRAGMENT).commit();
         }
 
-        if (savedInstanceState != null && (VertretungsData.getInstance().isReady() || getLastCustomNonConfigurationInstance() != null)) {
+        //Falls der SplashScreen einen Login möchte
+        if (savedInstanceState == null && getIntent().getBooleanExtra("startLogin", false)) {
+
+            startLoginActivity();
+            return;
+        }
+
+        if (savedInstanceState != null && VertretungsData.getInstance().isReady() && LocalData.isReady()) {
 
             //App noch im Speicher, wiederherstellen
+
             CharSequence title = savedInstanceState.getCharSequence("title");
             if (getSupportActionBar() != null) getSupportActionBar().setTitle(title);
             selectedIdentifier = savedInstanceState.getLong("selectedIdentifier");
             if (selectedIdentifier >= 0) navigationDrawer.setSelection(selectedIdentifier);
             isRefreshing = savedInstanceState.getBoolean("isRefreshing");
             if (isRefreshing) {
-                boolean stopRefresh = PreferenceReader.readBooleanFromPreferences(getApplicationContext(), "stopRefresh", false);
+                boolean stopRefresh = PreferenceHelper.readBooleanFromPreferences(getApplicationContext(), "stopRefresh", false);
                 if (stopRefresh) {
                     isRefreshing = false;
-                    PreferenceReader.saveBooleanToPrefernces(getApplicationContext(), "stopRefresh", false);
+                    PreferenceHelper.saveBooleanToPrefernces(getApplicationContext(), "stopRefresh", false);
                 }
             }
             noactiveStartscreen = savedInstanceState.getBoolean("noactiveStartscreen");
@@ -110,19 +121,27 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
                 noactiveStartscreen = false;
             }
             isInfoDialog = savedInstanceState.getBoolean("isInfoDialog");
-            isNoAccesDialog = savedInstanceState.getBoolean("isNoAccesDialog");
-
-            if (!VertretungsData.getInstance().isReady())
-                VertretungsData.setInstance((VertretungsData) getLastCustomNonConfigurationInstance());
+            isNoAccessDialog = savedInstanceState.getBoolean("isNoAccessDialog");
 
             if (isInfoDialog) showInfoDialog();
-            if (isNoAccesDialog) showFetchErrorDialog();
+            if (isNoAccessDialog) showNoAccesDialog();
 
         } else {
 
-            //App starten
-            selectedIdentifier = 1;
-            initializeLoadingData();
+            if (VertretungsData.getInstance().isReady() && LocalData.isReady()) {
+
+                //Falls alles normal -> starten
+                setUp();
+
+            } else {
+
+                //Falls Daten fehlen, SplashScreen zeigen
+                Intent splashScreenIntent = new Intent(this, SplashActivity.class);
+                splashScreenIntent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
+                startActivity(splashScreenIntent);
+                finish();
+                overridePendingTransition(0, 0);
+            }
 
         }
     }
@@ -140,11 +159,13 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
                 .withHeader(R.layout.drawer_header)
                 .addDrawerItems(
                         getDefaultDrawerItem().withName("Mein Stundenplan").withIcon(R.drawable.ic_stuplan).withIdentifier(1),
-                        getDefaultDrawerItem().withName("Mein Vertretungsplan").withIcon(R.drawable.ic_vertretung).withIdentifier(2),
-                        getDefaultDrawerItem().withName("Klassen- / Kurswahl").withIcon(R.drawable.ic_check).withIdentifier(3),
+                        getDefaultDrawerItem().withName("Mein Vertretungsplan").withIcon(R.drawable.ic_person).withIdentifier(2),
+                        getDefaultDrawerItem().withName("Termine").withIcon(R.drawable.ic_event).withIdentifier(3),
+                        getDefaultDrawerItem().withName("Notenübersicht").withIcon(R.drawable.ic_insert_chart).withIdentifier(4),
                         new DividerDrawerItem(),
-                        getDefaultDrawerItem().withName("Allgemeiner Vertretungsplan").withIcon(R.drawable.ic_vertretung).withIdentifier(4),
-                        getDefaultDrawerItem().withName("Klassenplan").withIcon(R.drawable.ic_stuplan).withIdentifier(5),
+                        getDefaultDrawerItem().withName("Allgemeiner Vertretungsplan").withIcon(R.drawable.ic_vertretung).withIdentifier(5),
+                        getDefaultDrawerItem().withName("Klassenplan").withIcon(R.drawable.ic_stuplan).withIdentifier(6),
+                        getDefaultDrawerItem().withName("Freie Zimmer").withIcon(R.drawable.ic_door).withIdentifier(7),
                         new DividerDrawerItem(),
                         getDefaultDrawerItem().withName("Einstellungen").withIcon(R.drawable.ic_settings).withIdentifier(11),
                         getDefaultDrawerItem().withName("Feedback").withIcon(R.drawable.ic_feedback).withIdentifier(12),
@@ -247,13 +268,41 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
     private void openSettings() {
 
         Intent openSettingsIntent = new Intent(getApplicationContext(), SettingsActivity.class);
-        startActivity(openSettingsIntent);
-        overridePendingTransition(R.anim.slide_in_right, 0);
+        //Animation
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            transitionToActivity(openSettingsIntent, new Slide(Gravity.LEFT));
+        } else {
+            startActivity(openSettingsIntent);
+        }
+
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+    private void transitionToActivity(Intent intent, Transition exitTransition) {
+
+        getWindow().setExitTransition(exitTransition);
+        getWindow().setAllowReturnTransitionOverlap(true);
+        startActivity(intent, ActivityOptionsCompat.makeSceneTransitionAnimation(this).toBundle());
+    }
+
+    /**
+     * öffnet den Fächer und Ferien Manager
+     */
+    private void openManager() {
+
+        Intent openManagerIntent = new Intent(getApplicationContext(), ManagerActivity.class);
+        //Animation
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            transitionToActivity(openManagerIntent, new Slide(Gravity.BOTTOM));
+        } else {
+            startActivity(openManagerIntent);
+        }
 
     }
 
     /**
      * Wechselt das angezeigte Fragment
+     *
      * @param identifier der Fragment identifier
      */
     private void setFragment(long identifier) {
@@ -267,14 +316,47 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
             ft.replace(R.id.container, StundenplanFragment.newInstance(StundenplanFragment.MODE_VERTRETUNGSPLAN)).commit();
             toolbar.setTitle("Mein Vertretungsplan");
         } else if (identifier == 3) {
-            ft.replace(R.id.container, new KurswahlFragment()).commit();
-            toolbar.setTitle("Klassen- / Kurswahl");
+            ft.replace(R.id.container, EventFragment.newInstance(EventFragment.MODE_ALLGEMEIN)).commit();
+            toolbar.setTitle("Termine");
         } else if (identifier == 4) {
+            ft.replace(R.id.container, new NotenUebersichtFragment()).commit();
+            toolbar.setTitle("Notenübersicht");
+        } else if (identifier == 5) {
             ft.replace(R.id.container, StundenplanFragment.newInstance(StundenplanFragment.MODE_ALGVERTRETUNGSPLAN)).commit();
             toolbar.setTitle("Allgemeiner Vertretungsplan");
-        } else if (identifier == 5) {
+        } else if (identifier == 6) {
             ft.replace(R.id.container, StundenplanFragment.newInstance(StundenplanFragment.MODE_KLASSENPLAN)).commit();
             toolbar.setTitle("Klassenplan");
+        } else if (identifier == 7) {
+            ft.replace(R.id.container, new FreieZimmerFragment()).commit();
+            toolbar.setTitle("Freie Zimmer");
+        }
+    }
+
+    /**
+     * Zeigt das Start Fragment und akrualisiert die VertretungsData wenn in Einstellungen gewünscht
+     */
+    private void setUp() {
+
+        if (isActive) showStartScreen();
+        else noactiveStartscreen = true;
+
+        //Wenn keine Klasse ausgewählt, starte KurswahlActivity
+        int klassenIndex = PreferenceHelper.readIntFromPreferences(getApplicationContext(), "meineKlasseInt", -1);
+        if (klassenIndex == -1) {
+
+            Intent startKurswahlIntent = new Intent(this, KurswahlActivity.class);
+            startActivity(startKurswahlIntent);
+
+        }
+
+        //Refresh wenn in Einstellungen gewollt
+        boolean refreshAtStart = PreferenceHelper.readBooleanFromPreferences(getApplicationContext(), "doRefreshAtStart", true);
+        if (refreshAtStart) {
+
+            int refreshDays = Integer.valueOf(PreferenceHelper.readStringFromPreferences(getApplicationContext(), "maxDaysToFetchStart", "14"));
+            showRefresh();
+            taskFragment.downloadAllData(refreshDays);
         }
     }
 
@@ -283,126 +365,16 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
      */
     private void showStartScreen() {
 
-        boolean keineKlasse = PreferenceReader.readIntFromPreferences(getApplicationContext(), "meineKlasseInt", -1) == -1;
-        if (keineKlasse) {
-
-            //Falls noch keine Klasse gewählt ist, zur Klassen-/Kurswahl springen
-            navigationDrawer.setSelection(3, false);
-            selectedIdentifier = 3;
-            setFragment(3);
-
-        } else {
-
-            //Ansonsten zum Stundenplan springen
-            int startScreenIdentifier = Integer.parseInt(PreferenceReader.readStringFromPreferences(getApplicationContext(), "startScreen", "1"));
-            if (startScreenIdentifier < 1) {
-                PreferenceReader.saveStringToPreferences(getApplicationContext(), "startScreen", "1");
-                startScreenIdentifier = 1;
-            }
-            navigationDrawer.setSelection(startScreenIdentifier, false);
-            selectedIdentifier = startScreenIdentifier;
-            setFragment(startScreenIdentifier);
-
+        //zum vom Nutzer gewählten Bildschirm springen
+        int startScreenIdentifier = Integer.parseInt(PreferenceHelper.readStringFromPreferences(getApplicationContext(), "startScreen", "1"));
+        if (startScreenIdentifier < 1) {
+            PreferenceHelper.saveStringToPreferences(getApplicationContext(), "startScreen", "1");
+            startScreenIdentifier = 1;
         }
+        navigationDrawer.setSelection(startScreenIdentifier, false);
+        selectedIdentifier = startScreenIdentifier;
+        setFragment(startScreenIdentifier);
 
-    }
-
-    /**
-     * Leitet das Laden der Daten ein; Prüft ob Benutzerdaten vorhanden sind und öffnet falls nötig die LoginActivity
-     */
-    private void initializeLoadingData() {
-
-        //Wenn nicht eingeloggt, LoginActivity starten
-        if (PreferenceReader.readStringFromPreferences(getApplicationContext(), "username", "null").equals("null")) {
-            Intent startLoginIntent = new Intent(getApplicationContext(), LoginActivity.class);
-            startLoginIntent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
-            startActivityForResult(startLoginIntent, 1);
-        } else {
-            //Ansonsten Daten laden
-            loadData();
-        }
-    }
-
-    /**
-     * Läd die Daten entweder aus dem Speicher oder startet die LoadingActivity
-     * verfährt außerdem nach den vom Nutzer in den Einstellungen festgelegten Regeln zum weiteren Laden
-     */
-    private void loadData() {
-
-        //Schauen on eine SavedSession im Speicher ist
-        File savedSessionFile = new File(getFilesDir(), VertretungsAPI.SAVE_FILE_NAME);
-        if (savedSessionFile.exists()) {
-
-            //Saved Session laden
-            taskFragment.createDataFromFile();
-
-        } else {
-
-            //Daten aus dem Interwebs herunterladen, dazu LoadingActivity starten
-            Intent startLoadingIntent = new Intent(getApplicationContext(), LoadingActivity.class);
-            startLoadingIntent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
-            startActivityForResult(startLoadingIntent, 1);
-
-        }
-
-    }
-
-    /**
-     * Wird aufgerufen wenn VertretungsData erfolgreich aus dem App Speicher erstellt wurde
-     */
-    @Override
-    public void onDataCreated() {
-
-        //wenn es fertig ist, Fragment öffnen
-        if (isActive) showStartScreen();
-        else noactiveStartscreen = true;
-
-        eventBus.post(new DataReadyEvent());
-
-        //Daten aktualisieren aus dem Interwebs
-        boolean doRefresh = PreferenceReader.readBooleanFromPreferences(getApplicationContext(), "doRefreshAtStart", true);
-        if (doRefresh) {
-
-            showRefresh();
-            int dayCount = Integer.parseInt(PreferenceReader.readStringFromPreferences(getApplicationContext(), "maxDaysToFetchStart", "14"));
-            taskFragment.downloadAllData(dayCount);
-        }
-
-    }
-
-    /**
-     * Wird gecallt wenn es einen Fehler beim Laden der VertretungsData aus dem Speicher gab
-     * @param throwable der Fehler
-     */
-    @Override
-    public void onDataCreateError(Throwable throwable) {
-
-        //Falls es einnen Fehler gab (z.B. neue App Version nicht mit Saved Session kompatibel), neu herunterladen
-        Log.e("JKGDEBUG", "Fehler beim Laden der Daten aus dem Speicher.");
-        Log.e("JKGDEBUG", "Message: " + throwable.getMessage());
-
-        File savedSessionFile = new File(getFilesDir(), VertretungsAPI.SAVE_FILE_NAME);
-        boolean deleted = savedSessionFile.delete();
-        loadData();
-
-        if (!throwable.getMessage().startsWith("Tagliste nicht mehr aktuell"))
-            ((MyApplication) getApplication()).fireException(throwable);
-    }
-
-    /**
-     * Wird gecallt wenn das Laden von einzelnen Tagen (nach dem Beenden der LoadingActivity) erfolgreich beendet wurde
-     *
-     * @param skipDays wie viele Tage übersprungen wurden
-     */
-    @Override
-    public void onUpdateDaysFinished(int skipDays) {
-
-        //Wenn Tage geladen wurden, diese speichern
-        if (VertretungsData.getInstance().getTagList().size() > skipDays)
-            taskFragment.saveDataToFile();
-
-        //Ladesymbol anhalten
-        stopRefresh();
 
     }
 
@@ -416,6 +388,12 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
 
         eventBus.post(new DayUpdatedEvent(position));
 
+    }
+
+    @Override
+    public void onEventsAdded() {
+
+        eventBus.post(new EventsChangedEvent());
     }
 
     /**
@@ -435,123 +413,50 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
 
     }
 
-    /**
-     * Zeig den NoAcces Fehler-Dialog an
-     */
-    private void showFetchErrorDialog() {
-
-        isNoAccesDialog = true;
-
-        final AlertDialog alertD = new AlertDialog.Builder(this).create();
-        LayoutInflater layoutInflater = getLayoutInflater();
-        View promptView = layoutInflater.inflate(R.layout.no_acces_dialog, null);
-
-        Button buttonRelog = (Button) promptView.findViewById(R.id.buttonRelog);
-        Button buttonReload = (Button) promptView.findViewById(R.id.buttonReload);
-        Button buttonCancel = (Button) promptView.findViewById(R.id.buttonCancel);
-
-        buttonRelog.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-
-                relog();
-                alertD.cancel();
-                isNoAccesDialog = false;
-            }
-        });
-        buttonReload.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-
-                showRefresh();
-                int dayCount = Integer.parseInt(PreferenceReader.readStringFromPreferences(getApplicationContext(), "maxDaysToFetch", "14"));
-                taskFragment.downloadAllData(dayCount);
-
-                alertD.cancel();
-                isNoAccesDialog = false;
-            }
-        });
-        buttonCancel.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-
-                alertD.cancel();
-                isNoAccesDialog = false;
-            }
-        });
-
-        alertD.setView(promptView);
-        alertD.show();
-
-    }
-
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 
         if (data == null || requestCode != 1) return;
         String response = data.getStringExtra("ExitCode");
         switch (response) {
-            case "Exit":            //Anwendung schließen, falls von Activity gewünscht
+            case "Exit":            //Anwendung schließen, falls von LoginActivity gewünscht
                 finish();
                 break;
             case "LoggedIn":        //LoginActivity hat erfolgreich eingeloggt
-                loggedIn();
-                break;
-            case "LoadingDone":     //LoadingActivity hat erfolgreich alles geladen
-                loadingDone();
-                break;
-            case "ReLog":           //LoadingActivity fordert neu einloggen
-                relog();
+                setUp();
                 break;
         }
 
-    }
-
-    /**
-     * Wird aufgerufen wenn die LoadingActivity beendet wurde und die ersten 3 Tage geladen hat
-     */
-    private void loadingDone() {
-
-        if (isActive) showStartScreen();
-        else noactiveStartscreen = true;
-
-        //Daten als Saved Session speichern
-        taskFragment.saveDataToFile();
-
-        //mehr Tage im Hintergrund laden
-        int dayCount = Integer.parseInt(PreferenceReader.readStringFromPreferences(getApplicationContext(), "maxDaysToFetchStart", "14"));
-        if (VertretungsData.getInstance().getTagList().size() == 3 && dayCount > 3) {
-
-            //Ladesymbol zeigen
-            showRefresh();
-
-            //Callback auf onUpdateDaysFinished
-            taskFragment.updateDays(dayCount - 3, 3);
-        }
-    }
-
-    /**
-     * Wird aufgerufen wenn die LoginActivity beendet wurde und sich erfolgreich eingeloggt hat
-     */
-    private void loggedIn() {
-
-        loadData();
     }
 
     /**
      * Löscht die Benutzerdaten und initialisert das Laden neu
      */
-    private void relog() {
+    private void startLoginActivity() {
 
         //Benutzerdaten leeren und LoginActivity starten
-        PreferenceReader.saveStringToPreferences(getApplicationContext(), "username", "null");
-        PreferenceReader.saveStringToPreferences(getApplicationContext(), "password", "null");
-        initializeLoadingData();
+        PreferenceHelper.saveStringToPreferences(getApplicationContext(), "username", "null");
+        PreferenceHelper.saveStringToPreferences(getApplicationContext(), "password", "null");
+
+        Intent loginIntent = new Intent(this, LoginActivity.class);
+        loginIntent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        startActivityForResult(loginIntent, 1);
+        overridePendingTransition(0, 0);
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
 
+        //Noch vorhandenes Item entfernen
+        if (refreshItem != null) {
+            if (refreshItem.getActionView() != null) {
+                refreshItem.getActionView().clearAnimation();
+                refreshItem.setActionView(null);
+            }
+            menu.removeItem(R.id.action_refresh);
+        }
+
+        //neues Item erschaffen
         getMenuInflater().inflate(R.menu.menu_main, menu);
 
         refreshItem = menu.findItem(R.id.action_refresh); //Menu für alle Methoden verfügbar machen
@@ -572,6 +477,10 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
         if (id == R.id.action_refresh) {
             refreshClicked();
             return true;
+        } else if (id == R.id.action_edit) {
+
+            openManager();
+            return true;
         }
 
         return super.onOptionsItemSelected(item);
@@ -591,7 +500,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
         showRefresh();
 
         //Daten im Hintergrund laden
-        int dayCount = Integer.parseInt(PreferenceReader.readStringFromPreferences(getApplicationContext(), "maxDaysToFetchRefresh", "14"));
+        int dayCount = Integer.parseInt(PreferenceHelper.readStringFromPreferences(getApplicationContext(), "maxDaysToFetchRefresh", "14"));
         taskFragment.downloadAllData(dayCount);
 
     }
@@ -600,18 +509,14 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
      * Wird gecallt wenn downloadAllData beendet wurde
      */
     @Override
-    public void onRefreshFinished() {
+    public void onDownloadFinished() {
 
-        if (VertretungsData.getInstance().getTagList().size() > 0) {
+        LocalData.getInstance().updateCompareDate();
+        taskFragment.saveVertretungsDataToFile();
 
-            Toast.makeText(getApplicationContext(), "Daten erfolgreich aktualisiert", Toast.LENGTH_SHORT).show();
-            taskFragment.saveDataToFile();
-            stopRefresh();
+        Toast.makeText(getApplicationContext(), "Daten erfolgreich aktualisiert", Toast.LENGTH_SHORT).show();
+        stopRefresh();
 
-        } else {
-
-            onNoAccess();
-        }
 
     }
 
@@ -619,7 +524,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
      * Wird gecallt wenn bei downloadAllData keine Verbindung hergestellt werden konnte
      */
     @Override
-    public void onRefreshNoConnection() {
+    public void onNoConnection() {
 
         Toast.makeText(getApplicationContext(), "Keine Verbindung zum Server!", Toast.LENGTH_LONG).show();
         stopRefresh();
@@ -631,6 +536,11 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
     @Override
     public void onKlassenListUpdated() {
 
+        //zurücksetzten der Klasse, falls es eine neue Klassenliste gibt
+        if (VertretungsData.getInstance().getKlassenList().size() <= PreferenceHelper.readIntFromPreferences(getApplicationContext(), "meineKlasseInt", 0)) {
+            PreferenceHelper.saveIntToPreferences(getApplicationContext(), "meineKlasseInt", -1);
+        }
+
         eventBus.post(new KlassenlistUpdatedEvent());
     }
 
@@ -640,8 +550,38 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
     @Override
     public void onNoAccess() {
 
-        showFetchErrorDialog();
+        showNoAccesDialog();
         stopRefresh();
+    }
+
+    private void showNoAccesDialog() {
+
+        isNoAccessDialog = true;
+
+        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
+        dialogBuilder.setTitle("Anmeldefehler");
+        dialogBuilder.setMessage("Der Server hat die Anmeldedaten abgelehnt, möchtest du dich neu einloggen?");
+        dialogBuilder.setPositiveButton("Neu anmelden", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                isNoAccessDialog = false;
+                startLoginActivity();
+            }
+        });
+        dialogBuilder.setNegativeButton("Abbrechen", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                isNoAccessDialog = false;
+            }
+        });
+        AlertDialog dialog = dialogBuilder.create();
+        dialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
+            @Override
+            public void onCancel(DialogInterface dialogInterface) {
+                isNoAccessDialog = false;
+            }
+        });
+        dialog.show();
     }
 
     /**
@@ -649,16 +589,18 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
      */
     private void showRefresh() {
 
-        if (refreshItem == null) return;
-
         isRefreshing = true;
+
+        if (refreshItem == null) return;
 
         //Das Refresh Item durch ein ImageView, was sich dreht austauschen
         LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        ImageView iv = (ImageView) inflater.inflate(R.layout.refresh_icon, null);
+        View v = inflater.inflate(R.layout.refresh_icon, null, false);
+        ImageView iv = (ImageView) v.findViewById(R.id.refreshImage);
 
         Animation rotation = AnimationUtils.loadAnimation(getApplicationContext(), R.anim.rotate);
         rotation.setRepeatCount(Animation.INFINITE);
+
         rotation.setAnimationListener(new Animation.AnimationListener() {
             @Override
             public void onAnimationStart(Animation animation) {
@@ -678,6 +620,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
                     refreshItem.getActionView().clearAnimation();
                     refreshItem.setActionView(null);
                 }
+
             }
         });
         iv.startAnimation(rotation);
@@ -692,7 +635,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
 
         isRefreshing = false;
         if (!isActive)
-            PreferenceReader.saveBooleanToPrefernces(getApplicationContext(), "stopRefresh", true);
+            PreferenceHelper.saveBooleanToPrefernces(getApplicationContext(), "stopRefresh", true);
     }
 
     @Override
@@ -712,16 +655,11 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Task
         outState.putLong("selectedIdentifier", selectedIdentifier);
         outState.putCharSequence("title", toolbar.getTitle());
         outState.putBoolean("isInfoDialog", isInfoDialog);
-        outState.putBoolean("isNoAccesDialog", isNoAccesDialog);
+        outState.putBoolean("isNoAccessDialog", isNoAccessDialog);
         outState.putBoolean("noactiveStartscreen", noactiveStartscreen);
         outState.putBoolean("isRefreshing", isRefreshing);
 
         super.onSaveInstanceState(outState);
-    }
-
-    @Override
-    public Object onRetainCustomNonConfigurationInstance() {
-        return VertretungsData.getInstance();
     }
 
     @Override

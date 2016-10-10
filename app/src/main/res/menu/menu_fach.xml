@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/action_delete"
+        android:icon="@drawable/ic_delete"
+        android:orderInCategory="2"
+        android:title="Fach löschen"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_rename"
+        android:icon="@drawable/ic_mode_edit"
+        android:orderInCategory="1"
+        android:title="Umbenennen"
+        app:showAsAction="ifRoom" />
+</menu>

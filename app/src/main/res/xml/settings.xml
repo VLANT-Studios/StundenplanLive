@@ -24,7 +24,7 @@
             android:entries="@array/settings_day_count"
             android:entryValues="@array/settings_day_count_values"
             android:key="maxDaysToFetchStart"
-            android:title="Herunterzuladende Tage" />
+            android:title="max. herunterzuladende Tage" />
 
     </PreferenceCategory>
 
@@ -37,8 +37,32 @@
             android:entries="@array/settings_day_count"
             android:entryValues="@array/settings_day_count_values"
             android:key="maxDaysToFetchRefresh"
-            android:title="Herunterzuladende Tage" />
+            android:title="max. herunterzuladende Tage" />
 
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Externe Funktionen">
+
+        <SwitchPreference
+            android:defaultValue="true"
+            android:key="onlineEvents"
+            android:title="Wichtige Schulevents herunterladen" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Backup">
+
+        <Preference
+            android:key="exportBackup"
+            android:title="Backup exportiern" />
+
+        <Preference
+            android:key="importBackup"
+            android:title="Backup importiern" />
+
+        <Preference
+            android:key="deleteBackup"
+            android:title="Backup löschen" />
     </PreferenceCategory>
 
 </PreferenceScreen>

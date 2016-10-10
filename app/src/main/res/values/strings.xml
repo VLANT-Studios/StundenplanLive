@@ -1,11 +1,12 @@
 <resources>
-    <string name="app_name">JKG Vertretung</string>
+    <string name="app_name">JKG Stundenplan</string>
     <string name="title_activity_login">Einloggen</string>
+    <string name="title_activity_manager">Manager</string>
+    <string name="title_activity_kurswahl">Klassen- / Kurswahl</string>
 
-    <string name="hello_blank_fragment">Hello blank fragment</string>
-    <string name="title_activity_loading">LoadingActivity</string>
     <string name="no_acces_text">Der Server hat die Verbindungsabfrage abgelehnt. Das kann folgende Ursachen haben:\n\n- Es besteht ein Server Problem\n- Es ist derzeit kein Plan verfügbar (z.B. in den Ferien)\n- Das Zugangspasswort hat sich geändert</string>
     <string name="title_settings">Einstellungen</string>
+    <string name="smart_import_desc">Smart Import versucht anhand des online vorhandenen Vertretungsplans deine Stundenliste automatisch auszufüllen. Dies geht nur für die Tage, die gerade online sind und kann zu Fehlern führen, wenn eine Stunde außerplanmäßig stattfindet.\n\nAm besten benutzt du Smart Import nur, wenn du noch keine Fächer eingetragen hast. Für beste Ergebnisse benutze es anfangs mehrmals in der Woche, so dass jeder Tag (A und B Woche) einmal online war.</string>
 
 
 </resources>

@@ -21,10 +21,11 @@ import java.util.ArrayList;
 import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.adapters.StundenplanPagerAdapter;
-import de.conradowatz.jkgvertretung.tools.PreferenceReader;
+import de.conradowatz.jkgvertretung.events.DataReadyEvent;
+import de.conradowatz.jkgvertretung.events.DayUpdatedEvent;
+import de.conradowatz.jkgvertretung.events.FerienChangedEvent;
+import de.conradowatz.jkgvertretung.tools.PreferenceHelper;
 import de.conradowatz.jkgvertretung.tools.VertretungsData;
-import de.conradowatz.jkgvertretung.variables.DataReadyEvent;
-import de.conradowatz.jkgvertretung.variables.DayUpdatedEvent;
 import de.conradowatz.jkgvertretung.variables.Klasse;
 
 public class StundenplanFragment extends Fragment {
@@ -33,17 +34,14 @@ public class StundenplanFragment extends Fragment {
     public static final int MODE_VERTRETUNGSPLAN = 2;
     public static final int MODE_ALGVERTRETUNGSPLAN = 3;
     public static final int MODE_KLASSENPLAN = 4;
-
+    boolean tabsNoSelect = false;
     private View contentView;
-
     private ViewPager viewPager;
     private TabLayout tabs;
     private Spinner spinner;
-
     private int mode;
     private int viewpagerCount;
     private Integer klassenIndex;
-
     private EventBus eventBus = EventBus.getDefault();
     private boolean waitingForData = false;
 
@@ -156,7 +154,7 @@ public class StundenplanFragment extends Fragment {
             }
         });
 
-        int meineKlasseInt = PreferenceReader.readIntFromPreferences(getActivity(), "meineKlasseInt", -1);
+        int meineKlasseInt = PreferenceHelper.readIntFromPreferences(getActivity(), "meineKlasseInt", -1);
         if (meineKlasseInt >= 0) {
             spinner.setSelection(meineKlasseInt);
         }
@@ -165,20 +163,124 @@ public class StundenplanFragment extends Fragment {
 
     private void setUpViewPager(Integer klassenIndex, Integer lastPosition) {
 
-        boolean firstStart = viewPager.getAdapter() == null;
+        final boolean firstStart = viewPager.getAdapter() == null;
         if (VertretungsData.getInstance().getTagList() == null) return;
-        StundenplanPagerAdapter adapter = new StundenplanPagerAdapter(getChildFragmentManager(), mode, klassenIndex);
+        final StundenplanPagerAdapter adapter = new StundenplanPagerAdapter(getChildFragmentManager(), mode, klassenIndex);
         viewPager.setAdapter(adapter);
 
         if (firstStart) {
             tabs.setTabTextColors(ContextCompat.getColor(getContext(), R.color.tabs_unselected), ContextCompat.getColor(getContext(), R.color.white));
-            tabs.setTabMode(TabLayout.MODE_SCROLLABLE);
-            tabs.setupWithViewPager(viewPager);
+            if (mode != MODE_STUNDENPLAN) {
+                tabs.setTabMode(TabLayout.MODE_SCROLLABLE);
+                tabs.setupWithViewPager(viewPager);
+            } else {
+                tabs.setTabMode(TabLayout.MODE_FIXED);
+                tabs.addTab(tabs.newTab().setText("AKTUELL"));
+                tabs.addTab(tabs.newTab().setText(adapter.getPageTitle(0)));
+                tabs.addTab(tabs.newTab().setText(adapter.getPageTitle(1)));
+                tabs.addTab(tabs.newTab().setText(adapter.getPageTitle(2)));
+                tabs.getTabAt(1).select();
+                tabsNoSelect = false;
+                tabs.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+
+                    @Override
+                    public void onTabSelected(TabLayout.Tab tab) {
+
+                        if (tabsNoSelect) {
+                            tabsNoSelect = false;
+                            return;
+                        }
+
+                        if (tab.getPosition() == 0) {
+                            aktuell(true);
+                        } else if (tab.getPosition() == 1) {
+                            if (viewPager.getCurrentItem() > 1) prevDay(true);
+                            else if (viewPager.getCurrentItem() == 1) aktuell(true);
+                        } else if (tab.getPosition() == 2) {
+                            if (viewPager.getCurrentItem() == 0) nextDay(1, true);
+                        } else {
+                            if (viewPager.getCurrentItem() == 0) nextDay(2, true);
+                            else nextDay(1, true);
+                        }
+
+                    }
+
+                    @Override
+                    public void onTabUnselected(TabLayout.Tab tab) {
+                    }
+
+                    @Override
+                    public void onTabReselected(TabLayout.Tab tab) {
+                        onTabSelected(tab);
+                    }
+                });
+                viewPager.addOnPageChangeListener(new ViewPager.OnPageChangeListener() {
+
+                    private int prevPosition = viewPager.getCurrentItem();
+
+                    @Override
+                    public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
+                    }
+
+                    @Override
+                    public void onPageSelected(int position) {
+
+                        if (position < prevPosition) { //zurück
+                            if (position > 0) prevDay(false);
+                            else aktuell(false);
+                        } else if (position > prevPosition) { //vor
+                            nextDay(1, false);
+                        }
+                        prevPosition = position;
+
+                    }
+
+                    @Override
+                    public void onPageScrollStateChanged(int state) {
+                    }
+                });
+            }
         }
 
         if (lastPosition != null) viewPager.setCurrentItem(lastPosition);
 
         viewpagerCount = adapter.getCount();
+    }
+
+    private void aktuell(boolean scroll) {
+        if (scroll) viewPager.setCurrentItem(0, true);
+        tabsNoSelect = true;
+        tabs.removeAllTabs();
+        tabs.addTab(tabs.newTab().setText("AKTUELL"));
+        tabs.addTab(tabs.newTab().setText(viewPager.getAdapter().getPageTitle(0)));
+        tabs.addTab(tabs.newTab().setText(viewPager.getAdapter().getPageTitle(1)));
+        tabs.addTab(tabs.newTab().setText(viewPager.getAdapter().getPageTitle(2)));
+        tabsNoSelect = true;
+        tabs.getTabAt(1).select();
+    }
+
+    private void nextDay(int pages, boolean scroll) {
+        if (scroll) viewPager.setCurrentItem(viewPager.getCurrentItem() + pages, true);
+        tabsNoSelect = true;
+        tabs.removeAllTabs();
+        tabs.addTab(tabs.newTab().setText("AKTUELL"));
+        tabs.addTab(tabs.newTab().setText(viewPager.getAdapter().getPageTitle(viewPager.getCurrentItem() - 1)));
+        tabs.addTab(tabs.newTab().setText(viewPager.getAdapter().getPageTitle(viewPager.getCurrentItem())));
+        tabs.addTab(tabs.newTab().setText(viewPager.getAdapter().getPageTitle(viewPager.getCurrentItem() + 1)));
+        tabsNoSelect = true;
+        tabs.getTabAt(2).select();
+    }
+
+    private void prevDay(boolean scroll) {
+        if (scroll) viewPager.setCurrentItem(viewPager.getCurrentItem() - 1, true);
+        tabsNoSelect = true;
+        tabs.removeAllTabs();
+        tabs.addTab(tabs.newTab().setText("AKTUELL"));
+        tabs.addTab(tabs.newTab().setText(viewPager.getAdapter().getPageTitle(viewPager.getCurrentItem() - 1)));
+        tabs.addTab(tabs.newTab().setText(viewPager.getAdapter().getPageTitle(viewPager.getCurrentItem())));
+        tabs.addTab(tabs.newTab().setText(viewPager.getAdapter().getPageTitle(viewPager.getCurrentItem() + 1)));
+        tabsNoSelect = true;
+        tabs.getTabAt(2).select();
     }
 
     /**
@@ -207,6 +309,12 @@ public class StundenplanFragment extends Fragment {
         }
     }
 
+    @Subscribe
+    public void onEvent(FerienChangedEvent event) {
+
+        showData();
+    }
+
     @Override
     public void onSaveInstanceState(Bundle outState) {
 
@@ -217,8 +325,9 @@ public class StundenplanFragment extends Fragment {
     }
 
     @Override
-    public void onStop() {
+    public void onDestroyView() {
+        super.onDestroyView();
+
         eventBus.unregister(this);
-        super.onStop();
     }
 }

@@ -3,10 +3,14 @@
     <string-array name="settings_screen_titles">
         <item>Mein Stundenplan</item>
         <item>Mein Vertretungsplan</item>
+        <item>Termine</item>
+        <item>Notenübersicht</item>
     </string-array>
     <string-array name="settings_screen_title_values">
         <item>1</item>
         <item>2</item>
+        <item>3</item>
+        <item>4</item>
     </string-array>
 
     <string-array name="settings_day_count">
@@ -29,6 +33,6 @@
         <item>6</item>
         <item>7</item>
         <item>14</item>
-        <item>0</item>
+        <item>-1</item>
     </string-array>
 </resources>

@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <android.support.v7.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/primary"
+        android:theme="@style/ToolBarStyle" />
+
+    <EditText
+        android:id="@+id/nameEdit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/primary"
+        android:hint="Bitte Eventname eingeben..."
+        android:inputType="text"
+        android:maxLines="1"
+        android:padding="15dp"
+        android:textColor="@color/white"
+        android:textColorHint="@color/white" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:padding="10dp">
+
+                <ImageView
+                    android:id="@+id/calendarImage"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_marginRight="30dp"
+                    android:src="@drawable/ic_event" />
+
+                <TextView
+                    android:id="@+id/datumInfoText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_toRightOf="@id/calendarImage"
+                    android:text="Datum:"
+                    android:textSize="20sp" />
+
+                <TextView
+                    android:id="@+id/datumText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/datumInfoText"
+                    android:layout_toRightOf="@id/calendarImage"
+                    android:foreground="?android:attr/selectableItemBackground"
+                    android:padding="5dp"
+                    android:text="03.10.2016"
+                    android:textColor="@color/primary_text"
+                    android:textSize="25sp" />
+
+                <TextView
+                    android:id="@+id/stundenAuswahlText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/datumText"
+                    android:layout_toRightOf="@id/calendarImage"
+                    android:foreground="?android:attr/selectableItemBackground"
+                    android:padding="5dp"
+                    android:text="(Stunde auswählen)"
+                    android:textColor="@color/primary_text"
+                    android:textSize="16sp" />
+
+                <ImageView
+                    android:id="@+id/deleteImage"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_below="@id/stundenAuswahlText"
+                    android:layout_marginRight="30dp"
+                    android:layout_marginTop="10dp"
+                    android:src="@drawable/ic_delete_cross_black" />
+
+                <android.support.v7.widget.SwitchCompat
+                    android:id="@+id/deleteSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/stundenAuswahlText"
+                    android:layout_marginTop="10dp"
+                    android:layout_toRightOf="@id/calendarImage"
+                    android:text="Event löschen, wenn vergangen"
+                    android:textSize="16sp" />
+
+                <ImageView
+                    android:id="@+id/notesImage"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_below="@id/deleteSwitch"
+                    android:layout_marginRight="30dp"
+                    android:layout_marginTop="10dp"
+                    android:src="@drawable/ic_notes" />
+
+                <TextView
+                    android:id="@+id/descInfoText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/deleteSwitch"
+                    android:layout_marginTop="10dp"
+                    android:layout_toRightOf="@id/calendarImage"
+                    android:text="Beschreibung:"
+                    android:textSize="20sp" />
+
+                <EditText
+                    android:id="@+id/descEdit"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/descInfoText"
+                    android:layout_marginTop="5dp"
+                    android:layout_toRightOf="@id/calendarImage"
+                    android:inputType="textMultiLine" />
+
+                <View
+                    android:id="@+id/divider"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_below="@id/descEdit"
+                    android:layout_marginBottom="10dp"
+                    android:layout_marginTop="10dp"
+                    android:background="@color/divider" />
+
+                <ImageView
+                    android:id="@+id/bellImage"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_below="@id/divider"
+                    android:layout_marginRight="30dp"
+                    android:src="@drawable/ic_alert" />
+
+                <TextView
+                    android:id="@+id/reminderInfoText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/divider"
+                    android:layout_toRightOf="@id/calendarImage"
+                    android:text="Erinnerungen:"
+                    android:textSize="20sp" />
+
+                <android.support.v7.widget.RecyclerView
+                    android:id="@+id/reminderRecycler"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/reminderInfoText"
+                    android:layout_marginTop="5dp"
+                    android:layout_toRightOf="@id/calendarImage" />
+
+            </RelativeLayout>
+
+        </ScrollView>
+
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:src="@drawable/shadow_down" />
+
+    </FrameLayout>
+
+
+</LinearLayout>

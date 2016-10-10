@@ -12,10 +12,12 @@
         <br>
         <h2>Lizenzen</h2>
         Diese App verwendet folgende Libarys:
-        <br> • Material Drawer (Copyright © 2015 Mike Penz)
-        <br> • Volley (Copyright © 2015 The Android Open Source Project)
+        <br> • Material Drawer (Copyright © 2016 Mike Penz)
+        <br> • Volley (Copyright © 2016 The Android Open Source Project)
         <br> • Material-ish Progress (Copyright © 2014 Nico Hormazábal)
-        <br> • EventBus (von greenrobot)
+        <br> • EventBus (Copyright © 2016 Markus Junginger, greenrobot)
+        <br> • Gson (Copyright © 2008 Google)
+        <br> • ExpandableTextView (Copyright © 2014 Manabu Shimobe)
         <br>
         <br>Alle 4 Libarys sind lizensiert unter der Apache License, Version 2.0:
         <br>

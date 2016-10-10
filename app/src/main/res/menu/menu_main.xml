@@ -5,6 +5,14 @@
     <item
         android:id="@+id/action_refresh"
         android:icon="@drawable/ic_refresh_white"
+        android:orderInCategory="3"
         android:title="Daten aktualisieren"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_edit"
+        android:icon="@drawable/ic_mode_edit"
+        android:orderInCategory="1"
+        android:title="Manager"
         app:showAsAction="ifRoom"/>
 </menu>

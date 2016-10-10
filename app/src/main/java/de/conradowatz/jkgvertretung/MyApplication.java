@@ -39,7 +39,7 @@ public class MyApplication extends Application {
     public void fireScreenHit(String screenName) {
 
         tracker.setScreenName(screenName);
-        tracker.send(new HitBuilders.AppViewBuilder().build());
+        tracker.send(new HitBuilders.ScreenViewBuilder().build());
 
     }
 
@@ -57,4 +57,6 @@ public class MyApplication extends Application {
                 .setFatal(false)
                 .build());
     }
+
+
 }

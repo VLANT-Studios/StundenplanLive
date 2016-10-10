@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <android.support.v7.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/primary"
+        android:theme="@style/ToolBarStyle" />
+
+    <EditText
+        android:id="@+id/nameEdit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/primary"
+        android:hint="Ferienname eingeben..."
+        android:inputType="text"
+        android:maxLines="1"
+        android:padding="15dp"
+        android:textColor="@color/white"
+        android:textColorHint="@color/white" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:padding="10dp">
+
+                <ImageView
+                    android:id="@+id/calendarImage"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_marginRight="30dp"
+                    android:src="@drawable/ic_event" />
+
+                <TextView
+                    android:id="@+id/startInfoText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_toRightOf="@id/calendarImage"
+                    android:text="Start:"
+                    android:textColor="@color/secondary_text"
+                    android:textSize="20sp" />
+
+                <TextView
+                    android:id="@+id/startText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/startInfoText"
+                    android:layout_toRightOf="@id/calendarImage"
+                    android:foreground="?android:attr/selectableItemBackground"
+                    android:padding="5dp"
+                    android:text="03.10.2016"
+                    android:textColor="@color/primary_text"
+                    android:textSize="25sp" />
+
+                <TextView
+                    android:id="@+id/endInfoText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/startText"
+                    android:layout_marginTop="10dp"
+                    android:layout_toRightOf="@id/calendarImage"
+                    android:text="Ende:"
+                    android:textColor="@color/secondary_text"
+                    android:textSize="20sp" />
+
+                <TextView
+                    android:id="@+id/endText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/endInfoText"
+                    android:layout_toRightOf="@id/calendarImage"
+                    android:foreground="?android:attr/selectableItemBackground"
+                    android:padding="5dp"
+                    android:text="14.10.2016"
+                    android:textColor="@color/primary_text"
+                    android:textSize="25sp" />
+
+            </RelativeLayout>
+
+        </ScrollView>
+
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:src="@drawable/shadow_down" />
+
+    </FrameLayout>
+
+
+</LinearLayout>
