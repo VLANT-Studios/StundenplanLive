@@ -9,9 +9,11 @@ import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.annotation.RequiresApi;
+import android.support.customtabs.CustomTabsIntent;
 import android.support.v4.app.ActivityOptionsCompat;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -257,8 +259,12 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
 
 
         String url = "http://conradowatz.de/android-apps/jkg-vertretung-support/";
-        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-        startActivity(intent);
+        CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder();
+        builder.setToolbarColor(ContextCompat.getColor(getApplicationContext(), R.color.primary));
+        builder.setStartAnimations(this, R.anim.slide_in_right, R.anim.slide_out_left);
+        builder.setExitAnimations(this, R.anim.slide_in_left, R.anim.slide_out_right);
+        CustomTabsIntent intent = builder.build();
+        intent.launchUrl(this, Uri.parse(url));
 
     }
 

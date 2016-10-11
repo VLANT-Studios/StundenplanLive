@@ -201,6 +201,8 @@ public class EventFragment extends Fragment implements EventRecyclerAdapter.Call
                 EventsChangedEvent eventsChangedEvent = new EventsChangedEvent(EventsChangedEvent.TYPE_REMOVED, recyclerIndex);
                 eventsChangedEvent.setRemoveAbove(removeAbove);
                 eventBus.post(eventsChangedEvent);
+
+                LocalData.saveToFile(getActivity().getApplicationContext());
             }
         });
         dialogBuilder.setNegativeButton("Abbrechen", new DialogInterface.OnClickListener() {

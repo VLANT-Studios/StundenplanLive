@@ -1,7 +1,6 @@
 package de.conradowatz.jkgvertretung.adapters;
 
 import android.content.Context;
-import android.support.v4.content.ContextCompat;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -79,27 +78,27 @@ public class FachStundenRecyclerAdapter extends RecyclerView.Adapter<FachStunden
         if (viewType == TYPE_NORMAL) {
             final int[] i = getItemPosition(holder.getAdapterPosition());
             if (stunden[i[0]][i[1]]) {
-                holder.colorView.setBackgroundColor((ContextCompat.getColor(context, R.color.accent)));
-                holder.colorView.setImageResource(R.drawable.ic_done);
-                holder.colorView.setOnClickListener(new View.OnClickListener() {
+                holder.backgroundView.setBackgroundResource(R.drawable.round_shape_yellow);
+                holder.imageView.setImageResource(R.drawable.ic_done);
+                holder.imageView.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
                         callback.onRemoveStunde(i[0], i[1], holder.getAdapterPosition());
                     }
                 });
             } else if (belegt[i[0]][i[1]]) {
-                holder.colorView.setBackgroundColor((ContextCompat.getColor(context, R.color.primary)));
-                holder.colorView.setImageResource(R.drawable.ic_clear);
-                holder.colorView.setOnClickListener(new View.OnClickListener() {
+                holder.backgroundView.setBackgroundResource(R.drawable.round_shape_blue);
+                holder.imageView.setImageResource(R.drawable.ic_clear);
+                holder.imageView.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
                         callback.onReplaceStunde(i[0], i[1], holder.getAdapterPosition());
                     }
                 });
             } else {
-                holder.colorView.setBackgroundColor(ContextCompat.getColor(context, R.color.white));
-                holder.colorView.setImageResource(0);
-                holder.colorView.setOnClickListener(new View.OnClickListener() {
+                holder.backgroundView.setBackgroundResource(R.drawable.round_shape_white);
+                holder.imageView.setImageResource(0);
+                holder.imageView.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
                         callback.onNewStunde(i[0], i[1], holder.getAdapterPosition());
@@ -168,13 +167,17 @@ public class FachStundenRecyclerAdapter extends RecyclerView.Adapter<FachStunden
 
     public class ViewHolder extends RecyclerView.ViewHolder {
 
-        ImageView colorView;
+        ImageView imageView;
+        View backgroundView;
         TextView textView;
 
         public ViewHolder(View itemView, int viewType) {
             super(itemView);
             if (viewType != TYPE_NORMAL) textView = (TextView) itemView;
-            else colorView = (ImageView) itemView.findViewById(R.id.colorView);
+            else {
+                imageView = (ImageView) itemView.findViewById(R.id.imageView);
+                backgroundView = itemView.findViewById(R.id.backgroundView);
+            }
         }
     }
 }
