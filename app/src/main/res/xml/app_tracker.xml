@@ -23,17 +23,32 @@
     specifying the canonical name, and the value the alias to use instead. -->
     <!-- The screen names that will appear in reports -->
 
+    <screenName name="de.conradowatz.jkgvertretung.activities.EventActivity">
+        Event Screen
+    </screenName>
+    <screenName name="de.conradowatz.jkgvertretung.activities.FachActivity">
+        Fach Screen
+    </screenName>
+    <screenName name="de.conradowatz.jkgvertretung.activities.FerienActivity">
+        Ferien Screen
+    </screenName>
+    <screenName name="de.conradowatz.jkgvertretung.activities.KurswahlActivity">
+        Kurswahl Screen
+    </screenName>
     <screenName name="de.conradowatz.jkgvertretung.activities.LoginActivity">
         Login Screen
+    </screenName>
+    <screenName name="de.conradowatz.jkgvertretung.activities.ManagerActivity">
+        Manager Screen
     </screenName>
     <screenName name="de.conradowatz.jkgvertretung.activities.SettingsActivity">
         Einstellungen
     </screenName>
-    <screenName name="de.conradowatz.jkgvertretung.activities.LoadingActivity">
-        Ladebildschirm
-    </screenName>
     <screenName name="de.conradowatz.jkgvertretung.activities.MainActivity">
         Hauptbildschirm
+    </screenName>
+    <screenName name="de.conradowatz.jkgvertretung.activities.SplashActivity">
+        Splash Screen
     </screenName>
 
 </resources>

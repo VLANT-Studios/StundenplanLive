@@ -25,6 +25,7 @@ import java.util.Date;
 import java.util.Locale;
 
 import de.conradowatz.jkgvertretung.R;
+import de.conradowatz.jkgvertretung.events.AnalyticsEventEvent;
 import de.conradowatz.jkgvertretung.events.FerienChangedEvent;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.tools.Utilities;
@@ -225,7 +226,10 @@ public class FerienActivity extends AppCompatActivity {
         }
 
         if (ferienInt > -1) LocalData.getInstance().getFerien().set(ferienInt, ferien);
-        else LocalData.getInstance().getFerien().add(ferien);
+        else {
+            eventBus.post(new AnalyticsEventEvent("Manager", "Ferien erstellt"));
+            LocalData.getInstance().getFerien().add(ferien);
+        }
         LocalData.getInstance().sortFerien();
         return true;
 

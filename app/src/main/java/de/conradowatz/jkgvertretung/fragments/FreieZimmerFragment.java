@@ -12,9 +12,9 @@ import android.view.ViewGroup;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
-import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.adapters.FreieZimmerPagerAdapter;
+import de.conradowatz.jkgvertretung.events.AnalyticsScreenHitEvent;
 import de.conradowatz.jkgvertretung.events.DataReadyEvent;
 import de.conradowatz.jkgvertretung.events.DayUpdatedEvent;
 import de.conradowatz.jkgvertretung.tools.VertretungsData;
@@ -38,8 +38,7 @@ public class FreieZimmerFragment extends Fragment {
                              Bundle savedInstanceState) {
 
         //Analytics
-        MyApplication analytics = (MyApplication) getActivity().getApplication();
-        analytics.fireScreenHit("Freie Zimmer");
+        eventBus.post(new AnalyticsScreenHitEvent("Freie Zimmer"));
 
         contentView = inflater.inflate(R.layout.fragment_stundenplan, container, false);
         viewPager = (ViewPager) contentView.findViewById(R.id.viewPager);

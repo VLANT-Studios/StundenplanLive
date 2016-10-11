@@ -8,11 +8,19 @@ import com.google.android.gms.analytics.HitBuilders;
 import com.google.android.gms.analytics.StandardExceptionParser;
 import com.google.android.gms.analytics.Tracker;
 
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+
+import de.conradowatz.jkgvertretung.events.AnalyticsEventEvent;
+import de.conradowatz.jkgvertretung.events.AnalyticsScreenHitEvent;
+
 public class MyApplication extends Application {
 
     public static GoogleAnalytics analytics;
     public static Tracker tracker;
     private static MyApplication sInstance;
+
+    private EventBus eventBus = EventBus.getDefault();
 
     public static MyApplication getsInstance() {
         return sInstance;
@@ -27,6 +35,8 @@ public class MyApplication extends Application {
         super.onCreate();
         sInstance = this;
 
+        eventBus.register(this);
+
         analytics = GoogleAnalytics.getInstance(this);
         analytics.setLocalDispatchPeriod(600);
 
@@ -36,14 +46,14 @@ public class MyApplication extends Application {
         tracker.enableAutoActivityTracking(true);
     }
 
-    public void fireScreenHit(String screenName) {
+    private void fireScreenHit(String screenName) {
 
         tracker.setScreenName(screenName);
         tracker.send(new HitBuilders.ScreenViewBuilder().build());
 
     }
 
-    public void fireEvent(String category, String action) {
+    private void fireEvent(String category, String action) {
 
         tracker.send(new HitBuilders.EventBuilder(category, action).build());
 
@@ -58,5 +68,19 @@ public class MyApplication extends Application {
                 .build());
     }
 
+    @Subscribe
+    public void onEvent(AnalyticsScreenHitEvent event) {
+        fireScreenHit(event.getScreenName());
+    }
 
+    @Subscribe
+    public void onEvent(AnalyticsEventEvent event) {
+        fireEvent(event.getCategory(), event.getAction());
+    }
+
+    @Override
+    public void onTerminate() {
+        eventBus.unregister(this);
+        super.onTerminate();
+    }
 }

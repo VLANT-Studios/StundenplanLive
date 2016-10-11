@@ -18,9 +18,9 @@ import org.greenrobot.eventbus.Subscribe;
 
 import java.util.ArrayList;
 
-import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.adapters.StundenplanPagerAdapter;
+import de.conradowatz.jkgvertretung.events.AnalyticsScreenHitEvent;
 import de.conradowatz.jkgvertretung.events.DataReadyEvent;
 import de.conradowatz.jkgvertretung.events.DayUpdatedEvent;
 import de.conradowatz.jkgvertretung.events.FerienChangedEvent;
@@ -75,19 +75,18 @@ public class StundenplanFragment extends Fragment {
         }
 
         //Analytics
-        MyApplication analytics = (MyApplication) getActivity().getApplication();
         switch (mode) {
             case MODE_STUNDENPLAN:
-                analytics.fireScreenHit("Stundenplan");
+                eventBus.post(new AnalyticsScreenHitEvent("Mein Stundenplan"));
                 break;
             case MODE_VERTRETUNGSPLAN:
-                analytics.fireScreenHit("Vertretungsplan");
+                eventBus.post(new AnalyticsScreenHitEvent("Mein Vertretungsplan"));
                 break;
             case MODE_ALGVERTRETUNGSPLAN:
-                analytics.fireScreenHit("Allgemeiner Vertretungsplan");
+                eventBus.post(new AnalyticsScreenHitEvent("Allgemeiner Vertretungsplan"));
                 break;
             case MODE_KLASSENPLAN:
-                analytics.fireScreenHit("Klassenplan");
+                eventBus.post(new AnalyticsScreenHitEvent("Klassenplan"));
         }
 
         if (mode == MODE_KLASSENPLAN)

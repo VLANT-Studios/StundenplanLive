@@ -21,6 +21,7 @@ import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.activities.FachActivity;
 import de.conradowatz.jkgvertretung.activities.ManagerActivity;
 import de.conradowatz.jkgvertretung.adapters.NotenUebersichtRecyclerAdpater;
+import de.conradowatz.jkgvertretung.events.AnalyticsScreenHitEvent;
 import de.conradowatz.jkgvertretung.events.KursChangedEvent;
 import de.conradowatz.jkgvertretung.events.NotenChangedEvent;
 import de.conradowatz.jkgvertretung.tools.LocalData;
@@ -42,6 +43,9 @@ public class NotenUebersichtFragment extends Fragment implements NotenUebersicht
     @Nullable
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+
+        //Analytics
+        eventBus.post(new AnalyticsScreenHitEvent("Notenübersicht"));
 
         contentView = inflater.inflate(R.layout.fragment_notenuebersicht, container, false);
 

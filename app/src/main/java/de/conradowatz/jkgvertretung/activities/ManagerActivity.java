@@ -24,6 +24,7 @@ import org.greenrobot.eventbus.EventBus;
 
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.adapters.ManagerPagerAdapter;
+import de.conradowatz.jkgvertretung.events.AnalyticsEventEvent;
 import de.conradowatz.jkgvertretung.events.FaecherUpdateEvent;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.tools.VertretungsData;
@@ -163,6 +164,8 @@ public class ManagerActivity extends AppCompatActivity {
     }
 
     private boolean newFach(String fachName, TextInputLayout textInputLayout) {
+
+        eventBus.post(new AnalyticsEventEvent("Manager", "Fach erstellt"));
 
         fachName = fachName.trim();
 

@@ -43,6 +43,7 @@ import org.greenrobot.eventbus.EventBus;
 
 import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
+import de.conradowatz.jkgvertretung.events.AnalyticsEventEvent;
 import de.conradowatz.jkgvertretung.events.DayUpdatedEvent;
 import de.conradowatz.jkgvertretung.events.EventsChangedEvent;
 import de.conradowatz.jkgvertretung.events.KlassenlistUpdatedEvent;
@@ -210,8 +211,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
     private void showInfoDialog() {
 
         //Analytics
-        MyApplication analytics = (MyApplication) getApplication();
-        analytics.fireEvent("NavDrawer", "Infos");
+        eventBus.post(new AnalyticsEventEvent("NavDrawer", "Infos"));
 
         isInfoDialog = true;
 
@@ -254,8 +254,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
     private void openFeedbackPage() {
 
         //Analytics
-        MyApplication analytics = (MyApplication) getApplication();
-        analytics.fireEvent("NavDrawer", "Feedback");
+        eventBus.post(new AnalyticsEventEvent("NavDrawer", "Feedback"));
 
 
         String url = "http://conradowatz.de/android-apps/jkg-vertretung-support/";
@@ -500,8 +499,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
         if (isRefreshing) return;
 
         //Analytics
-        MyApplication analytics = (MyApplication) getApplication();
-        analytics.fireEvent("Toolbar", "Refresh");
+        eventBus.post(new AnalyticsEventEvent("Toolbar", "Refresh"));
 
         showRefresh();
 

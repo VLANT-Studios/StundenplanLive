@@ -25,6 +25,7 @@ import java.util.List;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.activities.FachActivity;
 import de.conradowatz.jkgvertretung.activities.KurswahlActivity;
+import de.conradowatz.jkgvertretung.events.AnalyticsEventEvent;
 import de.conradowatz.jkgvertretung.events.FaecherUpdateEvent;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.variables.Fach;
@@ -187,6 +188,8 @@ public class FaecherFragment extends Fragment {
         dialogBuilder.setPositiveButton("Importieren", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
+
+                eventBus.post(new AnalyticsEventEvent("Manager", "Smart Import"));
                 LocalData.getInstance().smartImport(getActivity());
                 eventBus.post(new FaecherUpdateEvent());
                 LocalData.saveToFile(getActivity().getApplicationContext());

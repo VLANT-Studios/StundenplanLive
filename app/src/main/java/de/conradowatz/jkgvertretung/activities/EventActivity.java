@@ -33,6 +33,7 @@ import java.util.Locale;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.adapters.NextLessonRecyclerAdapter;
 import de.conradowatz.jkgvertretung.adapters.ReminderRecyclerAdapter;
+import de.conradowatz.jkgvertretung.events.AnalyticsEventEvent;
 import de.conradowatz.jkgvertretung.events.EventsChangedEvent;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.tools.VertretungsData;
@@ -360,6 +361,7 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
                 LocalData.removeEventReminder(getApplicationContext(), LocalData.getInstance().getFächer().get(fachInt).getEvents().get(eventInt), fachInt, eventInt);
                 LocalData.getInstance().getFächer().get(fachInt).getEvents().set(eventInt, event);
             } else {
+                eventBus.post(new AnalyticsEventEvent("Manager", "Event erstellt"));
                 LocalData.getInstance().getFächer().get(fachInt).getEvents().add(event);
             }
             LocalData.getInstance().getFächer().get(fachInt).sortEvents();
@@ -368,7 +370,10 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
             if (eventInt > -1) {
                 LocalData.removeEventReminder(getApplicationContext(), LocalData.getInstance().getNoFachEvents().get(eventInt), fachInt, eventInt);
                 LocalData.getInstance().getNoFachEvents().set(eventInt, event);
-            } else LocalData.getInstance().getNoFachEvents().add(event);
+            } else {
+                eventBus.post(new AnalyticsEventEvent("Manager", "Event erstellt"));
+                LocalData.getInstance().getNoFachEvents().add(event);
+            }
             LocalData.getInstance().sortNoFachEvents();
             LocalData.addEventReminder(getApplicationContext(), event, fachInt, LocalData.getInstance().getNoFachEvents().indexOf(event));
         }

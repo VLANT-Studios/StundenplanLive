@@ -21,6 +21,7 @@ import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.activities.EventActivity;
 import de.conradowatz.jkgvertretung.activities.FachActivity;
 import de.conradowatz.jkgvertretung.adapters.EventRecyclerAdapter;
+import de.conradowatz.jkgvertretung.events.AnalyticsScreenHitEvent;
 import de.conradowatz.jkgvertretung.events.EventsChangedEvent;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.variables.Fach;
@@ -63,6 +64,7 @@ public class EventFragment extends Fragment implements EventRecyclerAdapter.Call
 
         if (savedInstanceState == null) {
             mode = getArguments().getInt("mode");
+            if (mode == MODE_ALLGEMEIN) eventBus.post(new AnalyticsScreenHitEvent("Termine"));
         } else {
             mode = savedInstanceState.getInt("mode");
             if (savedInstanceState.getBoolean("isDeleteDialog"))
