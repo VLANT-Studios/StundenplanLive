@@ -12,7 +12,6 @@ import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Date;
 
 import de.conradowatz.jkgvertretung.variables.Klasse;
 import de.conradowatz.jkgvertretung.variables.Tag;
@@ -24,7 +23,7 @@ public class VertretungsData {
     private static int latestSaveFileVersion = 1;
     private int saveFileVersion;
     private ArrayList<Klasse> klassenList;
-    private ArrayList<Date> freieTageList;
+    private ArrayList<String> freieTageList;
     private ArrayList<Tag> tagList;
 
     private VertretungsData() {
@@ -125,11 +124,11 @@ public class VertretungsData {
         this.klassenList = klassenList;
     }
 
-    public ArrayList<Date> getFreieTageList() {
+    public ArrayList<String> getFreieTageList() {
         return freieTageList;
     }
 
-    public void setFreieTageList(ArrayList<Date> freieTageList) {
+    public void setFreieTageList(ArrayList<String> freieTageList) {
         this.freieTageList = freieTageList;
     }
 

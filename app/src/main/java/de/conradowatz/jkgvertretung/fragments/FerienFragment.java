@@ -94,6 +94,7 @@ public class FerienFragment extends Fragment implements FerienRecyclerAdapter.Ca
             public void onClick(DialogInterface dialogInterface, int i) {
                 isDeleteDialog = false;
                 LocalData.getInstance().getFerien().remove(ferienIndex);
+                LocalData.saveToFile(getActivity().getApplicationContext());
                 eventBus.post(new FerienChangedEvent());
             }
         });

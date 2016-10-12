@@ -103,7 +103,7 @@ public class StundenPlanRecyclerAdapter extends RecyclerView.Adapter<StundenPlan
 
     public static StundenPlanRecyclerAdapter newOfflineStundenplanInstance(Date datum, Callback callback) {
 
-        int dayOfWeek = LocalData.getDayOfWeek(datum);
+        int dayOfWeek = Utilities.getDayOfWeek(datum);
         List<Stunde> stundenList;
         boolean isFerien = VertretungsAPI.isntSchoolDay(datum);
         if (isFerien) stundenList = new ArrayList<>();
@@ -304,7 +304,7 @@ public class StundenPlanRecyclerAdapter extends RecyclerView.Adapter<StundenPlan
                     final int stundenInt = Integer.valueOf(stunde.getStunde()); //1-9 erwartet
                     final String stundenName = stunde.getKurs() != null ? stunde.getKurs() : stunde.getFach();
                     final boolean isAWoche = LocalData.getInstance().isAWoche(date);
-                    final int wochenTagInt = LocalData.getDayOfWeek(date); //1-5
+                    final int wochenTagInt = Utilities.getDayOfWeek(date); //1-5
                     Fach fach = null;
                     for (Fach f : LocalData.getInstance().getFächer()) {
                         if (f.getStunden(isAWoche)[wochenTagInt - 1][stundenInt - 1]) {

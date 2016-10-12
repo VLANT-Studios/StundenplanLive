@@ -10,7 +10,6 @@ import java.util.Date;
 
 import de.conradowatz.jkgvertretung.fragments.StundenplanFragment;
 import de.conradowatz.jkgvertretung.fragments.StundenplanPageFragment;
-import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.tools.Utilities;
 import de.conradowatz.jkgvertretung.tools.VertretungsAPI;
 import de.conradowatz.jkgvertretung.tools.VertretungsData;
@@ -36,7 +35,7 @@ public class StundenplanPagerAdapter extends FragmentStatePagerAdapter {
         nextSchoolDay = calendar.getTime();
         if (VertretungsAPI.isntSchoolDay(nextSchoolDay))
             nextSchoolDay = VertretungsAPI.nextSchoolDay(nextSchoolDay);
-        nextSchoolDayOfWeek = LocalData.getDayOfWeek(nextSchoolDay); //starting at 1 = Monday
+        nextSchoolDayOfWeek = Utilities.getDayOfWeek(nextSchoolDay); //starting at 1 = Monday
 
     }
 

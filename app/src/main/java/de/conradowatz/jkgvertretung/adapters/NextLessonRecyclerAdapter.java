@@ -14,6 +14,7 @@ import java.util.Locale;
 
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.tools.LocalData;
+import de.conradowatz.jkgvertretung.tools.Utilities;
 import de.conradowatz.jkgvertretung.tools.VertretungsAPI;
 import de.conradowatz.jkgvertretung.variables.Fach;
 
@@ -28,27 +29,16 @@ public class NextLessonRecyclerAdapter extends RecyclerView.Adapter<NextLessonRe
         this.callback = callback;
         this.fach = fach;
         dateList = new ArrayList<>();
+
+        if (!fach.hasStunden()) return;
+
         Calendar calendar = Calendar.getInstance();
         Date schoolDay = calendar.getTime();
         if (VertretungsAPI.isntSchoolDay(schoolDay))
             schoolDay = VertretungsAPI.nextSchoolDay(schoolDay);
-        calendar.setTime(schoolDay);
 
-        if (getItemCount() == 0) return;
+        loadMoreDays(0, schoolDay);
 
-        int i = 0;
-        while (i < 20) {
-            boolean isAWoche = LocalData.getInstance().isAWoche(calendar.getTime());
-            int dayOfWeek = LocalData.getDayOfWeek(calendar.getTime()) - 1;
-            for (int j = 0; j < 9; j++) {
-                if (fach.getStunden(isAWoche)[dayOfWeek][j]) {
-                    dateList.add(calendar.getTime());
-                    i++;
-                    break;
-                }
-            }
-            calendar.setTime(VertretungsAPI.nextSchoolDay(calendar.getTime()));
-        }
     }
 
     @Override
@@ -60,7 +50,7 @@ public class NextLessonRecyclerAdapter extends RecyclerView.Adapter<NextLessonRe
     }
 
     @Override
-    public void onBindViewHolder(ViewHolder holder, int position) {
+    public void onBindViewHolder(final ViewHolder holder, int position) {
 
         final Calendar calendar = Calendar.getInstance();
         calendar.setTime(dateList.get(position));
@@ -73,11 +63,42 @@ public class NextLessonRecyclerAdapter extends RecyclerView.Adapter<NextLessonRe
                 callback.onDateClicked(calendar.getTime());
             }
         });
+
+        holder.itemView.post(new Runnable() {
+            @Override
+            public void run() {
+                //Load more if scrolled to End
+                if (holder.getAdapterPosition() == dateList.size() - 1) {
+
+                    loadMoreDays(holder.getAdapterPosition(), VertretungsAPI.nextSchoolDay(dateList.get(holder.getAdapterPosition())));
+
+                }
+            }
+        });
+    }
+
+    private void loadMoreDays(int startPosition, Date startDate) {
+
+        int i = 0;
+        while (i < 10) {
+            boolean isAWoche = LocalData.getInstance().isAWoche(startDate);
+            int dayOfWeek = Utilities.getDayOfWeek(startDate) - 1;
+            for (int j = 0; j < 9; j++) {
+                if (fach.getStunden(isAWoche)[dayOfWeek][j]) {
+                    dateList.add(startDate);
+                    i++;
+                    break;
+                }
+            }
+            startDate = VertretungsAPI.nextSchoolDay(startDate);
+        }
+        notifyItemRangeInserted(startPosition + 1, startPosition + 21);
+
     }
 
     @Override
     public int getItemCount() {
-        if (fach.hasStunden()) return 20;
+        if (fach.hasStunden()) return dateList.size();
         else return 0;
     }
 

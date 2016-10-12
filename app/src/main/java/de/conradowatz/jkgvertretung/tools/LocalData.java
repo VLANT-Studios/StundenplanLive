@@ -194,30 +194,6 @@ public class LocalData {
         return stundenList;
     }
 
-    public static int getDayOfWeek(Date date) {
-
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(date);
-        int dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK);
-        switch (dayOfWeek) {
-            case Calendar.MONDAY:
-                return 1;
-            case Calendar.TUESDAY:
-                return 2;
-            case Calendar.WEDNESDAY:
-                return 3;
-            case Calendar.THURSDAY:
-                return 4;
-            case Calendar.FRIDAY:
-                return 5;
-            case Calendar.SATURDAY:
-                return 5;
-            case Calendar.SUNDAY:
-                return 5;
-        }
-        return 0;
-    }
-
     private static void activateAlarmManager(Context context) {
 
         ComponentName receiver = new ComponentName(context, AlarmBootReceiver.class);
@@ -483,8 +459,7 @@ public class LocalData {
     public boolean isFerien(Date date) {
 
         for (Ferien f : ferien) {
-            Calendar cDate = Calendar.getInstance();
-            if (Utilities.compareDays(cDate.getTime(), f.getStartDate()) >= 0 && Utilities.compareDays(cDate.getTime(), f.getEndDate()) <= 0)
+            if (Utilities.compareDays(date, f.getStartDate()) >= 0 && Utilities.compareDays(date, f.getEndDate()) <= 0)
                 return true;
         }
         return false;
@@ -530,7 +505,7 @@ public class LocalData {
 
         for (Tag tag : VertretungsData.getInstance().getTagList()) {
             boolean isAWoche = isAWoche(tag.getDatum());
-            int wochenTagIndex = getDayOfWeek(tag.getDatum()) - 1; //0-4
+            int wochenTagIndex = Utilities.getDayOfWeek(tag.getDatum()) - 1; //0-4
             StuPlaKlasse stuPlaKlasse = tag.getStuplaKlasseList().get(meineKlasseInt);
             for (Stunde stunde : stuPlaKlasse.getStundenList()) {
 

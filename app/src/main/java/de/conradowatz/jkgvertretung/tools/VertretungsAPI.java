@@ -15,8 +15,6 @@ import org.xmlpull.v1.XmlPullParserFactory;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.text.ParseException;
-import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -97,12 +95,11 @@ public class VertretungsAPI {
      */
     public static boolean isntSchoolDay(Date date) {
 
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(date);
+        String dateString = new SimpleDateFormat("yyMMdd", Locale.GERMAN).format(date);
 
-        int dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK);
+        int dayOfWeek = Utilities.getDayOfWeek(date);
 
-        return (dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY || VertretungsData.getInstance().getFreieTageList().contains(date) || LocalData.getInstance().isFerien(date));
+        return (dayOfWeek >= 6 || VertretungsData.getInstance().getFreieTageList().contains(dateString) || LocalData.getInstance().isFerien(date));
     }
 
     /**
@@ -307,14 +304,14 @@ public class VertretungsAPI {
      * @throws XmlPullParserException es gab einen Fehler bei der Umwandlung
      * @throws IOException            der XML String ist Fehlerhaft
      */
-    private ArrayList<Date> makeFreieTage(String xml) throws XmlPullParserException, IOException {
+    private ArrayList<String> makeFreieTage(String xml) throws XmlPullParserException, IOException {
 
         XmlPullParserFactory xmlPullParserFactory = XmlPullParserFactory.newInstance();
         XmlPullParser pullParser = xmlPullParserFactory.newPullParser();
         InputStream is = new ByteArrayInputStream(xml.getBytes("UTF-8"));
         pullParser.setInput(is, "UTF-8");
 
-        ArrayList<Date> dateList = new ArrayList<>();
+        ArrayList<String> dateList = new ArrayList<>();
 
         int event = pullParser.getEventType();
         boolean abbruch = false;
@@ -325,8 +322,7 @@ public class VertretungsAPI {
                 case XmlPullParser.START_TAG:
                     if (name.equals("ft")) {
                         String dateString = pullParser.nextText();
-                        Date date = new SimpleDateFormat("yyMMdd", Locale.GERMAN).parse(dateString, new ParsePosition(0));
-                        dateList.add(date);
+                        dateList.add(dateString);
                     }
                     break;
                 case XmlPullParser.END_TAG:
@@ -337,13 +333,6 @@ public class VertretungsAPI {
             }
             event = pullParser.next();
 
-        }
-
-        try {
-            Date date = new SimpleDateFormat("yyMMdd", Locale.GERMAN).parse("150615");
-            dateList.add(date);
-        } catch (ParseException e) {
-            e.printStackTrace();
         }
 
         return dateList;
