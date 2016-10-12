@@ -115,9 +115,7 @@ public class LocalData {
             List<Event> eventList = LocalData.getInstance().getNoFachEvents();
             for (int i = 0; i < eventList.size(); i++) {
                 Event e = eventList.get(i);
-                Calendar date = Calendar.getInstance();
-                date.setTime(e.getDatum());
-                if (e.isDeleteWhenElapsed() && Utilities.compareDays(heute, date) > 0) {
+                if (e.isDeleteWhenElapsed() && Utilities.compareDays(heute.getTime(), e.getDatum()) > 0) {
                     eventList.remove(i);
                     i--;
                 }
@@ -126,9 +124,7 @@ public class LocalData {
                 eventList = f.getEvents();
                 for (int i = 0; i < eventList.size(); i++) {
                     Event e = eventList.get(i);
-                    Calendar date = Calendar.getInstance();
-                    date.setTime(e.getDatum());
-                    if (e.isDeleteWhenElapsed() && Utilities.compareDays(heute, date) > 0) {
+                    if (e.isDeleteWhenElapsed() && Utilities.compareDays(heute.getTime(), e.getDatum()) > 0) {
                         eventList.remove(i);
                         i--;
                     }
@@ -138,7 +134,7 @@ public class LocalData {
             listener.onDataCreated();
 
         } catch (Exception e) {
-            e.printStackTrace();
+
             listener.onError(e);
         }
 
@@ -292,22 +288,41 @@ public class LocalData {
         }
     }
 
+    private static int getNotificationDefaults(Context context) {
+
+        String notificationType = PreferenceHelper.readStringFromPreferences(context, "notificationType", "1");
+        switch (notificationType) {
+            case "1":
+                return NotificationCompat.DEFAULT_ALL;
+            case "2":
+                return (NotificationCompat.DEFAULT_SOUND | +NotificationCompat.DEFAULT_LIGHTS);
+            default:
+                return NotificationCompat.DEFAULT_LIGHTS;
+        }
+    }
+
     private static Notification buildReminderNotification(Context context, Event event, int fachInt, int eventInt) {
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context);
-        builder.setContentTitle(event.getTitle());
-        builder.setContentText(event.getDescription());
+        String title = event.getTitle();
+        if (fachInt > -1) {
+            Fach fach = LocalData.getInstance().getFächer().get(fachInt);
+            title = fach.getName() + ": " + title;
+        }
+        builder.setContentTitle(title);
+        if (!event.getDescription().isEmpty()) builder.setContentText(event.getDescription());
         builder.setSmallIcon(R.drawable.ic_assignment_late_white_18dp);
         builder.setAutoCancel(true);
+        builder.setDefaults(getNotificationDefaults(context));
 
         NotificationCompat.InboxStyle inboxStyle = new NotificationCompat.InboxStyle();
-        inboxStyle.setBigContentTitle(event.getTitle());
+        inboxStyle.setBigContentTitle(title);
         if (event.getDescription().contains("\n")) {
             String[] descArray = event.getDescription().split("\n");
             for (int i = 0; i < descArray.length && i < 5; i++) {
                 inboxStyle.addLine(descArray[i]);
             }
-        } else inboxStyle.addLine(event.getDescription());
+        } else if (!event.getDescription().isEmpty()) inboxStyle.addLine(event.getDescription());
 
         builder.setStyle(inboxStyle);
 
@@ -469,12 +484,7 @@ public class LocalData {
 
         for (Ferien f : ferien) {
             Calendar cDate = Calendar.getInstance();
-            cDate.setTime(date);
-            Calendar cStart = Calendar.getInstance();
-            cStart.setTime(f.getStartDate());
-            Calendar cEnd = Calendar.getInstance();
-            cEnd.setTime(f.getEndDate());
-            if (Utilities.compareDays(cDate, cStart) >= 0 && Utilities.compareDays(cDate, cEnd) <= 0)
+            if (Utilities.compareDays(cDate.getTime(), f.getStartDate()) >= 0 && Utilities.compareDays(cDate.getTime(), f.getEndDate()) <= 0)
                 return true;
         }
         return false;

@@ -26,7 +26,7 @@ public class FerienRecyclerAdapter extends RecyclerView.Adapter<FerienRecyclerAd
     @Override
     public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
 
-        View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.ferien_item, parent, false);
+        View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_ferien, parent, false);
         return new ViewHolder(v);
     }
 

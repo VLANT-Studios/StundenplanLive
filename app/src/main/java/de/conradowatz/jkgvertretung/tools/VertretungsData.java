@@ -101,7 +101,7 @@ public class VertretungsData {
             //Löscht veraltete Tage
             for (int i = 0; i < VertretungsData.getInstance().getTagList().size(); i++) {
                 Calendar tagCalendar = Calendar.getInstance();
-                tagCalendar.setTime(tagCalendar.getTime());
+                tagCalendar.setTime(VertretungsData.getInstance().getTagList().get(i).getDatum());
                 if (Utilities.compareDays(tagCalendar, heute) < 0) {
                     VertretungsData.getInstance().getTagList().remove(i);
                     i--;

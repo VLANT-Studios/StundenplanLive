@@ -22,13 +22,17 @@ import java.util.Date;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.activities.EventActivity;
 import de.conradowatz.jkgvertretung.activities.FachActivity;
+import de.conradowatz.jkgvertretung.activities.FerienActivity;
+import de.conradowatz.jkgvertretung.activities.MainActivity;
 import de.conradowatz.jkgvertretung.adapters.StundenPlanRecyclerAdapter;
 import de.conradowatz.jkgvertretung.events.DataReadyEvent;
 import de.conradowatz.jkgvertretung.events.DayUpdatedEvent;
+import de.conradowatz.jkgvertretung.events.EventsChangedEvent;
 import de.conradowatz.jkgvertretung.events.FaecherUpdateEvent;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.tools.PreferenceHelper;
 import de.conradowatz.jkgvertretung.tools.VertretungsData;
+import de.conradowatz.jkgvertretung.variables.Event;
 import de.conradowatz.jkgvertretung.variables.Fach;
 import de.conradowatz.jkgvertretung.variables.Tag;
 
@@ -70,7 +74,7 @@ public class StundenplanPageFragment extends Fragment implements StundenPlanRecy
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 
-        View contentView = inflater.inflate(R.layout.stundenplan_page, container, false);
+        View contentView = inflater.inflate(R.layout.fragment_stundenplan_page, container, false);
 
         Calendar calendar = Calendar.getInstance();
 
@@ -152,6 +156,14 @@ public class StundenplanPageFragment extends Fragment implements StundenPlanRecy
     }
 
     @Subscribe
+    public void onEvent(EventsChangedEvent event) {
+
+        if (recyclerView != null) setUpRecycler();
+
+
+    }
+
+    @Subscribe
     public void onEvent(DataReadyEvent event) {
 
         if (waitingForData) {
@@ -227,6 +239,14 @@ public class StundenplanPageFragment extends Fragment implements StundenPlanRecy
         getActivity().startActivity(startEventActivityIntent);
     }
 
+    private void startEventActivity(int fachIndex, int eventInt) {
+
+        Intent startEventActivityIntent = new Intent(getActivity(), EventActivity.class);
+        startEventActivityIntent.putExtra("fachInt", fachIndex);
+        startEventActivityIntent.putExtra("eventInt", eventInt);
+        getActivity().startActivity(startEventActivityIntent);
+    }
+
     private void startFachActivity(int fachIndex) {
 
         Intent openFachIntent = new Intent(getContext(), FachActivity.class);
@@ -256,6 +276,56 @@ public class StundenplanPageFragment extends Fragment implements StundenPlanRecy
             }
         });
         dialogBuilder.setNegativeButton("Abbrechen", null);
+        dialogBuilder.show();
+
+    }
+
+    @Override
+    public void onManagerClicked() {
+
+        ((MainActivity) getActivity()).openManager();
+
+    }
+
+    @Override
+    public void onFerienClicked(int ferienIndex) {
+
+        Intent newFerienActivityIntent = new Intent(getActivity().getApplicationContext(), FerienActivity.class);
+        newFerienActivityIntent.putExtra("ferienInt", ferienIndex);
+        startActivity(newFerienActivityIntent);
+
+    }
+
+    @Override
+    public void onEventClicked(final Fach fach, final Event event, final Date date) {
+
+        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(getActivity());
+        dialogBuilder.setTitle(fach.getName());
+        String[] optionen = new String[]{"Event bearbeiten", "Neues Event erstellen", "Fach bearbeiten"};
+        dialogBuilder.setItems(optionen, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+
+                int fachInt = LocalData.getInstance().getFächer().indexOf(fach);
+
+                if (i == 0) { //Event bearbeiten
+
+                    int eventInt = fach.getEvents().indexOf(event);
+                    startEventActivity(fachInt, eventInt);
+
+                } else if (i == 1) { //neues Event
+
+                    startEventActivity(fachInt, date);
+
+                } else if (i == 2) { //Fach bearbeiten
+
+                    startFachActivity(fachInt);
+
+                }
+            }
+        });
+
+        dialogBuilder.setNeutralButton("Abbrechen", null);
         dialogBuilder.show();
 
     }

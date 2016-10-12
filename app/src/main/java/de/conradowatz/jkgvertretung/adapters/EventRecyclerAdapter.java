@@ -65,6 +65,9 @@ public class EventRecyclerAdapter extends RecyclerView.Adapter<EventRecyclerAdap
 
         if (fach != null) {
             eventList = fach.getEvents();
+            for (Event e : eventList) {
+                e.setFachName(fach.getName());
+            }
         } else {
             eventList = new ArrayList<>();
             for (int i = 0; i < LocalData.getInstance().getFächer().size(); i++) {
@@ -97,11 +100,7 @@ public class EventRecyclerAdapter extends RecyclerView.Adapter<EventRecyclerAdap
             isDivider[1] = false;
             int dividerCount = 0;
             for (int i = 2; i < size; i++) {
-                Calendar c1 = Calendar.getInstance();
-                Calendar c2 = Calendar.getInstance();
-                c1.setTime(eventList.get(i - dividerCount - 1).getDatum());
-                c2.setTime(eventList.get(i - dividerCount - 2).getDatum());
-                if (Utilities.compareDays(c1, c2) != 0) {
+                if (Utilities.compareDays(eventList.get(i - dividerCount - 1).getDatum(), eventList.get(i - dividerCount - 2).getDatum()) != 0) {
                     dividerCount++;
                     isDivider[i] = true;
                     isDivider[i + 1] = false;
@@ -117,9 +116,9 @@ public class EventRecyclerAdapter extends RecyclerView.Adapter<EventRecyclerAdap
 
         View v;
         if (viewType == VIEWTYPE_EVENT)
-            v = LayoutInflater.from(parent.getContext()).inflate(R.layout.event_item, parent, false);
+            v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_event, parent, false);
         else
-            v = LayoutInflater.from(parent.getContext()).inflate(R.layout.event_daydivider_item, parent, false);
+            v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_event_daydivider, parent, false);
 
         return new ViewHolder(v, viewType);
     }
@@ -197,11 +196,8 @@ public class EventRecyclerAdapter extends RecyclerView.Adapter<EventRecyclerAdap
         if (eventList.size() == 1) return 2;
         int uniqueDays = 0;
         for (int i = 1; i < eventList.size(); i++) {
-            Calendar c1 = Calendar.getInstance();
-            Calendar c2 = Calendar.getInstance();
-            c1.setTime(eventList.get(i - 1).getDatum());
-            c2.setTime(eventList.get(i).getDatum());
-            if (Utilities.compareDays(c1, c2) != 0) uniqueDays++;
+            if (Utilities.compareDays(eventList.get(i - 1).getDatum(), eventList.get(i).getDatum()) != 0)
+                uniqueDays++;
         }
 
         return eventList.size() + uniqueDays + 1;

@@ -95,16 +95,16 @@ public class FreieZimmerRecyclerAdapter extends RecyclerView.Adapter<FreieZimmer
 
         if (viewType == VIEWTYPE_HEADER) {
             v = LayoutInflater.from(parent.getContext())
-                    .inflate(R.layout.stundenplan_header_item, parent, false);
+                    .inflate(R.layout.item_stundenplan_header, parent, false);
         } else if (viewType == VIEWTYPE_ZIMMERITEM) {
             v = LayoutInflater.from(parent.getContext())
-                    .inflate(R.layout.freiezimmer_item, parent, false);
+                    .inflate(R.layout.item_freiezimmer, parent, false);
         } else if (viewType == VIEWTYPE_ZILAST) {
             v = LayoutInflater.from(parent.getContext())
-                    .inflate(R.layout.freiezimmer_lastitem, parent, false);
+                    .inflate(R.layout.item_freiezimmer_last, parent, false);
         } else {
             v = LayoutInflater.from(parent.getContext())
-                    .inflate(R.layout.spacedtext_item, parent, false);
+                    .inflate(R.layout.item_stundenplan_text, parent, false);
         }
 
         return new ViewHolder(v, viewType);

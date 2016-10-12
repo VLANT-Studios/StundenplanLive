@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -7,11 +7,53 @@
         android:id="@+id/listView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_margin="10dp" />
+        android:layout_margin="10dp"
+        android:visibility="gone" />
 
     <ImageView
         android:layout_width="match_parent"
         android:layout_height="6dp"
         android:src="@drawable/shadow_down" />
 
-</FrameLayout>
+    <LinearLayout
+        android:id="@+id/nofaecherLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_margin="20dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="10dp"
+            android:text="Es scheint, du hast noch keine Fächer erstellt. Versuche doch mal die Funktion 'Smart Import', oder erstelle ein neues Fach." />
+
+        <Button
+            android:id="@+id/smartImportButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="10dp"
+            android:background="@color/accent"
+            android:drawableLeft="@drawable/ic_lightbulb_outline_white_24dp"
+            android:padding="10dp"
+            android:text=" Smart Import"
+            android:textColor="@color/white" />
+
+        <Button
+            android:id="@+id/kurswahlButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="10dp"
+            android:background="@color/accent"
+            android:drawableLeft="@drawable/ic_mode_edit_white_24dp"
+            android:padding="10dp"
+            android:text=" Klassen- / Kurswahl"
+            android:textColor="@color/white" />
+
+    </LinearLayout>
+
+</RelativeLayout>

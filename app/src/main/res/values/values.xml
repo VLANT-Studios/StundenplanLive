@@ -35,4 +35,15 @@
         <item>14</item>
         <item>-1</item>
     </string-array>
+
+    <string-array name="settings_notifications_titles">
+        <item>Ton + Vibration</item>
+        <item>Vibration</item>
+        <item>nur Licht</item>
+    </string-array>
+    <string-array name="settings_notifications_values">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+    </string-array>
 </resources>

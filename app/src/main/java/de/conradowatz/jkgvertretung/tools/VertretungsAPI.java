@@ -221,9 +221,7 @@ public class VertretungsAPI {
                         localUniqueNumbers.add(uniqueNumber);
 
                         Event event = onlineEvents.getEvents().get(i);
-                        Calendar calendar = Calendar.getInstance();
-                        calendar.setTime(event.getDatum());
-                        if (Utilities.compareDays(heute, calendar) < 0) {
+                        if (Utilities.compareDays(heute.getTime(), event.getDatum()) < 0) {
                             LocalData.getInstance().getNoFachEvents().add(event);
                             LocalData.getInstance().sortNoFachEvents();
                             LocalData.saveToFile(context);
@@ -547,17 +545,13 @@ public class VertretungsAPI {
      */
     private void addTag(Tag neuerTag, DownloadDaysListener callback) {
 
-        Calendar neuerTagC = Calendar.getInstance();
-        neuerTagC.setTime(neuerTag.getDatum());
         VertretungsData vertretungsData = VertretungsData.getInstance();
 
         for (int i = 0; i < vertretungsData.getTagList().size(); i++) {
 
             Tag tag = vertretungsData.getTagList().get(i);
-            Calendar tagC = Calendar.getInstance();
-            tagC.setTime(tag.getDatum());
             //falls Tag schon vorhanden, updaten
-            if (Utilities.compareDays(neuerTagC, tagC) == 0) {
+            if (Utilities.compareDays(neuerTag.getDatum(), tag.getDatum()) == 0) {
 
                 vertretungsData.getTagList().remove(i);
                 vertretungsData.getTagList().add(i, neuerTag);
@@ -565,7 +559,7 @@ public class VertretungsAPI {
                 return;
             }
             //falls nicht, einordnen
-            if (Utilities.compareDays(neuerTagC, tagC) < 0) {
+            if (Utilities.compareDays(neuerTag.getDatum(), tag.getDatum()) < 0) {
 
                 vertretungsData.getTagList().add(i, neuerTag);
                 callback.onDayAdded(i);

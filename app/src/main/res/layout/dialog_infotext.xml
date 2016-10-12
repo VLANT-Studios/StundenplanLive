@@ -4,10 +4,10 @@
 
     <TextView
         android:id="@+id/textView"
-        android:padding="23dp"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:text="@string/infoDialog_text"
-        android:clickable="true"/>
+        android:layout_height="wrap_content"
+        android:clickable="true"
+        android:padding="23dp"
+        android:text="@string/infoDialog_text" />
 
 </ScrollView>

@@ -41,6 +41,18 @@
 
     </PreferenceCategory>
 
+    <PreferenceCategory android:title="Erinnerungen">
+
+        <ListPreference
+            android:defaultValue="1"
+            android:dialogTitle="Benachrichtigungen"
+            android:entries="@array/settings_notifications_titles"
+            android:entryValues="@array/settings_notifications_values"
+            android:key="notificationType"
+            android:title="Benachrichtiguns Art" />
+
+    </PreferenceCategory>
+
     <PreferenceCategory android:title="Externe Funktionen">
 
         <SwitchPreference

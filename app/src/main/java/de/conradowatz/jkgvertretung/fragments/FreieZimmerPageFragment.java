@@ -48,7 +48,7 @@ public class FreieZimmerPageFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 
-        View contentView = inflater.inflate(R.layout.stundenplan_page, container, false);
+        View contentView = inflater.inflate(R.layout.fragment_stundenplan_page, container, false);
 
         if (savedInstanceState == null) {
 

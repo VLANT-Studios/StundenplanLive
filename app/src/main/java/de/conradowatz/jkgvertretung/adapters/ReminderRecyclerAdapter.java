@@ -30,9 +30,9 @@ public class ReminderRecyclerAdapter extends RecyclerView.Adapter<ReminderRecycl
     public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
         View v;
         if (viewType == VIEWTYPE_ITEM)
-            v = LayoutInflater.from(parent.getContext()).inflate(R.layout.reminder_item, parent, false);
+            v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_reminder, parent, false);
         else
-            v = LayoutInflater.from(parent.getContext()).inflate(R.layout.reminder_add_item, parent, false);
+            v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_reminder_add, parent, false);
         return new ViewHolder(v, viewType);
     }
 

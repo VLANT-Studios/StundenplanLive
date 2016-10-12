@@ -216,7 +216,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
         isInfoDialog = true;
 
         LayoutInflater inflater = getLayoutInflater();
-        View scrollView = inflater.inflate(R.layout.infotext_dialog, null);
+        View scrollView = inflater.inflate(R.layout.dialog_infotext, null);
         TextView textView = (TextView) scrollView.findViewById(R.id.textView);
         String infoHtml = getString(R.string.infoDialog_text);
         String versionName = "";
@@ -293,7 +293,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
     /**
      * öffnet den Fächer und Ferien Manager
      */
-    private void openManager() {
+    public void openManager() {
 
         Intent openManagerIntent = new Intent(getApplicationContext(), ManagerActivity.class);
         //Animation

@@ -168,7 +168,7 @@ public class FachActivity extends AppCompatActivity {
         AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
         dialogBuilder.setTitle("Fach umbenennen");
         dialogBuilder.setMessage(String.format("In was soll \"%s\" umbenannt werden?", fach.getName()));
-        final TextInputLayout textInputLayout = (TextInputLayout) getLayoutInflater().inflate(R.layout.edittext_dialog, null);
+        final TextInputLayout textInputLayout = (TextInputLayout) getLayoutInflater().inflate(R.layout.dialog_edittext, null);
         renameEditText = textInputLayout.getEditText();
 
         dialogBuilder.setView(textInputLayout);

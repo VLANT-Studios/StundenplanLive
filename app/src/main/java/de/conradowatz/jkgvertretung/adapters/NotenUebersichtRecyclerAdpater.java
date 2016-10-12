@@ -57,7 +57,7 @@ public class NotenUebersichtRecyclerAdpater extends RecyclerView.Adapter<NotenUe
 
     @Override
     public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.notenuebersicht_fach_item, parent, false);
+        View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_notenuebersicht_fach, parent, false);
         return new ViewHolder(v);
     }
 

@@ -117,7 +117,7 @@ public class ManagerActivity extends AppCompatActivity {
         AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
         dialogBuilder.setTitle("Fach erstellen");
         dialogBuilder.setMessage("Bitte den Namen des Fachs ein:");
-        final TextInputLayout textInputLayout = (TextInputLayout) getLayoutInflater().inflate(R.layout.edittext_dialog, null);
+        final TextInputLayout textInputLayout = (TextInputLayout) getLayoutInflater().inflate(R.layout.dialog_edittext, null);
         dialogeditText = textInputLayout.getEditText();
 
         dialogBuilder.setView(textInputLayout);

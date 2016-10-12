@@ -15,8 +15,8 @@ import de.conradowatz.jkgvertretung.variables.Fach;
 
 public class FachStundenRecyclerAdapter extends RecyclerView.Adapter<FachStundenRecyclerAdapter.ViewHolder> {
 
+    public static final int TYPE_LEFT = 1;
     private static final int TYPE_TOP = 0;
-    private static final int TYPE_LEFT = 1;
     private static final int TYPE_NORMAL = 2;
 
     private Context context;
@@ -59,14 +59,14 @@ public class FachStundenRecyclerAdapter extends RecyclerView.Adapter<FachStunden
         View view;
         switch (viewType) {
             case TYPE_TOP:
-                view = LayoutInflater.from(parent.getContext()).inflate(R.layout.einzelstunde_label_top_item, parent, false);
+                view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_einzelstunde_label_top, parent, false);
                 break;
             case TYPE_LEFT:
-                view = LayoutInflater.from(parent.getContext()).inflate(R.layout.einzelstunde_label_left_item, parent, false);
+                view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_einzelstunde_label_left, parent, false);
                 break;
             default:
                 TYPE_NORMAL:
-                view = LayoutInflater.from(parent.getContext()).inflate(R.layout.einzelstunde_item, parent, false);
+                view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_einzelstunde, parent, false);
         }
         return new ViewHolder(view, viewType);
     }

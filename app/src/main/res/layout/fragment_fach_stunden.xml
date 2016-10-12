@@ -24,7 +24,8 @@
         android:id="@+id/stundenRecycler"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@id/wochenSpinner" />
+        android:layout_below="@id/wochenSpinner"
+        android:scrollbars="vertical" />
 
     <ImageView
         android:layout_width="match_parent"

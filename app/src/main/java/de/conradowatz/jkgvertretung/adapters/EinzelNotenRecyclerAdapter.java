@@ -34,7 +34,7 @@ public class EinzelNotenRecyclerAdapter extends RecyclerView.Adapter<EinzelNoten
     @Override
     public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
 
-        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.einzelnote_item, parent, false);
+        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_einzelnote, parent, false);
         return new ViewHolder(view);
     }
 

@@ -57,6 +57,7 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
     private ListPreference startScreen;
     private ListPreference maxDaysToFetchStart;
     private ListPreference maxDaysToFetchRefresh;
+    private ListPreference notificationType;
     private Preference exportBackup;
     private Preference importBackup;
     private Preference deleteBackup;
@@ -77,6 +78,7 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
         startScreen = (ListPreference) findPreference("startScreen");
         maxDaysToFetchRefresh = (ListPreference) findPreference("maxDaysToFetchRefresh");
         maxDaysToFetchStart = (ListPreference) findPreference("maxDaysToFetchStart");
+        notificationType = (ListPreference) findPreference("notificationType");
         exportBackup = findPreference("exportBackup");
         importBackup = findPreference("importBackup");
         deleteBackup = findPreference("deleteBackup");
@@ -84,10 +86,12 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
         startScreen.setSummary(startScreen.getEntry());
         maxDaysToFetchRefresh.setSummary(maxDaysToFetchRefresh.getEntry());
         maxDaysToFetchStart.setSummary(maxDaysToFetchStart.getEntry());
+        notificationType.setSummary(notificationType.getEntry());
 
         startScreen.setOnPreferenceChangeListener(this);
         maxDaysToFetchRefresh.setOnPreferenceChangeListener(this);
         maxDaysToFetchStart.setOnPreferenceChangeListener(this);
+        notificationType.setOnPreferenceChangeListener(this);
 
         exportBackup.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
             @Override
@@ -257,7 +261,7 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
                     Calendar heute = Calendar.getInstance();
                     for (int i = 0; i < VertretungsData.getInstance().getTagList().size(); i++) {
                         Calendar tagCalendar = Calendar.getInstance();
-                        tagCalendar.setTime(tagCalendar.getTime());
+                        tagCalendar.setTime(VertretungsData.getInstance().getTagList().get(i).getDatum());
                         if (Utilities.compareDays(tagCalendar, heute) < 0) {
                             VertretungsData.getInstance().getTagList().remove(i);
                             i--;
@@ -384,6 +388,11 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
         ListPreference listPreference = (ListPreference) preference;
         int position = Arrays.asList(listPreference.getEntryValues()).indexOf(newValue);
         listPreference.setSummary(listPreference.getEntries()[position]);
+
+        if (preference.getKey().equals("notificationType")) {
+            LocalData.deleteNotificationAlarms(getActivity().getApplicationContext());
+            LocalData.recreateNotificationAlarms(getActivity().getApplicationContext());
+        }
         return true;
     }
 

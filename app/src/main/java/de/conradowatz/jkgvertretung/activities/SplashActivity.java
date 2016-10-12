@@ -173,7 +173,7 @@ public class SplashActivity extends AppCompatActivity implements TaskFragment.Sp
 
                 File localDataFile = new File(getFilesDir(), LocalData.SAVE_FILE_NAME);
                 if (localDataFile.delete()) {
-                    taskFragment.createLocalDataFromFile();
+                    loadLocalData();
                 } else {
                     finish();
                 }

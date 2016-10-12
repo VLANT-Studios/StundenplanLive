@@ -14,6 +14,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 
 import org.greenrobot.eventbus.EventBus;
@@ -34,6 +36,9 @@ public class FaecherFragment extends Fragment {
 
     private View contentView;
     private ListView listView;
+    private LinearLayout nofaecherLayout;
+    private Button smartImportButton;
+    private Button kurswahlButton;
 
     private boolean isDeleteDialog;
     private int deleteDialogIndex;
@@ -49,12 +54,15 @@ public class FaecherFragment extends Fragment {
 
         contentView = inflater.inflate(R.layout.fragment_faecher, container, false);
         listView = (ListView) contentView.findViewById(R.id.listView);
+        nofaecherLayout = (LinearLayout) contentView.findViewById(R.id.nofaecherLayout);
+        smartImportButton = (Button) contentView.findViewById(R.id.smartImportButton);
+        kurswahlButton = (Button) contentView.findViewById(R.id.kurswahlButton);
 
         setHasOptionsMenu(true);
 
         eventBus.register(this);
 
-        setUpListView();
+        setUp();
 
         if (savedInstanceState != null) {
 
@@ -63,6 +71,32 @@ public class FaecherFragment extends Fragment {
         }
 
         return contentView;
+    }
+
+    private void setUp() {
+
+        if (LocalData.getInstance().getFächer().size() == 0) {
+
+            listView.setVisibility(View.GONE);
+            nofaecherLayout.setVisibility(View.VISIBLE);
+            smartImportButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    showSmartImportDialog();
+                }
+            });
+            kurswahlButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    startKurswahlActivity();
+                }
+            });
+        } else {
+
+            listView.setVisibility(View.VISIBLE);
+            nofaecherLayout.setVisibility(View.GONE);
+            setUpListView();
+        }
     }
 
     private void setUpListView() {
@@ -145,7 +179,7 @@ public class FaecherFragment extends Fragment {
     public void onEvent(FaecherUpdateEvent event) {
 
         if (listView != null) {
-            setUpListView();
+            setUp();
         }
 
     }
@@ -164,7 +198,7 @@ public class FaecherFragment extends Fragment {
 
         if (id == R.id.action_recognizefaecher) {
 
-            showRecognizeDialog();
+            showSmartImportDialog();
         } else if (id == R.id.action_kurswahl) {
 
             startKurswahlActivity();
@@ -180,7 +214,7 @@ public class FaecherFragment extends Fragment {
 
     }
 
-    private void showRecognizeDialog() {
+    private void showSmartImportDialog() {
 
         AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(getActivity());
         dialogBuilder.setTitle("Smart Import");

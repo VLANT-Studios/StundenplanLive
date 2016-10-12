@@ -82,11 +82,24 @@ public class FachStundenFragment extends Fragment implements FachStundenRecycler
 
     private void setUpRecycler() {
 
-        RecyclerView.LayoutManager layoutManager = new GridLayoutManager(getActivity(), 6);
-
         int state = wochenSpinner.getSelectedItemPosition();
+        final FachStundenRecyclerAdapter adapter = new FachStundenRecyclerAdapter(getActivity().getApplicationContext(), fach, state, this);
 
-        FachStundenRecyclerAdapter adapter = new FachStundenRecyclerAdapter(getActivity().getApplicationContext(), fach, state, this);
+        GridLayoutManager layoutManager = new GridLayoutManager(getActivity(), 16); //3 pro Stunde, 1 pro Label = 21
+        layoutManager.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
+
+            @Override
+            public int getSpanSize(int position) {
+                if (position == 0) return 1;
+                switch (adapter.getItemViewType(position)) {
+                    case FachStundenRecyclerAdapter.TYPE_LEFT:
+                        return 1;
+                    default:
+                        return 3;
+                }
+            }
+        });
+
         stundenRecycler.setLayoutManager(layoutManager);
         stundenRecycler.setAdapter(adapter);
 

@@ -5,6 +5,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -40,6 +41,7 @@ public class FerienActivity extends AppCompatActivity {
     private boolean isSaveDialog;
     private boolean isDatePickerDialog;
     private boolean isDatePickerStartDate;
+    private boolean isDeleteDialog;
 
     private Toolbar toolbar;
     private EditText nameEdit;
@@ -80,6 +82,7 @@ public class FerienActivity extends AppCompatActivity {
             if (savedInstanceState.getBoolean("isSaveDialog")) showSaveDialog();
             if (savedInstanceState.getBoolean("isDatePickerDialog"))
                 showDatePickerDialog(savedInstanceState.getBoolean("isDatePickerStartDate"));
+            if (savedInstanceState.getBoolean("isDeleteDialog")) showDeleteDialog();
 
         } else {
 
@@ -182,7 +185,8 @@ public class FerienActivity extends AppCompatActivity {
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
 
-        getMenuInflater().inflate(R.menu.menu_kurswahl, menu);
+        if (ferienInt == -1) getMenuInflater().inflate(R.menu.menu_save, menu);
+        else getMenuInflater().inflate(R.menu.menu_save_delete, menu);
         return true;
     }
 
@@ -200,6 +204,11 @@ public class FerienActivity extends AppCompatActivity {
             }
             return true;
 
+        } else if (id == R.id.action_delete) {
+
+            showDeleteDialog();
+            return true;
+
         } else if (id == android.R.id.home) {
 
             showSaveDialog();
@@ -210,17 +219,57 @@ public class FerienActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    private void showDeleteDialog() {
+
+        if (ferienInt == -1) return;
+
+        isDeleteDialog = true;
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("\"" + ferien.getName() + "\" löschen");
+        builder.setMessage("Bist du sicher dass du dieses Event löschen möchtest?");
+        builder.setPositiveButton("Löschen", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+
+                LocalData.getInstance().getFerien().remove(ferienInt);
+
+                eventBus.post(new FerienChangedEvent());
+                LocalData.saveToFile(getApplicationContext());
+                finish();
+
+            }
+        });
+        builder.setNegativeButton("Abbrechen", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                isDeleteDialog = false;
+            }
+        });
+        builder.setOnCancelListener(new DialogInterface.OnCancelListener() {
+            @Override
+            public void onCancel(DialogInterface dialogInterface) {
+                isDeleteDialog = false;
+            }
+        });
+        final AlertDialog dialog = builder.create();
+        dialog.setOnShowListener(new DialogInterface.OnShowListener() {
+            @Override
+            public void onShow(DialogInterface dialogInterface) {
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.warn_text));
+            }
+        });
+        dialog.show();
+
+    }
+
     private boolean saveFerien() {
 
         if (ferien.getName().isEmpty()) {
             Toast.makeText(this, "Ferienname darf nicht leer sein!", Toast.LENGTH_SHORT).show();
             return false;
         }
-        Calendar cStart = Calendar.getInstance();
-        Calendar cEnd = Calendar.getInstance();
-        cStart.setTime(ferien.getStartDate());
-        cEnd.setTime(ferien.getEndDate());
-        if (Utilities.compareDays(cStart, cEnd) > 0) {
+        if (Utilities.compareDays(ferien.getStartDate(), ferien.getEndDate()) > 0) {
             Toast.makeText(this, "Das Enddatum muss hinter dem Startdatum liegen!", Toast.LENGTH_SHORT).show();
             return false;
         }
@@ -273,6 +322,7 @@ public class FerienActivity extends AppCompatActivity {
 
         outState.putBoolean("isDatePickerDialog", isDatePickerDialog);
         outState.putBoolean("isDatePickerStartDate", isDatePickerStartDate);
+        outState.putBoolean("isDeleteDialog", isDeleteDialog);
 
         super.onSaveInstanceState(outState);
     }

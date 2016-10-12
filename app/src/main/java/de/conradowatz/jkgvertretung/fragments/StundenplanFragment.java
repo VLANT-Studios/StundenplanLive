@@ -132,7 +132,7 @@ public class StundenplanFragment extends Fragment {
             klassennamenListe.add(klasse.getName());
         }
 
-        ArrayAdapter<String> spinnerArrayAdapter = new ArrayAdapter<>(getActivity(), R.layout.klassenplan_spinner_text, klassennamenListe);
+        ArrayAdapter<String> spinnerArrayAdapter = new ArrayAdapter<>(getActivity(), R.layout.item_klassenplan_spinner, klassennamenListe);
         spinnerArrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinner.setAdapter(spinnerArrayAdapter);
 

@@ -24,6 +24,7 @@ import de.conradowatz.jkgvertretung.adapters.EventRecyclerAdapter;
 import de.conradowatz.jkgvertretung.events.AnalyticsScreenHitEvent;
 import de.conradowatz.jkgvertretung.events.EventsChangedEvent;
 import de.conradowatz.jkgvertretung.tools.LocalData;
+import de.conradowatz.jkgvertretung.variables.Event;
 import de.conradowatz.jkgvertretung.variables.Fach;
 
 public class EventFragment extends Fragment implements EventRecyclerAdapter.Callback {
@@ -195,9 +196,15 @@ public class EventFragment extends Fragment implements EventRecyclerAdapter.Call
 
                 boolean removeAbove = ((EventRecyclerAdapter) eventRecycler.getAdapter()).isOnlyEventOfThatDay(recyclerIndex);
 
-                if (fachIndex > -1)
+                if (fachIndex > -1) {
+                    Event event = LocalData.getInstance().getFächer().get(fachIndex).getEvents().get(eventIndex);
+                    LocalData.removeEventReminder(getActivity().getApplicationContext(), event, fachIndex, eventIndex);
                     LocalData.getInstance().getFächer().get(fachIndex).getEvents().remove(eventIndex);
-                else LocalData.getInstance().getNoFachEvents().remove(eventIndex);
+                } else {
+                    Event event = LocalData.getInstance().getNoFachEvents().get(eventIndex);
+                    LocalData.removeEventReminder(getActivity().getApplicationContext(), event, fachIndex, eventIndex);
+                    LocalData.getInstance().getNoFachEvents().remove(eventIndex);
+                }
 
                 //decide whether the item above should also be removed
                 EventsChangedEvent eventsChangedEvent = new EventsChangedEvent(EventsChangedEvent.TYPE_REMOVED, recyclerIndex);

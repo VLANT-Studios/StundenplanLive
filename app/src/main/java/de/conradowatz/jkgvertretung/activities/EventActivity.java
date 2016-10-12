@@ -6,6 +6,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
@@ -49,6 +50,7 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
     private boolean isSaveDialog;
     private boolean isDatePickerDialog;
     private boolean isPickStundeDialog;
+    private boolean isDeleteDialog;
 
     private boolean isReminderTimePickerDialog;
     private int reminderDialogIndex;
@@ -104,6 +106,7 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
             if (savedInstanceState.getBoolean("isReminderTimePickerDialog"))
                 showTimePickerDialog(reminderDialogIndex);
             if (savedInstanceState.getBoolean("isPickStundeDialog")) showPickStundeDialog();
+            if (savedInstanceState.getBoolean("isDeleteDialog")) showDeleteDialog();
 
         } else {
 
@@ -208,7 +211,7 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
 
         AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
         dialogBuilder.setTitle("Datum auswählen");
-        View dialogView = getLayoutInflater().inflate(R.layout.nextlesson_dialog, null, false);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_nextlesson, null, false);
         RecyclerView recyclerView = (RecyclerView) dialogView.findViewById(R.id.recyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         dialogBuilder.setView(dialogView);
@@ -321,7 +324,8 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
 
-        getMenuInflater().inflate(R.menu.menu_kurswahl, menu);
+        if (eventInt == -1) getMenuInflater().inflate(R.menu.menu_save, menu);
+        else getMenuInflater().inflate(R.menu.menu_save_delete, menu);
         return true;
     }
 
@@ -339,6 +343,10 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
             }
             return true;
 
+        } else if (id == R.id.action_delete) {
+
+            showDeleteDialog();
+
         } else if (id == android.R.id.home) {
 
             showSaveDialog();
@@ -347,6 +355,58 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    private void showDeleteDialog() {
+
+        if (eventInt == -1) return;
+
+        isDeleteDialog = true;
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("\"" + event.getTitle() + "\" löschen");
+        builder.setMessage("Bist du sicher dass du dieses Event löschen möchtest?");
+        builder.setPositiveButton("Löschen", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+
+                if (fachInt > -1) {
+                    Event event = LocalData.getInstance().getFächer().get(fachInt).getEvents().get(eventInt);
+                    LocalData.removeEventReminder(getApplicationContext(), event, fachInt, eventInt);
+                    LocalData.getInstance().getFächer().get(fachInt).getEvents().remove(eventInt);
+                } else {
+                    Event event = LocalData.getInstance().getNoFachEvents().get(eventInt);
+                    LocalData.removeEventReminder(getApplicationContext(), event, fachInt, eventInt);
+                    LocalData.getInstance().getNoFachEvents().remove(eventInt);
+                }
+
+                eventBus.post(new EventsChangedEvent());
+                LocalData.saveToFile(getApplicationContext());
+                finish();
+
+            }
+        });
+        builder.setNegativeButton("Abbrechen", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                isDeleteDialog = false;
+            }
+        });
+        builder.setOnCancelListener(new DialogInterface.OnCancelListener() {
+            @Override
+            public void onCancel(DialogInterface dialogInterface) {
+                isDeleteDialog = false;
+            }
+        });
+        final AlertDialog dialog = builder.create();
+        dialog.setOnShowListener(new DialogInterface.OnShowListener() {
+            @Override
+            public void onShow(DialogInterface dialogInterface) {
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.warn_text));
+            }
+        });
+        dialog.show();
+
     }
 
     private boolean saveEvent() {
@@ -422,6 +482,7 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
         outState.putBoolean("isDatePickerDialog", isDatePickerDialog);
         outState.putBoolean("isReminderTimePickerDialog", isReminderTimePickerDialog);
         outState.getBoolean("isPickStundeDialog", isPickStundeDialog);
+        outState.getBoolean("isDeleteDialog", isDeleteDialog);
         outState.putInt("reminderDialogIndex", reminderDialogIndex);
 
         super.onSaveInstanceState(outState);
