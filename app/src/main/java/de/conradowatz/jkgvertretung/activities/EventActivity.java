@@ -225,7 +225,9 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
         NextLessonRecyclerAdapter adapter = new NextLessonRecyclerAdapter(fach, new NextLessonRecyclerAdapter.Callback() {
             @Override
             public void onDateClicked(Date date) {
+
                 isPickStundeDialog = false;
+
                 event.setDatum(date);
                 datumText.setText(makeDateString(event.getDatum()));
                 dialog.cancel();
@@ -255,6 +257,9 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
         DatePickerDialog dialog = new DatePickerDialog(this, new DatePickerDialog.OnDateSetListener() {
             @Override
             public void onDateSet(DatePicker datePicker, int year, int month, int dayOfMonth) {
+
+                isDatePickerDialog = false;
+
                 Calendar c = Calendar.getInstance();
                 if (reminderInt > -1)
                     c.setTime(event.getReminders().get(reminderInt));
@@ -268,7 +273,7 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
                     event.setDatum(c.getTime());
                     datumText.setText(makeDateString(event.getDatum()));
                 }
-                isDatePickerDialog = false;
+
             }
         }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH));
         isDatePickerDialog = true;
@@ -294,12 +299,15 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
         TimePickerDialog dialog = new TimePickerDialog(this, new TimePickerDialog.OnTimeSetListener() {
             @Override
             public void onTimeSet(TimePicker timePicker, int i, int i1) {
+
+                isReminderTimePickerDialog = false;
+
                 Calendar c = Calendar.getInstance();
                 c.setTime(event.getReminders().get(reminderInt));
                 c.set(c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DATE), timePicker.getCurrentHour(), timePicker.getCurrentMinute());
                 event.getReminders().set(reminderInt, c.getTime());
                 reminderRecycler.getAdapter().notifyDataSetChanged();
-                isReminderTimePickerDialog = false;
+
             }
         }, c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE), true);
         isReminderTimePickerDialog = true;
@@ -369,6 +377,8 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
         builder.setPositiveButton("Löschen", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
+
+                isDeleteDialog = false;
 
                 if (fachInt > -1) {
                     Event event = LocalData.getInstance().getFächer().get(fachInt).getEvents().get(eventInt);

@@ -139,6 +139,8 @@ public class FaecherFragment extends Fragment implements FaecherRecyclerAdapter.
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
 
+                isDeleteDialog = false;
+
                 LocalData.getInstance().getFächer().remove(fachIndex);
                 eventBus.post(new FaecherUpdateEvent(FaecherUpdateEvent.TYPE_REMOVED, fachIndex));
                 LocalData.saveToFile(getActivity().getApplicationContext());

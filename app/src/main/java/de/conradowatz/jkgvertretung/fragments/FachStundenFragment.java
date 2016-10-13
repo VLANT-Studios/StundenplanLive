@@ -174,6 +174,9 @@ public class FachStundenFragment extends Fragment implements FachStundenRecycler
         dialogBuilder.setPositiveButton("Ersetzen", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
+
+                isReplaceDialog = false;
+
                 if (state == STATE_AWOCHE || state == STATE_IMMER) {
                     replaceFaecher.get(0).getaStunden()[tag][stunde] = false;
                     fach.getaStunden()[tag][stunde] = true;
@@ -189,7 +192,7 @@ public class FachStundenFragment extends Fragment implements FachStundenRecycler
                 if (state == STATE_IMMER)
                     ((FachStundenRecyclerAdapter) stundenRecycler.getAdapter()).calculateStateImmer();
                 stundenRecycler.getAdapter().notifyItemChanged(pos);
-                isReplaceDialog = false;
+
             }
         });
         dialogBuilder.setNegativeButton("Abbrechen", new DialogInterface.OnClickListener() {

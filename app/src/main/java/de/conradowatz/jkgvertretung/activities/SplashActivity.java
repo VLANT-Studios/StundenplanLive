@@ -169,6 +169,7 @@ public class SplashActivity extends AppCompatActivity implements TaskFragment.Sp
         dialogBuilder.setPositiveButton("Löschen", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
+
                 isDeleteDialog = false;
 
                 File localDataFile = new File(getFilesDir(), LocalData.SAVE_FILE_NAME);
@@ -295,6 +296,7 @@ public class SplashActivity extends AppCompatActivity implements TaskFragment.Sp
         dialogBuilder.setPositiveButton("Erneut versuchen", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
+
                 isDownloadErrorDialog = false;
 
                 taskFragment.downloadAllData(0);

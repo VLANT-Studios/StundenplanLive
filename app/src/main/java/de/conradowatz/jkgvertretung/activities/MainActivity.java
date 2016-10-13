@@ -568,7 +568,9 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
         dialogBuilder.setPositiveButton("Neu anmelden", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
+
                 isNoAccessDialog = false;
+
                 startLoginActivity();
             }
         });

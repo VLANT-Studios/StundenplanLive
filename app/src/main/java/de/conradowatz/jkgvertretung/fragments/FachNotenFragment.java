@@ -136,6 +136,9 @@ public class FachNotenFragment extends Fragment implements FachNotenRecyclerAdap
         builder.setPositiveButton("Entfernen", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
+
+                isNoteDeleteDialog = false;
+
                 if (type == FachNotenRecyclerAdapter.NOTEN_TYPE_SONSTIGE) {
                     fach.getSonstigeNoten().remove(position);
                     sonstigeRecycler.getAdapter().notifyItemRemoved(position);
@@ -145,7 +148,7 @@ public class FachNotenFragment extends Fragment implements FachNotenRecyclerAdap
                 }
                 calculateAverage();
                 eventBus.post(new NotenChangedEvent());
-                isNoteDeleteDialog = false;
+
             }
         });
         builder.setNegativeButton("Abbrechen", new DialogInterface.OnClickListener() {
@@ -183,6 +186,9 @@ public class FachNotenFragment extends Fragment implements FachNotenRecyclerAdap
         builder.setTitle("Note hinzufügen");
         builder.setItems(noten, new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int which) {
+
+                isNoteAddDialog = false;
+
                 if (type == FachNotenRecyclerAdapter.NOTEN_TYPE_SONSTIGE) {
                     fach.getSonstigeNoten().add(Integer.valueOf(noten[which]));
                     sonstigeRecycler.getAdapter().notifyItemInserted(fach.getSonstigeNoten().size() - 1);
@@ -192,7 +198,7 @@ public class FachNotenFragment extends Fragment implements FachNotenRecyclerAdap
                 }
                 calculateAverage();
                 eventBus.post(new NotenChangedEvent());
-                isNoteAddDialog = false;
+
             }
         });
         builder.setNeutralButton("Abbrechen", new DialogInterface.OnClickListener() {

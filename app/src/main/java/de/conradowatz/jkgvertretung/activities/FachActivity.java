@@ -133,6 +133,8 @@ public class FachActivity extends AppCompatActivity {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
 
+                isDeleteDialog = false;
+
                 LocalData.getInstance().getFächer().remove(fach);
                 eventBus.post(new FaecherUpdateEvent());
                 LocalData.saveToFile(getApplicationContext());
@@ -194,6 +196,9 @@ public class FachActivity extends AppCompatActivity {
                 public boolean onKey(View v, int keyCode, KeyEvent event) {
                     if ((event.getAction() == KeyEvent.ACTION_DOWN) && (keyCode == KeyEvent.KEYCODE_ENTER)) {
                         if (renameFach(renameEditText.getText().toString(), textInputLayout))
+
+                            isRenameDialog = false;
+
                             dialog.dismiss();
                     }
 
@@ -210,6 +215,9 @@ public class FachActivity extends AppCompatActivity {
                     @Override
                     public void onClick(View view) {
                         if (renameFach(renameEditText.getText().toString(), textInputLayout))
+
+                            isRenameDialog = false;
+
                             dialog.dismiss();
                     }
                 });

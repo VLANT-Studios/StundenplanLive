@@ -108,7 +108,9 @@ public class EventFragment extends Fragment implements EventRecyclerAdapter.Call
         builder.setItems(faecher, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int pos) {
+
                 isNewEventDialog = false;
+
                 startEventActivity(pos - 1, -1);
             }
         });
@@ -192,6 +194,7 @@ public class EventFragment extends Fragment implements EventRecyclerAdapter.Call
         dialogBuilder.setPositiveButton("Löschen", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
+
                 isDeleteDialog = false;
 
                 boolean removeAbove = ((EventRecyclerAdapter) eventRecycler.getAdapter()).isOnlyEventOfThatDay(recyclerIndex);

@@ -144,6 +144,9 @@ public class FerienActivity extends AppCompatActivity {
         DatePickerDialog dialog = new DatePickerDialog(this, new DatePickerDialog.OnDateSetListener() {
             @Override
             public void onDateSet(DatePicker datePicker, int year, int month, int dayOfMonth) {
+
+                isDatePickerDialog = false;
+
                 Calendar c = Calendar.getInstance();
                 c.set(datePicker.getYear(), datePicker.getMonth(), datePicker.getDayOfMonth());
                 if (isStartDate) {
@@ -160,7 +163,7 @@ public class FerienActivity extends AppCompatActivity {
                     ferien.setEndDate(c.getTime());
                     endText.setText(makeDateString(ferien.getEndDate()));
                 }
-                isDatePickerDialog = false;
+
             }
         }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH));
         isDatePickerDialog = true;
@@ -231,6 +234,8 @@ public class FerienActivity extends AppCompatActivity {
         builder.setPositiveButton("Löschen", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
+
+                isDeleteDialog = false;
 
                 LocalData.getInstance().getFerien().remove(ferienInt);
 

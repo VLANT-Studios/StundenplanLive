@@ -92,7 +92,9 @@ public class FerienFragment extends Fragment implements FerienRecyclerAdapter.Ca
         dialogBuilder.setPositiveButton("Löschen", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
+
                 isDeleteDialog = false;
+
                 LocalData.getInstance().getFerien().remove(ferienIndex);
                 LocalData.saveToFile(getActivity().getApplicationContext());
                 eventBus.post(new FerienChangedEvent());
