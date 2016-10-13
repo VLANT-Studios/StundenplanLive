@@ -47,8 +47,8 @@ import de.conradowatz.jkgvertretung.variables.Tag;
 public class LocalData {
 
     public static final String SAVE_FILE_NAME = "localData.json";
+    public static int latestSaveFileVersion = 2;
     private static LocalData sInstance = null;
-    private static int latestSaveFileVersion = 2;
     private int saveFileVersion;
     private List<Event> noFachEvents;
     private Date compareDate;
@@ -400,6 +400,11 @@ public class LocalData {
 
     public static boolean isReady() {
         return sInstance != null && sInstance.compareDate != null;
+    }
+
+    public void setSaveFileVersion(int saveFileVersion) {
+
+        this.saveFileVersion = saveFileVersion;
     }
 
     public List<Event> getNoFachEvents() {

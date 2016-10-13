@@ -52,6 +52,11 @@ public class Backup {
         return saveFileVersion;
     }
 
+    public void setSaveFileVersion(int saveFileVersion) {
+
+        this.saveFileVersion = saveFileVersion;
+    }
+
     public Map<String, ?> getSharedPreferences() {
         return sharedPreferences;
     }

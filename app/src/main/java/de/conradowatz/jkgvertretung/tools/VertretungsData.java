@@ -19,8 +19,8 @@ import de.conradowatz.jkgvertretung.variables.Tag;
 public class VertretungsData {
 
     public static String SAVE_FILE_NAME = "vertretungsData.json";
+    public static int latestSaveFileVersion = 1;
     private static VertretungsData sInstance = null;
-    private static int latestSaveFileVersion = 1;
     private int saveFileVersion;
     private ArrayList<Klasse> klassenList;
     private ArrayList<String> freieTageList;
@@ -123,6 +123,11 @@ public class VertretungsData {
         }
         createDataFromFileListener.onCreated();
 
+    }
+
+    public void setSaveFileVersion(int saveFileVersion) {
+
+        this.saveFileVersion = saveFileVersion;
     }
 
     public ArrayList<Klasse> getKlassenList() {

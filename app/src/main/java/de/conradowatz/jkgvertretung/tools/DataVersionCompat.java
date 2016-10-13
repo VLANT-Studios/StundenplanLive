@@ -17,7 +17,9 @@ public class DataVersionCompat {
 
             try {
                 Gson gson = new Gson(); //new Gson() instead of Utilities.getDefaultGson()
-                return gson.fromJson(json, LocalData.class);
+                LocalData localData = gson.fromJson(json, LocalData.class);
+                localData.setSaveFileVersion(LocalData.latestSaveFileVersion);
+                return localData;
             } catch (Exception e) {
                 e.printStackTrace();
                 return null;
@@ -36,7 +38,11 @@ public class DataVersionCompat {
 
             try {
                 Gson gson = new Gson(); //new Gson() instead of Utilities.getDefaultGson()
-                return gson.fromJson(json, Backup.class);
+                Backup backup = gson.fromJson(json, Backup.class);
+                backup.setSaveFileVersion(Backup.latestSaveFileVersion);
+                backup.getLocalData().setSaveFileVersion(LocalData.latestSaveFileVersion);
+                backup.getVertretungsData().setSaveFileVersion(VertretungsData.latestSaveFileVersion);
+                return backup;
             } catch (Exception e) {
                 e.printStackTrace();
                 return null;
