@@ -127,7 +127,7 @@ public class FachActivity extends AppCompatActivity {
         isDeleteDialog = true;
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("\"" + fach.getName() + "\" löschen");
+        builder.setTitle("'" + fach.getName() + "' löschen");
         builder.setMessage("Bist du sicher dass du dieses Fach löschen möchtest?");
         builder.setPositiveButton("Löschen", new DialogInterface.OnClickListener() {
             @Override
@@ -167,7 +167,7 @@ public class FachActivity extends AppCompatActivity {
         isRenameDialog = true;
         AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
         dialogBuilder.setTitle("Fach umbenennen");
-        dialogBuilder.setMessage(String.format("In was soll \"%s\" umbenannt werden?", fach.getName()));
+        dialogBuilder.setMessage(String.format("In was soll '%s' umbenannt werden?", fach.getName()));
         final TextInputLayout textInputLayout = (TextInputLayout) getLayoutInflater().inflate(R.layout.dialog_edittext, null);
         renameEditText = textInputLayout.getEditText();
 
@@ -188,7 +188,7 @@ public class FachActivity extends AppCompatActivity {
         final AlertDialog dialog = dialogBuilder.create();
 
         if (renameEditText != null) {
-            renameEditText.setText(preText);
+            renameEditText.append(preText);
             renameEditText.setOnKeyListener(new View.OnKeyListener() {
                 @Override
                 public boolean onKey(View v, int keyCode, KeyEvent event) {

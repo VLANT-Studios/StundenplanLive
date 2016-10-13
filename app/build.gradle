@@ -8,8 +8,8 @@ android {
         applicationId 'de.conradowatz.jkgvertretung'
         minSdkVersion 15
         targetSdkVersion 24
-        versionCode 19
-        versionName '2.0.0 BETA 6'
+        versionCode 20
+        versionName '2.0.0 RC 1'
     }
     buildTypes {
         release {

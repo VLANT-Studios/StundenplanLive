@@ -3,12 +3,10 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <ListView
-        android:id="@+id/listView"
+    <android.support.v7.widget.RecyclerView
+        android:id="@+id/recyclerView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_margin="10dp"
-        android:visibility="gone" />
+        android:layout_height="match_parent" />
 
     <ImageView
         android:layout_width="match_parent"
@@ -49,7 +47,7 @@
             android:layout_gravity="center_horizontal"
             android:layout_marginBottom="10dp"
             android:background="@color/accent"
-            android:drawableLeft="@drawable/ic_mode_edit_white_24dp"
+            android:drawableLeft="@drawable/ic_check_box_white_24dp"
             android:padding="10dp"
             android:text=" Klassen- / Kurswahl"
             android:textColor="@color/white" />

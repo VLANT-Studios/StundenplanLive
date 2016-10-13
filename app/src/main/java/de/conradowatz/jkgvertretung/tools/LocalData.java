@@ -76,7 +76,7 @@ public class LocalData {
 
     public static void saveToFile(Context context) {
 
-        Gson gson = new Gson();
+        Gson gson = Utilities.getDefaultGson();
         String json = gson.toJson(LocalData.getInstance(), LocalData.class);
 
 
@@ -104,7 +104,7 @@ public class LocalData {
                 total.append(line);
             }
 
-            Gson gson = new Gson();
+            Gson gson = Utilities.getDefaultGson();
             LocalData localData = gson.fromJson(total.toString(), LocalData.class);
             if (localData == null || localData.saveFileVersion != latestSaveFileVersion)
                 throw new Exception("Saved File is not compatible.");

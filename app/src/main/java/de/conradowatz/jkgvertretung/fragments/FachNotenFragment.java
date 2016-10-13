@@ -18,12 +18,12 @@ import org.greenrobot.eventbus.EventBus;
 
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.activities.FachActivity;
-import de.conradowatz.jkgvertretung.adapters.EinzelNotenRecyclerAdapter;
+import de.conradowatz.jkgvertretung.adapters.FachNotenRecyclerAdapter;
 import de.conradowatz.jkgvertretung.events.NotenChangedEvent;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.variables.Fach;
 
-public class FachNotenFragment extends Fragment implements EinzelNotenRecyclerAdapter.Callback {
+public class FachNotenFragment extends Fragment implements FachNotenRecyclerAdapter.Callback {
 
     private View contentView;
 
@@ -71,7 +71,7 @@ public class FachNotenFragment extends Fragment implements EinzelNotenRecyclerAd
             dialogType = savedInstanceState.getInt("dialogType");
             dialogPosition = savedInstanceState.getInt("dialogPosition");
             if (isNoteAddDialog) onAddClicked(dialogType);
-            if (isNoteDeleteDialog) onNoteLongClick(dialogPosition, dialogType);
+            if (isNoteDeleteDialog) onNoteClick(dialogPosition, dialogType);
         }
 
         //setUpRecyclers wird erst gecallt, wenn der RecyclerView ausgelegt ist, damit getWidth funktioniert
@@ -101,8 +101,8 @@ public class FachNotenFragment extends Fragment implements EinzelNotenRecyclerAd
 
         sonstigeRecycler.setLayoutManager(sLayoutManager);
         klausurenRecycler.setLayoutManager(kLayoutManager);
-        EinzelNotenRecyclerAdapter sAdapter = new EinzelNotenRecyclerAdapter(getActivity().getApplicationContext(), fach.getSonstigeNoten(), this, EinzelNotenRecyclerAdapter.NOTEN_TYPE_SONSTIGE);
-        EinzelNotenRecyclerAdapter kAdapter = new EinzelNotenRecyclerAdapter(getActivity().getApplicationContext(), fach.getKlausurenNoten(), this, EinzelNotenRecyclerAdapter.NOTEN_TYPE_KLAUSUREN);
+        FachNotenRecyclerAdapter sAdapter = new FachNotenRecyclerAdapter(getActivity().getApplicationContext(), fach.getSonstigeNoten(), this, FachNotenRecyclerAdapter.NOTEN_TYPE_SONSTIGE);
+        FachNotenRecyclerAdapter kAdapter = new FachNotenRecyclerAdapter(getActivity().getApplicationContext(), fach.getKlausurenNoten(), this, FachNotenRecyclerAdapter.NOTEN_TYPE_KLAUSUREN);
         sonstigeRecycler.setAdapter(sAdapter);
         klausurenRecycler.setAdapter(kAdapter);
 
@@ -119,24 +119,24 @@ public class FachNotenFragment extends Fragment implements EinzelNotenRecyclerAd
     }
 
     @Override
-    public void onNoteLongClick(final int position, final int type) {
+    public void onNoteClick(final int position, final int type) {
 
         isNoteDeleteDialog = true;
         dialogType = type;
         dialogPosition = position;
 
         int note;
-        if (type == EinzelNotenRecyclerAdapter.NOTEN_TYPE_SONSTIGE)
+        if (type == FachNotenRecyclerAdapter.NOTEN_TYPE_SONSTIGE)
             note = fach.getSonstigeNoten().get(position);
         else note = fach.getKlausurenNoten().get(position);
 
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
         builder.setTitle("Note entfernen");
-        builder.setMessage("Note " + String.valueOf(note) + " aus '" + (type == EinzelNotenRecyclerAdapter.NOTEN_TYPE_SONSTIGE ? "Sonstige Noten" : klausurenString) + "' entfernen?");
+        builder.setMessage("Note " + String.valueOf(note) + " aus '" + (type == FachNotenRecyclerAdapter.NOTEN_TYPE_SONSTIGE ? "Sonstige Noten" : klausurenString) + "' entfernen?");
         builder.setPositiveButton("Entfernen", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
-                if (type == EinzelNotenRecyclerAdapter.NOTEN_TYPE_SONSTIGE) {
+                if (type == FachNotenRecyclerAdapter.NOTEN_TYPE_SONSTIGE) {
                     fach.getSonstigeNoten().remove(position);
                     sonstigeRecycler.getAdapter().notifyItemRemoved(position);
                 } else {
@@ -183,7 +183,7 @@ public class FachNotenFragment extends Fragment implements EinzelNotenRecyclerAd
         builder.setTitle("Note hinzufügen");
         builder.setItems(noten, new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int which) {
-                if (type == EinzelNotenRecyclerAdapter.NOTEN_TYPE_SONSTIGE) {
+                if (type == FachNotenRecyclerAdapter.NOTEN_TYPE_SONSTIGE) {
                     fach.getSonstigeNoten().add(Integer.valueOf(noten[which]));
                     sonstigeRecycler.getAdapter().notifyItemInserted(fach.getSonstigeNoten().size() - 1);
                 } else {

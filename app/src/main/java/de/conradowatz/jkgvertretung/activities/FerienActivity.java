@@ -226,7 +226,7 @@ public class FerienActivity extends AppCompatActivity {
         isDeleteDialog = true;
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("\"" + ferien.getName() + "\" löschen");
+        builder.setTitle("'" + ferien.getName() + "' löschen");
         builder.setMessage("Bist du sicher dass du dieses Event löschen möchtest?");
         builder.setPositiveButton("Löschen", new DialogInterface.OnClickListener() {
             @Override

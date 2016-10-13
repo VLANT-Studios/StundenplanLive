@@ -9,7 +9,7 @@
         app:showAsAction="ifRoom" />
     <item
         android:id="@+id/action_kurswahl"
-        android:icon="@drawable/ic_mode_edit"
+        android:icon="@drawable/ic_check_white"
         android:orderInCategory="1"
         android:title="Klassen-/Kurswahl"
         app:showAsAction="ifRoom" />

@@ -19,7 +19,7 @@
         <br> • Gson (Copyright © 2008 Google)
         <br> • ExpandableTextView (Copyright © 2014 Manabu Shimobe)
         <br>
-        <br>Alle 4 Libarys sind lizensiert unter der Apache License, Version 2.0:
+        <br>Diese App verwendet sowohl in der App, als auch im Icon Material Design Icons von Google, die teilweise verändert wurden. Diese, und alle 4 Libarys sind lizensiert unter der Apache License, Version 2.0:
         <br>
         <tt><br>Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License.
         <br>You may obtain a copy of the License at
@@ -32,7 +32,6 @@
         See the License for the specific language governing permissions and
         limitations under the License.</tt>
         <br>
-        <br>Diese App verwendet sowohl in der App, als auch im Icon Material Design Icons von Google, die teilweise verändert wurden.Diese sind lizensiert unter <tt>Creative Commons BY 4.0 https://creativecommons.org/licenses/by/4.0/</tt>.
         <br>
         <br>Diese App wird mit Hilfe von Google Analytics getrackt.
     ]]></string>

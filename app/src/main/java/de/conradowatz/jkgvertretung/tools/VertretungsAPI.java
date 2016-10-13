@@ -193,43 +193,48 @@ public class VertretungsAPI {
             @Override
             public void onResponse(String response) {
 
-                Gson gson = new Gson();
-                OnlineEvents onlineEvents = gson.fromJson(response, OnlineEvents.class);
-                if (onlineEvents == null || onlineEvents.getFileFormatVersion() != OnlineEvents.compatibleFileFormatVersion) {
-                    if (vertretungsDataFinished) downloadAllDataResponseListener.onSuccess();
-                    return;
-                }
-
-                List<Integer> localUniqueNumbers = LocalData.getInstance().getUniqueEventNumbers();
-                //Alte uniqueNumbers löschen
-                for (int i = 0; i < localUniqueNumbers.size(); i++) {
-                    Integer uniqueNumber = localUniqueNumbers.get(i);
-                    if (!onlineEvents.getUniqueEventNumbers().contains(uniqueNumber)) {
-                        localUniqueNumbers.remove(i);
-                        i--;
+                try {
+                    Gson gson = Utilities.getDefaultGson();
+                    OnlineEvents onlineEvents = gson.fromJson(response, OnlineEvents.class);
+                    if (onlineEvents == null || onlineEvents.getFileFormatVersion() != OnlineEvents.compatibleFileFormatVersion) {
+                        throw new Throwable("OnlineEvent fileformat not compatible.");
                     }
-                }
 
-                //neue Events hinzufügen
-                Calendar heute = Calendar.getInstance();
-                for (int i = 0; i < onlineEvents.getUniqueEventNumbers().size(); i++) {
-                    Integer uniqueNumber = onlineEvents.getUniqueEventNumbers().get(i);
-                    if (!localUniqueNumbers.contains(uniqueNumber)) {
-                        localUniqueNumbers.add(uniqueNumber);
-
-                        Event event = onlineEvents.getEvents().get(i);
-                        if (Utilities.compareDays(heute.getTime(), event.getDatum()) < 0) {
-                            LocalData.getInstance().getNoFachEvents().add(event);
-                            LocalData.getInstance().sortNoFachEvents();
-                            LocalData.saveToFile(context);
-                            LocalData.addEventReminder(context, event, -1, LocalData.getInstance().getNoFachEvents().indexOf(event));
+                    List<Integer> localUniqueNumbers = LocalData.getInstance().getUniqueEventNumbers();
+                    //Alte uniqueNumbers löschen
+                    for (int i = 0; i < localUniqueNumbers.size(); i++) {
+                        Integer uniqueNumber = localUniqueNumbers.get(i);
+                        if (!onlineEvents.getUniqueEventNumbers().contains(uniqueNumber)) {
+                            localUniqueNumbers.remove(i);
+                            i--;
                         }
                     }
+
+                    //neue Events hinzufügen
+                    Calendar heute = Calendar.getInstance();
+                    for (int i = 0; i < onlineEvents.getUniqueEventNumbers().size(); i++) {
+                        Integer uniqueNumber = onlineEvents.getUniqueEventNumbers().get(i);
+                        if (!localUniqueNumbers.contains(uniqueNumber)) {
+                            localUniqueNumbers.add(uniqueNumber);
+
+                            Event event = onlineEvents.getEvents().get(i);
+                            if (Utilities.compareDays(heute.getTime(), event.getDatum()) < 0) {
+                                LocalData.getInstance().getNoFachEvents().add(event);
+                                LocalData.getInstance().sortNoFachEvents();
+                                LocalData.saveToFile(context);
+                                LocalData.addEventReminder(context, event, -1, LocalData.getInstance().getNoFachEvents().indexOf(event));
+                            }
+                        }
+                    }
+
+                    downloadAllDataResponseListener.onEventsAdded();
+                } catch (Throwable e) {
+
+                    e.printStackTrace();
                 }
 
                 onlineEventsFinished = true;
                 if (vertretungsDataFinished) downloadAllDataResponseListener.onSuccess();
-                downloadAllDataResponseListener.onEventsAdded();
             }
         }, new Response.ErrorListener() {
             @Override

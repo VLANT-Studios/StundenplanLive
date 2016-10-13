@@ -249,7 +249,7 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
                         total.append(line);
                     }
 
-                    Gson gson = new Gson();
+                    Gson gson = Utilities.getDefaultGson();
                     Backup backup = gson.fromJson(total.toString(), Backup.class);
                     if (backup == null || backup.getSaveFileVersion() != Backup.latestSaveFileVersion) {
                         Toast.makeText(getActivity(), "Backup Datei inkompatibel.", Toast.LENGTH_SHORT).show();
@@ -285,7 +285,7 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
                     Toast.makeText(getActivity(), "Backup erfolgreich importiert.", Toast.LENGTH_SHORT).show();
 
                 } catch (Exception e) {
-                    Toast.makeText(getActivity(), "Fehler beim Import!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getActivity(), "Backup Datei inkompatibel!", Toast.LENGTH_SHORT).show();
                     e.printStackTrace();
                 }
             }
@@ -325,7 +325,7 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
                 Calendar calendar = Calendar.getInstance();
                 String backUpTitle = String.format(Backup.SAVE_FILE_NAME, new SimpleDateFormat(Backup.DATE_FORMAT, Locale.GERMANY).format(calendar.getTime()));
 
-                Gson gson = new Gson();
+                Gson gson = Utilities.getDefaultGson();
                 Backup backup = new Backup(getActivity().getApplicationContext());
                 String json = gson.toJson(backup, Backup.class);
 

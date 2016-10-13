@@ -6,43 +6,41 @@ import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.LinearLayout;
-import android.widget.ListView;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.activities.FachActivity;
 import de.conradowatz.jkgvertretung.activities.KurswahlActivity;
+import de.conradowatz.jkgvertretung.adapters.FaecherRecyclerAdapter;
 import de.conradowatz.jkgvertretung.events.AnalyticsEventEvent;
 import de.conradowatz.jkgvertretung.events.FaecherUpdateEvent;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.variables.Fach;
 
-public class FaecherFragment extends Fragment {
+public class FaecherFragment extends Fragment implements FaecherRecyclerAdapter.Callback {
 
+    private static final int MODE_NOFAECHER = 1;
+    private static final int MODE_NORMAL = 2;
     private View contentView;
-    private ListView listView;
+    private RecyclerView recyclerView;
     private LinearLayout nofaecherLayout;
     private Button smartImportButton;
     private Button kurswahlButton;
-
     private boolean isDeleteDialog;
     private int deleteDialogIndex;
-
+    private int mode;
     private EventBus eventBus = EventBus.getDefault();
 
     public FaecherFragment() {
@@ -53,7 +51,7 @@ public class FaecherFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 
         contentView = inflater.inflate(R.layout.fragment_faecher, container, false);
-        listView = (ListView) contentView.findViewById(R.id.listView);
+        recyclerView = (RecyclerView) contentView.findViewById(R.id.recyclerView);
         nofaecherLayout = (LinearLayout) contentView.findViewById(R.id.nofaecherLayout);
         smartImportButton = (Button) contentView.findViewById(R.id.smartImportButton);
         kurswahlButton = (Button) contentView.findViewById(R.id.kurswahlButton);
@@ -68,6 +66,7 @@ public class FaecherFragment extends Fragment {
 
             if (savedInstanceState.getBoolean("isDeleteDialog"))
                 showDeleteDialog(savedInstanceState.getInt("deleteDialogIndex"));
+            mode = savedInstanceState.getInt("mode");
         }
 
         return contentView;
@@ -77,7 +76,9 @@ public class FaecherFragment extends Fragment {
 
         if (LocalData.getInstance().getFächer().size() == 0) {
 
-            listView.setVisibility(View.GONE);
+            mode = MODE_NOFAECHER;
+
+            recyclerView.setVisibility(View.GONE);
             nofaecherLayout.setVisibility(View.VISIBLE);
             smartImportButton.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -93,35 +94,34 @@ public class FaecherFragment extends Fragment {
             });
         } else {
 
-            listView.setVisibility(View.VISIBLE);
+            mode = MODE_NORMAL;
+
+            recyclerView.setVisibility(View.VISIBLE);
             nofaecherLayout.setVisibility(View.GONE);
-            setUpListView();
+            setUpRecycler();
         }
     }
 
-    private void setUpListView() {
+    private void setUpRecycler() {
 
-        List<String> fachNamen = new ArrayList<>();
-        for (Fach f : LocalData.getInstance().getFächer()) {
-            fachNamen.add(f.getName());
-        }
-        ArrayAdapter adapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_list_item_1, fachNamen);
-        listView.setAdapter(adapter);
-        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+        RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(getActivity());
+        FaecherRecyclerAdapter adapter = new FaecherRecyclerAdapter(this);
+        recyclerView.setLayoutManager(layoutManager);
+        recyclerView.setAdapter(adapter);
 
-                startFachActivity(i);
-            }
-        });
-        listView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
-            @Override
-            public boolean onItemLongClick(AdapterView<?> adapterView, View view, int i, long l) {
+    }
 
-                showDeleteDialog(i);
-                return true;
-            }
-        });
+    @Override
+    public void onFachClicked(int fachIndex) {
+
+        startFachActivity(fachIndex);
+
+    }
+
+    @Override
+    public void onFachLongClicked(int fachIndex) {
+
+        showDeleteDialog(fachIndex);
 
     }
 
@@ -133,14 +133,14 @@ public class FaecherFragment extends Fragment {
         Fach fach = LocalData.getInstance().getFächer().get(fachIndex);
 
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-        builder.setTitle("\"" + fach.getName() + "\" löschen");
+        builder.setTitle("'" + fach.getName() + "' löschen");
         builder.setMessage("Bist du sicher dass du dieses Fach löschen möchtest?");
         builder.setPositiveButton("Löschen", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
 
                 LocalData.getInstance().getFächer().remove(fachIndex);
-                eventBus.post(new FaecherUpdateEvent());
+                eventBus.post(new FaecherUpdateEvent(FaecherUpdateEvent.TYPE_REMOVED, fachIndex));
                 LocalData.saveToFile(getActivity().getApplicationContext());
             }
         });
@@ -178,8 +178,15 @@ public class FaecherFragment extends Fragment {
     @Subscribe
     public void onEvent(FaecherUpdateEvent event) {
 
-        if (listView != null) {
-            setUp();
+        if (recyclerView != null) {
+            if (event.getType() == FaecherUpdateEvent.TYPE_CHANGED)
+                recyclerView.getAdapter().notifyDataSetChanged();
+            else if (event.getType() == FaecherUpdateEvent.TYPE_REMOVED)
+                recyclerView.getAdapter().notifyItemRemoved(event.getRecyclerIndex());
+
+            int faecherCount = LocalData.getInstance().getFächer().size();
+            if ((mode == MODE_NORMAL && faecherCount == 0) || (mode == MODE_NOFAECHER && faecherCount > 0))
+                setUp();
         }
 
     }
@@ -239,6 +246,7 @@ public class FaecherFragment extends Fragment {
 
         outState.putBoolean("isDeleteDialog", isDeleteDialog);
         outState.putInt("deleteDialogIndex", deleteDialogIndex);
+        outState.putInt("mode", mode);
         super.onSaveInstanceState(outState);
     }
 

@@ -12,7 +12,7 @@ import java.util.List;
 
 import de.conradowatz.jkgvertretung.R;
 
-public class EinzelNotenRecyclerAdapter extends RecyclerView.Adapter<EinzelNotenRecyclerAdapter.ViewHolder> {
+public class FachNotenRecyclerAdapter extends RecyclerView.Adapter<FachNotenRecyclerAdapter.ViewHolder> {
 
     public static final int NOTEN_TYPE_SONSTIGE = 0;
     public static final int NOTEN_TYPE_KLAUSUREN = 1;
@@ -23,7 +23,7 @@ public class EinzelNotenRecyclerAdapter extends RecyclerView.Adapter<EinzelNoten
     private Callback callback;
     private int type;
 
-    public EinzelNotenRecyclerAdapter(Context context, List<Integer> notenListe, Callback callback, int type) {
+    public FachNotenRecyclerAdapter(Context context, List<Integer> notenListe, Callback callback, int type) {
 
         this.notenListe = notenListe;
         this.context = context;
@@ -45,11 +45,10 @@ public class EinzelNotenRecyclerAdapter extends RecyclerView.Adapter<EinzelNoten
             holder.button.setText(String.valueOf(notenListe.get(position)));
             holder.button.setBackgroundColor(ContextCompat.getColor(context, R.color.accent));
             holder.button.setOnClickListener(null);
-            holder.button.setOnLongClickListener(new View.OnLongClickListener() {
+            holder.button.setOnClickListener(new View.OnClickListener() {
                 @Override
-                public boolean onLongClick(View view) {
-                    callback.onNoteLongClick(holder.getAdapterPosition(), type);
-                    return false;
+                public void onClick(View view) {
+                    callback.onNoteClick(holder.getAdapterPosition(), type);
                 }
             });
         } else {
@@ -61,7 +60,6 @@ public class EinzelNotenRecyclerAdapter extends RecyclerView.Adapter<EinzelNoten
                     callback.onAddClicked(type);
                 }
             });
-            holder.button.setOnLongClickListener(null);
         }
     }
 
@@ -77,7 +75,7 @@ public class EinzelNotenRecyclerAdapter extends RecyclerView.Adapter<EinzelNoten
 
     public interface Callback {
 
-        void onNoteLongClick(int position, int type);
+        void onNoteClick(int position, int type);
 
         void onAddClicked(int type);
     }

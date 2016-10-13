@@ -53,7 +53,7 @@ public class VertretungsData {
 
         try {
 
-            Gson gson = new Gson();
+            Gson gson = Utilities.getDefaultGson();
             String dataToSave = gson.toJson(vertretungsData, VertretungsData.class);
 
             FileOutputStream outputStream = context.openFileOutput(SAVE_FILE_NAME, Context.MODE_PRIVATE);
@@ -91,7 +91,7 @@ public class VertretungsData {
                 total.append(line);
             }
 
-            Gson gson = new Gson();
+            Gson gson = Utilities.getDefaultGson();
             VertretungsData vertretungsData = gson.fromJson(total.toString(), VertretungsData.class);
             if (vertretungsData == null || vertretungsData.saveFileVersion != latestSaveFileVersion)
                 throw new Exception("Saved File is not compatible.");

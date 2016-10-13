@@ -364,7 +364,7 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
         isDeleteDialog = true;
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("\"" + event.getTitle() + "\" löschen");
+        builder.setTitle("'" + event.getTitle() + "' löschen");
         builder.setMessage("Bist du sicher dass du dieses Event löschen möchtest?");
         builder.setPositiveButton("Löschen", new DialogInterface.OnClickListener() {
             @Override

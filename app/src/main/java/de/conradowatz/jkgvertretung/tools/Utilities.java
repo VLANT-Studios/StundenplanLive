@@ -1,5 +1,8 @@
 package de.conradowatz.jkgvertretung.tools;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 import java.util.Calendar;
 import java.util.Date;
 
@@ -66,6 +69,11 @@ public class Utilities {
                 return 7;
         }
         return 0;
+    }
+
+    public static Gson getDefaultGson() {
+
+        return new GsonBuilder().setDateFormat("dd.MM.yyyy HH:mm:ss").create();
     }
 
 }

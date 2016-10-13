@@ -10,7 +10,7 @@
 
     <item
         android:id="@+id/action_rename"
-        android:icon="@drawable/ic_mode_edit"
+        android:icon="@drawable/ic_title"
         android:orderInCategory="1"
         android:title="Umbenennen"
         app:showAsAction="ifRoom" />
