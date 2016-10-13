@@ -7,8 +7,6 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import java.util.Calendar;
-import java.util.Date;
-import java.util.Locale;
 
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.tools.LocalData;
@@ -47,7 +45,7 @@ public class FerienRecyclerAdapter extends RecyclerView.Adapter<FerienRecyclerAd
             holder.infoText.setText("noch " + Math.abs(cNow.get(Calendar.DAY_OF_YEAR) - cFend.get(Calendar.DAY_OF_YEAR)) + " Tag(e)");
         else holder.infoText.setText("vergangen");
 
-        holder.dateText.setText("vom " + getDateString(cFbegin.getTime()) + "\n\tbis " + getDateString(cFend.getTime()));
+        holder.dateText.setText(ferien.getDateString());
 
         holder.deleteButtonText.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -62,13 +60,6 @@ public class FerienRecyclerAdapter extends RecyclerView.Adapter<FerienRecyclerAd
             }
         });
 
-    }
-
-    private String getDateString(Date datum) {
-
-        Calendar c = Calendar.getInstance();
-        c.setTime(datum); //12. September 2016
-        return c.get(Calendar.DAY_OF_MONTH) + ". " + c.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale.GERMAN) + " " + c.get(Calendar.YEAR);
     }
 
     @Override

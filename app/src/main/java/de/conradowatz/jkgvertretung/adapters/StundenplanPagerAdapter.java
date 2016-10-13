@@ -47,18 +47,22 @@ public class StundenplanPagerAdapter extends FragmentStatePagerAdapter {
 
     @Override
     public Fragment getItem(int position) {
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(nextSchoolDay);
-        int dayToAdd = position + ((position + nextSchoolDayOfWeek - 1) / 5) * 2;
-        calendar.add(Calendar.DATE, dayToAdd);
         int onlinePosition = -1;
-        for (int i = 0; i < VertretungsData.getInstance().getTagList().size(); i++) {
-            Tag t = VertretungsData.getInstance().getTagList().get(i);
-            Calendar tc = Calendar.getInstance();
-            tc.setTime(t.getDatum());
-            if (Utilities.compareDays(calendar, tc) == 0) {
-                onlinePosition = i;
-                break;
+        Calendar calendar = Calendar.getInstance();
+
+        if (mode == StundenplanFragment.MODE_STUNDENPLAN) {
+            //get Datum und onlinePosition
+            calendar.setTime(nextSchoolDay);
+            int dayToAdd = position + ((position + nextSchoolDayOfWeek - 1) / 5) * 2;
+            calendar.add(Calendar.DATE, dayToAdd);
+            for (int i = 0; i < VertretungsData.getInstance().getTagList().size(); i++) {
+                Tag t = VertretungsData.getInstance().getTagList().get(i);
+                Calendar tc = Calendar.getInstance();
+                tc.setTime(t.getDatum());
+                if (Utilities.compareDays(calendar, tc) == 0) {
+                    onlinePosition = i;
+                    break;
+                }
             }
         }
         return StundenplanPageFragment.newInstance(position, mode, klassenIndex, calendar.getTime(), onlinePosition);

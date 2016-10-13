@@ -80,6 +80,8 @@ public class VertretungsData {
 
         Calendar heute = Calendar.getInstance();
 
+        String json = "";
+        VertretungsData vertretungsData;
         try {
 
             //Read Data
@@ -90,29 +92,36 @@ public class VertretungsData {
             while ((line = r.readLine()) != null) {
                 total.append(line);
             }
+            json = total.toString();
 
             Gson gson = Utilities.getDefaultGson();
-            VertretungsData vertretungsData = gson.fromJson(total.toString(), VertretungsData.class);
-            if (vertretungsData == null || vertretungsData.saveFileVersion != latestSaveFileVersion)
-                throw new Exception("Saved File is not compatible.");
-            VertretungsData.setInstance(vertretungsData);
-
-            //Löscht veraltete Tage
-            for (int i = 0; i < VertretungsData.getInstance().getTagList().size(); i++) {
-                Calendar tagCalendar = Calendar.getInstance();
-                tagCalendar.setTime(VertretungsData.getInstance().getTagList().get(i).getDatum());
-                if (Utilities.compareDays(tagCalendar, heute) < 0) {
-                    VertretungsData.getInstance().getTagList().remove(i);
-                    i--;
-                }
-            }
-            createDataFromFileListener.onCreated();
+            vertretungsData = gson.fromJson(json, VertretungsData.class);
+            //if (vertretungsData == null || vertretungsData.saveFileVersion != latestSaveFileVersion)
 
         } catch (Exception e) {
 
+            vertretungsData = null;
             e.printStackTrace();
-            createDataFromFileListener.onError(e);
         }
+
+        if (vertretungsData == null) {
+
+            createDataFromFileListener.onError(new Throwable("Vertrungsdata Datei kann nicht gelesen werden."));
+            return;
+        }
+
+        VertretungsData.setInstance(vertretungsData);
+
+        //Löscht veraltete Tage
+        for (int i = 0; i < VertretungsData.getInstance().getTagList().size(); i++) {
+            Calendar tagCalendar = Calendar.getInstance();
+            tagCalendar.setTime(VertretungsData.getInstance().getTagList().get(i).getDatum());
+            if (Utilities.compareDays(tagCalendar, heute) < 0) {
+                VertretungsData.getInstance().getTagList().remove(i);
+                i--;
+            }
+        }
+        createDataFromFileListener.onCreated();
 
     }
 

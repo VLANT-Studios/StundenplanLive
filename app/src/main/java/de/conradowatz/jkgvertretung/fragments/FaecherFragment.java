@@ -181,14 +181,15 @@ public class FaecherFragment extends Fragment implements FaecherRecyclerAdapter.
     public void onEvent(FaecherUpdateEvent event) {
 
         if (recyclerView != null) {
-            if (event.getType() == FaecherUpdateEvent.TYPE_CHANGED)
-                recyclerView.getAdapter().notifyDataSetChanged();
-            else if (event.getType() == FaecherUpdateEvent.TYPE_REMOVED)
-                recyclerView.getAdapter().notifyItemRemoved(event.getRecyclerIndex());
-
             int faecherCount = LocalData.getInstance().getFächer().size();
-            if ((mode == MODE_NORMAL && faecherCount == 0) || (mode == MODE_NOFAECHER && faecherCount > 0))
-                setUp();
+            if (event.getType() == FaecherUpdateEvent.TYPE_CHANGED)
+                if ((mode == MODE_NORMAL && faecherCount == 0) || (mode == MODE_NOFAECHER && faecherCount > 0))
+                    setUp();
+                else recyclerView.getAdapter().notifyDataSetChanged();
+            else if (event.getType() == FaecherUpdateEvent.TYPE_REMOVED)
+                if ((mode == MODE_NORMAL && faecherCount == 0) || (mode == MODE_NOFAECHER && faecherCount > 0))
+                    setUp();
+                else recyclerView.getAdapter().notifyItemRemoved(event.getRecyclerIndex());
         }
 
     }

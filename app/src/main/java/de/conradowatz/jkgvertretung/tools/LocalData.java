@@ -23,12 +23,15 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.activities.EventActivity;
@@ -45,7 +48,7 @@ public class LocalData {
 
     public static final String SAVE_FILE_NAME = "localData.json";
     private static LocalData sInstance = null;
-    private static int latestSaveFileVersion = 1;
+    private static int latestSaveFileVersion = 2;
     private int saveFileVersion;
     private List<Event> noFachEvents;
     private Date compareDate;
@@ -94,6 +97,8 @@ public class LocalData {
 
     public static void createFromFile(Context context, CreateDataFromFileListener listener) {
 
+        String json = "";
+        LocalData localData;
         //Read Data
         try {
             FileInputStream inputStream = context.openFileInput(SAVE_FILE_NAME);
@@ -104,15 +109,38 @@ public class LocalData {
                 total.append(line);
             }
 
+            json = total.toString();
             Gson gson = Utilities.getDefaultGson();
-            LocalData localData = gson.fromJson(total.toString(), LocalData.class);
-            if (localData == null || localData.saveFileVersion != latestSaveFileVersion)
-                throw new Exception("Saved File is not compatible.");
-            LocalData.setInstance(localData);
+            localData = gson.fromJson(json, LocalData.class);
+            if (localData == null || localData.saveFileVersion != latestSaveFileVersion) {
+                localData = DataVersionCompat.createLocalData(json);
+            }
 
-            //Lösche vergangene Events
-            Calendar heute = Calendar.getInstance();
-            List<Event> eventList = LocalData.getInstance().getNoFachEvents();
+        } catch (Exception e) {
+
+            e.printStackTrace();
+            localData = DataVersionCompat.createLocalData(json);
+        }
+
+        if (localData == null) {
+            listener.onError(new Throwable("Fehler beim lesen der Datei"));
+            return;
+        }
+
+        LocalData.setInstance(localData);
+
+        //Lösche vergangene Events
+        Calendar heute = Calendar.getInstance();
+        List<Event> eventList = LocalData.getInstance().getNoFachEvents();
+        for (int i = 0; i < eventList.size(); i++) {
+            Event e = eventList.get(i);
+            if (e.isDeleteWhenElapsed() && Utilities.compareDays(heute.getTime(), e.getDatum()) > 0) {
+                eventList.remove(i);
+                i--;
+            }
+        }
+        for (Fach f : LocalData.getInstance().getFächer()) {
+            eventList = f.getEvents();
             for (int i = 0; i < eventList.size(); i++) {
                 Event e = eventList.get(i);
                 if (e.isDeleteWhenElapsed() && Utilities.compareDays(heute.getTime(), e.getDatum()) > 0) {
@@ -120,23 +148,19 @@ public class LocalData {
                     i--;
                 }
             }
-            for (Fach f : LocalData.getInstance().getFächer()) {
-                eventList = f.getEvents();
-                for (int i = 0; i < eventList.size(); i++) {
-                    Event e = eventList.get(i);
-                    if (e.isDeleteWhenElapsed() && Utilities.compareDays(heute.getTime(), e.getDatum()) > 0) {
-                        eventList.remove(i);
-                        i--;
-                    }
-                }
-            }
-
-            listener.onDataCreated();
-
-        } catch (Exception e) {
-
-            listener.onError(e);
         }
+
+        //Lösche vergangene Ferien
+        List<Ferien> ferienList = LocalData.getInstance().getFerien();
+        for (int i = 0; i < ferienList.size(); i++) {
+            Ferien ferien = ferienList.get(i);
+            if (Utilities.compareDays(heute.getTime(), ferien.getEndDate()) > 0) {
+                ferienList.remove(i);
+                i--;
+            }
+        }
+
+        listener.onDataCreated();
 
     }
 
@@ -538,6 +562,53 @@ public class LocalData {
         EventBus.getDefault().post(new FaecherUpdateEvent());
         LocalData.saveToFile(context.getApplicationContext());
 
+    }
+
+    public void addFreieTageToFerien() {
+
+        final SimpleDateFormat dateFormat = new SimpleDateFormat(VertretungsAPI.getFreieTageDateFormat(), Locale.GERMANY);
+
+        //Lokale Kopie die sortiert werden kann
+        List<Date> freieTage = new ArrayList<>();
+        for (String dateString : VertretungsData.getInstance().getFreieTageList()) {
+            try {
+                Date date = dateFormat.parse(dateString);
+                freieTage.add(date);
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
+        }
+        Collections.sort(freieTage);
+
+        Calendar heute = Calendar.getInstance();
+        for (Date freierTag : freieTage) {
+
+            if (isFerien(freierTag)) continue;
+            if (Utilities.compareDays(heute.getTime(), freierTag) > 0) continue;
+
+            //Berechnet den Tag vor dem freien Tag
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTime(freierTag);
+            if (calendar.get(Calendar.DAY_OF_WEEK) == Calendar.MONDAY)
+                calendar.add(Calendar.DATE, -3);
+            else calendar.add(Calendar.DATE, -1);
+            Date prevDay = calendar.getTime();
+
+            //Wenn Tag davor Ferien -> freien Tag hinzufügen
+            boolean shouldCreateNewFerien = true;
+            for (Ferien f : ferien) {
+                if (Utilities.compareDays(prevDay, f.getStartDate()) >= 0 && Utilities.compareDays(prevDay, f.getEndDate()) <= 0) {
+                    shouldCreateNewFerien = false;
+                    f.setEndDate(freierTag);
+                    break;
+                }
+            }
+            //Wenn Tag davor keine Ferien, neue Ferien hinzufügen
+            if (shouldCreateNewFerien)
+                LocalData.getInstance().getFerien().add(new Ferien(freierTag, freierTag, "Schulfrei"));
+
+        }
+        LocalData.getInstance().sortFerien();
     }
 
     public interface CreateDataFromFileListener {

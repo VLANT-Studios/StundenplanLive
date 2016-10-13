@@ -136,7 +136,7 @@ public class StundenplanPageFragment extends Fragment implements StundenPlanRecy
             adapter = StundenPlanRecyclerAdapter.newVertretungsplanInstance(tagList.get(position), meinKlassenString, nichtKurse);
         else if (mode == StundenplanFragment.MODE_ALGVERTRETUNGSPLAN)
             adapter = StundenPlanRecyclerAdapter.newAllgvertretungsplanInstance(tagList.get(position));
-        else
+        else //KLASSENPLAN
             adapter = StundenPlanRecyclerAdapter.newKlassenplanplanInstance(tagList.get(position), klassenPlanIndex);
         recyclerView.setAdapter(adapter);
 

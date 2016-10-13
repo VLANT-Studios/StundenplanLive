@@ -9,6 +9,7 @@ import android.widget.TextView;
 
 import com.ms.square.android.expandabletextview.ExpandableTextView;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -178,9 +179,8 @@ public class EventRecyclerAdapter extends RecyclerView.Adapter<EventRecyclerAdap
 
     private String getDateString(Date datum) {
 
-        Calendar c = Calendar.getInstance();
-        c.setTime(datum); //Montag, 12. September 2016
-        return c.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.LONG, Locale.GERMAN) + ", " + c.get(Calendar.DAY_OF_MONTH) + ". " + c.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale.GERMAN) + " " + c.get(Calendar.YEAR);
+        SimpleDateFormat dateFormat = new SimpleDateFormat("EEEE, dd. MMMM yyyy", Locale.GERMAN);
+        return dateFormat.format(datum);
     }
 
     @Override

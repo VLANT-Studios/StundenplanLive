@@ -3,8 +3,12 @@ package de.conradowatz.jkgvertretung.variables;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Locale;
+
+import de.conradowatz.jkgvertretung.tools.Utilities;
 
 public class Ferien implements Parcelable {
 
@@ -60,6 +64,15 @@ public class Ferien implements Parcelable {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getDateString() {
+
+        SimpleDateFormat dateFormat = new SimpleDateFormat("dd. MMMM yyyy", Locale.GERMAN);
+        if (Utilities.compareDays(startDate, endDate) == 0)
+            return String.format("am %s", dateFormat.format(startDate));
+        else
+            return String.format("vom %s\n\tbis %s", dateFormat.format(startDate), dateFormat.format(endDate));
     }
 
     @Override

@@ -43,6 +43,7 @@ import de.conradowatz.jkgvertretung.events.KlassenlistUpdatedEvent;
 import de.conradowatz.jkgvertretung.events.KursChangedEvent;
 import de.conradowatz.jkgvertretung.events.NotenChangedEvent;
 import de.conradowatz.jkgvertretung.events.PermissionGrantedEvent;
+import de.conradowatz.jkgvertretung.tools.DataVersionCompat;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.tools.PreferenceHelper;
 import de.conradowatz.jkgvertretung.tools.Utilities;
@@ -240,6 +241,8 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
 
                 isBackupImportDialog = false;
 
+                String json = "";
+                Backup backup;
                 try {
                     FileInputStream inputStream = new FileInputStream(backupFiles.get(backupIndex));
                     BufferedReader r = new BufferedReader(new InputStreamReader(inputStream));
@@ -248,46 +251,53 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
                     while ((line = r.readLine()) != null) {
                         total.append(line);
                     }
+                    json = total.toString();
 
                     Gson gson = Utilities.getDefaultGson();
-                    Backup backup = gson.fromJson(total.toString(), Backup.class);
+                    backup = gson.fromJson(json, Backup.class);
                     if (backup == null || backup.getSaveFileVersion() != Backup.latestSaveFileVersion) {
-                        Toast.makeText(getActivity(), "Backup Datei inkompatibel.", Toast.LENGTH_SHORT).show();
-                        return;
+                        backup = DataVersionCompat.createBackupData(json);
                     }
-
-                    VertretungsData.setInstance(backup.getVertretungsData());
-                    //Löscht veraltete Tage
-                    Calendar heute = Calendar.getInstance();
-                    for (int i = 0; i < VertretungsData.getInstance().getTagList().size(); i++) {
-                        Calendar tagCalendar = Calendar.getInstance();
-                        tagCalendar.setTime(VertretungsData.getInstance().getTagList().get(i).getDatum());
-                        if (Utilities.compareDays(tagCalendar, heute) < 0) {
-                            VertretungsData.getInstance().getTagList().remove(i);
-                            i--;
-                        }
-                    }
-                    VertretungsData.saveDataToFile(getActivity().getApplicationContext());
-                    LocalData.deleteNotificationAlarms(getActivity().getApplicationContext());
-                    LocalData.setInstance(backup.getLocalData());
-                    LocalData.saveToFile(getActivity().getApplicationContext());
-                    LocalData.recreateNotificationAlarms(getActivity().getApplicationContext());
-                    PreferenceHelper.setSharedPrefrencesFromBackup(getActivity().getApplicationContext(), backup.getSharedPreferences());
-
-                    //Events
-                    eventBus.post(new EventsChangedEvent());
-                    eventBus.post(new FaecherUpdateEvent());
-                    eventBus.post(new FerienChangedEvent());
-                    eventBus.post(new KlassenlistUpdatedEvent());
-                    eventBus.post(new KursChangedEvent());
-                    eventBus.post(new NotenChangedEvent());
-
-                    Toast.makeText(getActivity(), "Backup erfolgreich importiert.", Toast.LENGTH_SHORT).show();
-
                 } catch (Exception e) {
-                    Toast.makeText(getActivity(), "Backup Datei inkompatibel!", Toast.LENGTH_SHORT).show();
+
                     e.printStackTrace();
+                    backup = DataVersionCompat.createBackupData(json);
                 }
+
+                if (backup == null) {
+                    Toast.makeText(getActivity(), "Backup Datei inkompatibel!", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                VertretungsData.setInstance(backup.getVertretungsData());
+                //Löscht veraltete Tage
+                Calendar heute = Calendar.getInstance();
+                for (int i = 0; i < VertretungsData.getInstance().getTagList().size(); i++) {
+                    Calendar tagCalendar = Calendar.getInstance();
+                    tagCalendar.setTime(VertretungsData.getInstance().getTagList().get(i).getDatum());
+                    if (Utilities.compareDays(tagCalendar, heute) < 0) {
+                        VertretungsData.getInstance().getTagList().remove(i);
+                        i--;
+                    }
+                }
+                VertretungsData.saveDataToFile(getActivity().getApplicationContext());
+                LocalData.deleteNotificationAlarms(getActivity().getApplicationContext());
+                LocalData.setInstance(backup.getLocalData());
+                LocalData.saveToFile(getActivity().getApplicationContext());
+                LocalData.recreateNotificationAlarms(getActivity().getApplicationContext());
+                PreferenceHelper.setSharedPrefrencesFromBackup(getActivity().getApplicationContext(), backup.getSharedPreferences());
+
+                //Events
+                eventBus.post(new EventsChangedEvent());
+                eventBus.post(new FaecherUpdateEvent());
+                eventBus.post(new FerienChangedEvent());
+                eventBus.post(new KlassenlistUpdatedEvent());
+                eventBus.post(new KursChangedEvent());
+                eventBus.post(new NotenChangedEvent());
+
+                Toast.makeText(getActivity(), "Backup erfolgreich importiert.", Toast.LENGTH_SHORT).show();
+
+
             }
         });
         dialogBuilder.setNeutralButton("Abbrechen", new DialogInterface.OnClickListener() {

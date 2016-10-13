@@ -7,7 +7,7 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import java.util.Calendar;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -73,16 +73,14 @@ public class ReminderRecyclerAdapter extends RecyclerView.Adapter<ReminderRecycl
 
     private String makeDateString(Date date) {
 
-        Calendar c = Calendar.getInstance();
-        c.setTime(date);
-        return c.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.SHORT, Locale.GERMAN) + ", " + c.get(Calendar.DAY_OF_MONTH) + ". " + c.getDisplayName(Calendar.MONTH, Calendar.SHORT, Locale.GERMAN) + " " + c.get(Calendar.YEAR);
+        SimpleDateFormat dateFormat = new SimpleDateFormat("EE, dd. MMM yyyy", Locale.GERMAN);
+        return dateFormat.format(date);
     }
 
     private String makeTimeString(Date date) {
 
-        Calendar c = Calendar.getInstance();
-        c.setTime(date);
-        return String.format(Locale.GERMANY, "%02d:%02d", c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE));
+        SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm", Locale.GERMAN);
+        return dateFormat.format(date);
     }
 
     @Override

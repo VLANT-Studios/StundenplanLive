@@ -27,6 +27,7 @@ import android.widget.Toast;
 
 import org.greenrobot.eventbus.EventBus;
 
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
@@ -142,7 +143,7 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
 
     private void setUpTexts() {
 
-        nameEdit.setText(event.getTitle());
+        nameEdit.append(event.getTitle());
         nameEdit.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
@@ -324,9 +325,8 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
 
     private String makeDateString(Date date) {
 
-        Calendar c = Calendar.getInstance();
-        c.setTime(date);
-        return c.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.SHORT, Locale.GERMAN) + ", " + c.get(Calendar.DAY_OF_MONTH) + ". " + c.getDisplayName(Calendar.MONTH, Calendar.SHORT, Locale.GERMAN) + " " + c.get(Calendar.YEAR);
+        SimpleDateFormat dateFormat = new SimpleDateFormat("EE, dd. MMM yyyy", Locale.GERMAN);
+        return dateFormat.format(date);
     }
 
     @Override

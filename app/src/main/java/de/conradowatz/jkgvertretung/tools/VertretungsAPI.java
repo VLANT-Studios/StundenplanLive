@@ -95,11 +95,14 @@ public class VertretungsAPI {
      */
     public static boolean isntSchoolDay(Date date) {
 
-        String dateString = new SimpleDateFormat("yyMMdd", Locale.GERMAN).format(date);
-
         int dayOfWeek = Utilities.getDayOfWeek(date);
 
-        return (dayOfWeek >= 6 || VertretungsData.getInstance().getFreieTageList().contains(dateString) || LocalData.getInstance().isFerien(date));
+        return (dayOfWeek >= 6 || LocalData.getInstance().isFerien(date));
+    }
+
+    public static String getFreieTageDateFormat() {
+
+        return "yyMMdd";
     }
 
     /**
@@ -131,6 +134,8 @@ public class VertretungsAPI {
                 //freie Tage
                 try {
                     vertretungsData.setFreieTageList(makeFreieTage(response));
+                    LocalData.getInstance().addFreieTageToFerien();
+                    LocalData.saveToFile(context);
                 } catch (Exception e) {
                     downloadAllDataResponseListener.onOtherError(e);
                     return;

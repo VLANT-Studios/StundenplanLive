@@ -21,6 +21,7 @@ import android.widget.Toast;
 
 import org.greenrobot.eventbus.EventBus;
 
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
@@ -103,7 +104,7 @@ public class FerienActivity extends AppCompatActivity {
 
     private void setUpTexts() {
 
-        nameEdit.setText(ferien.getName());
+        nameEdit.append(ferien.getName());
         nameEdit.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
@@ -180,9 +181,8 @@ public class FerienActivity extends AppCompatActivity {
 
     private String makeDateString(Date date) {
 
-        Calendar c = Calendar.getInstance();
-        c.setTime(date);
-        return c.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.SHORT, Locale.GERMAN) + ", " + c.get(Calendar.DAY_OF_MONTH) + ". " + c.getDisplayName(Calendar.MONTH, Calendar.SHORT, Locale.GERMAN) + " " + c.get(Calendar.YEAR);
+        SimpleDateFormat dateFormat = new SimpleDateFormat("EE, dd. MMM yyyy", Locale.GERMAN);
+        return dateFormat.format(date);
     }
 
     @Override
@@ -274,8 +274,13 @@ public class FerienActivity extends AppCompatActivity {
             Toast.makeText(this, "Ferienname darf nicht leer sein!", Toast.LENGTH_SHORT).show();
             return false;
         }
+        Calendar heute = Calendar.getInstance();
         if (Utilities.compareDays(ferien.getStartDate(), ferien.getEndDate()) > 0) {
             Toast.makeText(this, "Das Enddatum muss hinter dem Startdatum liegen!", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        if (Utilities.compareDays(heute.getTime(), ferien.getEndDate()) > 0) {
+            Toast.makeText(this, "Ferien können nicht in der Vergangenheit erstellt werden!", Toast.LENGTH_SHORT).show();
             return false;
         }
 
