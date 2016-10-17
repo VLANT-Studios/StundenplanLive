@@ -6,7 +6,7 @@ public class EventsChangedEvent {
     public static final int TYPE_CHANGED = 0;
 
     private int recyclerIndex = -1;
-    private int type = TYPE_CHANGED;
+    private int type;
     private boolean removeAbove = false;
 
     public EventsChangedEvent(int type, int recyclerIndex) {

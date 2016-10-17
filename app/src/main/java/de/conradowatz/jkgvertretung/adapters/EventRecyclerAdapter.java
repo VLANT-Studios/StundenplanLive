@@ -20,6 +20,7 @@ import java.util.Locale;
 
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.events.EventsChangedEvent;
+import de.conradowatz.jkgvertretung.events.FerienChangedEvent;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.tools.Utilities;
 import de.conradowatz.jkgvertretung.variables.Event;
@@ -49,11 +50,15 @@ public class EventRecyclerAdapter extends RecyclerView.Adapter<EventRecyclerAdap
     public void notifyEventsChanged(EventsChangedEvent event) {
 
         sortData();
-        if (event.getType() == EventsChangedEvent.TYPE_CHANGED) {
-            notifyDataSetChanged();
-        } else if (event.getType() == EventsChangedEvent.TYPE_REMOVED) {
-            if (event.isRemoveAbove()) notifyItemRemoved(event.getRecyclerIndex() - 1);
-            notifyItemRemoved(event.getRecyclerIndex());
+
+        switch (event.getType()) {
+            case FerienChangedEvent.TYPE_CHANGED:
+                notifyDataSetChanged();
+                break;
+            case FerienChangedEvent.TYPE_REMOVED:
+                if (event.isRemoveAbove()) notifyItemRemoved(event.getRecyclerIndex() - 1);
+                notifyItemRemoved(event.getRecyclerIndex());
+                break;
         }
     }
 
@@ -142,14 +147,11 @@ public class EventRecyclerAdapter extends RecyclerView.Adapter<EventRecyclerAdap
         if (!isDivider[position]) {
 
             Calendar cNow = Calendar.getInstance();
-            Calendar cEvent = Calendar.getInstance();
-            cEvent.setTime(e.getDatum());
 
-            int compareNumber = Utilities.compareDays(cEvent, cNow);
+            int compareNumber = Utilities.compareDays(e.getDatum(), cNow.getTime());
 
             if (compareNumber > 0)
-                holder.infoText.setText("in " + Math.abs(cNow.get(Calendar.DAY_OF_YEAR) - cEvent.get(Calendar.DAY_OF_YEAR)) + " Tag(en)");
-            else if (compareNumber == 0) holder.infoText.setText("heute");
+                holder.infoText.setText(Utilities.dayDifferenceToString(Utilities.getDayDifference(cNow.getTime(), e.getDatum())));
             else holder.infoText.setText("vergangen");
 
             holder.fachText.setText(e.getFachName());
@@ -187,6 +189,28 @@ public class EventRecyclerAdapter extends RecyclerView.Adapter<EventRecyclerAdap
     public int getItemViewType(int position) {
 
         return isDivider[position] ? VIEWTYPE_DIVIDER : VIEWTYPE_EVENT;
+    }
+
+    @Override
+    public long getItemId(int position) {
+
+        int eventPos;
+
+        if (position == 0 || position == 1) { //Erster Divider
+            eventPos = 0;
+        } else { //Alle andern durch zählen herausfinden
+            int divCount = 0;
+            for (int i = 2; i < position; i++) if (isDivider[i]) divCount++;
+            eventPos = position - 1 - divCount;
+        }
+
+        final Event e = eventList.get(eventPos);
+
+        if (!isDivider[position]) {
+            return e.hashCode();
+        } else {
+            return e.getDatum().hashCode();
+        }
     }
 
     @Override

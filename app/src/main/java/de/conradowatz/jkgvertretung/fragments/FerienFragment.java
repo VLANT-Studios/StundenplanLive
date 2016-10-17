@@ -61,7 +61,15 @@ public class FerienFragment extends Fragment implements FerienRecyclerAdapter.Ca
 
     @Subscribe
     public void onEvent(FerienChangedEvent event) {
-        recyclerView.getAdapter().notifyDataSetChanged();
+
+        switch (event.getType()) {
+            case FerienChangedEvent.TYPE_CHANGED:
+                recyclerView.getAdapter().notifyDataSetChanged();
+                break;
+            case FerienChangedEvent.TYPE_REMOVED:
+                recyclerView.getAdapter().notifyItemRemoved(event.getRecyclerIndex());
+                break;
+        }
     }
 
     @Override
@@ -97,7 +105,7 @@ public class FerienFragment extends Fragment implements FerienRecyclerAdapter.Ca
 
                 LocalData.getInstance().getFerien().remove(ferienIndex);
                 LocalData.saveToFile(getActivity().getApplicationContext());
-                eventBus.post(new FerienChangedEvent());
+                eventBus.post(new FerienChangedEvent(FerienChangedEvent.TYPE_REMOVED, ferienIndex));
             }
         });
         dialogBuilder.setNegativeButton("Abbrechen", new DialogInterface.OnClickListener() {

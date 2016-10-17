@@ -7,6 +7,7 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import java.util.Calendar;
+import java.util.Locale;
 
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.tools.LocalData;
@@ -31,19 +32,18 @@ public class FerienRecyclerAdapter extends RecyclerView.Adapter<FerienRecyclerAd
     @Override
     public void onBindViewHolder(final ViewHolder holder, int position) {
 
-        Ferien ferien = LocalData.getInstance().getFerien().get(holder.getAdapterPosition());
+        Ferien ferien = LocalData.getInstance().getFerien().get(position);
         Calendar cNow = Calendar.getInstance();
-        Calendar cFbegin = Calendar.getInstance();
-        Calendar cFend = Calendar.getInstance();
-        cFbegin.setTime(ferien.getStartDate());
-        cFend.setTime(ferien.getEndDate());
 
         holder.nameText.setText(ferien.getName());
-        if (Utilities.compareDays(cFbegin, cNow) > 0)
-            holder.infoText.setText("in " + Math.abs(cNow.get(Calendar.DAY_OF_YEAR) - cFbegin.get(Calendar.DAY_OF_YEAR)) + " Tag(en)");
-        else if (Utilities.compareDays(cFend, cNow) >= 0)
-            holder.infoText.setText("noch " + Math.abs(cNow.get(Calendar.DAY_OF_YEAR) - cFend.get(Calendar.DAY_OF_YEAR)) + " Tag(e)");
-        else holder.infoText.setText("vergangen");
+        if (Utilities.compareDays(ferien.getStartDate(), cNow.getTime()) > 0) {
+            holder.infoText.setText(Utilities.dayDifferenceToString(Utilities.getDayDifference(cNow.getTime(), ferien.getStartDate())));
+        } else if (Utilities.compareDays(ferien.getEndDate(), cNow.getTime()) >= 0) {
+            int dayDiff = Utilities.getDayDifference(cNow.getTime(), ferien.getStartDate());
+            if (dayDiff == 1)
+                holder.infoText.setText(String.format(Locale.GERMANY, "noch %s Tage", dayDiff));
+            else holder.infoText.setText(String.format(Locale.GERMANY, "noch %s Tagee", dayDiff));
+        } else holder.infoText.setText("vergangen");
 
         holder.dateText.setText(ferien.getDateString());
 
@@ -65,6 +65,13 @@ public class FerienRecyclerAdapter extends RecyclerView.Adapter<FerienRecyclerAd
     @Override
     public int getItemCount() {
         return LocalData.getInstance().getFerien().size();
+    }
+
+    @Override
+    public long getItemId(int position) {
+
+        Ferien ferien = LocalData.getInstance().getFerien().get(position);
+        return ferien.hashCode();
     }
 
     public interface Callback {

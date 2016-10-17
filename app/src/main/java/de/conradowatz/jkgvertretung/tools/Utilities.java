@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Locale;
 
 public class Utilities {
 
@@ -69,6 +70,53 @@ public class Utilities {
                 return 7;
         }
         return 0;
+    }
+
+    public static int getDayDifference(Date date1, Date date2) {
+
+        Calendar day1 = Calendar.getInstance();
+        Calendar day2 = Calendar.getInstance();
+        day1.setTime(date1);
+        day2.setTime(date2);
+
+        return getDayDifference(day1, day2);
+
+    }
+
+    public static int getDayDifference(Calendar day1, Calendar day2) {
+
+        //day1 kommt vor day2
+        int compareDays = compareDays(day1, day2);
+        if (compareDays == 0) return 0;
+        else if (compareDays > 1) {
+            Calendar temp = day1;
+            day1 = day2;
+            day2 = temp;
+        }
+
+        int yearDiff = day2.get(Calendar.YEAR) - day1.get(Calendar.YEAR);
+        if (yearDiff == 0) {
+
+            return day2.get(Calendar.DAY_OF_YEAR) - day1.get(Calendar.DAY_OF_YEAR);
+
+        } else {
+
+            int diff = day1.getActualMaximum(Calendar.DAY_OF_YEAR) - day1.get(Calendar.DAY_OF_YEAR) + day2.get(Calendar.DAY_OF_YEAR);
+            for (int i = 0; i < yearDiff - 1; i++) {
+                day1.add(Calendar.YEAR, 1);
+                diff += day1.getActualMaximum(Calendar.DAY_OF_YEAR);
+            }
+            return diff;
+
+        }
+
+    }
+
+    public static String dayDifferenceToString(int diff) {
+
+        if (diff == 0) return "heute";
+        if (diff == 1) return "morgen";
+        return String.format(Locale.GERMANY, "in %s Tagen", diff);
     }
 
     public static Gson getDefaultGson() {
