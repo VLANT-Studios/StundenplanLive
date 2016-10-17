@@ -41,8 +41,8 @@ public class FerienRecyclerAdapter extends RecyclerView.Adapter<FerienRecyclerAd
         } else if (Utilities.compareDays(ferien.getEndDate(), cNow.getTime()) >= 0) {
             int dayDiff = Utilities.getDayDifference(cNow.getTime(), ferien.getStartDate());
             if (dayDiff == 1)
-                holder.infoText.setText(String.format(Locale.GERMANY, "noch %s Tage", dayDiff));
-            else holder.infoText.setText(String.format(Locale.GERMANY, "noch %s Tagee", dayDiff));
+                holder.infoText.setText("noch 1 Tag");
+            else holder.infoText.setText(String.format(Locale.GERMANY, "noch %s Tage", dayDiff));
         } else holder.infoText.setText("vergangen");
 
         holder.dateText.setText(ferien.getDateString());
