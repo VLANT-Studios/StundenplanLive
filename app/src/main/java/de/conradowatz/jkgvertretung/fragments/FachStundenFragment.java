@@ -83,7 +83,7 @@ public class FachStundenFragment extends Fragment implements FachStundenRecycler
     private void setUpRecycler() {
 
         int state = wochenSpinner.getSelectedItemPosition();
-        final FachStundenRecyclerAdapter adapter = new FachStundenRecyclerAdapter(getActivity().getApplicationContext(), fach, state, this);
+        final FachStundenRecyclerAdapter adapter = new FachStundenRecyclerAdapter(fach, state, this);
 
         GridLayoutManager layoutManager = new GridLayoutManager(getActivity(), 16); //3 pro Stunde, 1 pro Label = 21
         layoutManager.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {

@@ -1,6 +1,5 @@
 package de.conradowatz.jkgvertretung.adapters;
 
-import android.content.Context;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -19,15 +18,16 @@ public class FachStundenRecyclerAdapter extends RecyclerView.Adapter<FachStunden
     private static final int TYPE_TOP = 0;
     private static final int TYPE_NORMAL = 2;
 
-    private Context context;
     private Fach fach;
+    private int state;
     private boolean[][] stunden;
+    private boolean[][] stundenB; //nur bei state==IMMER genutzt
     private boolean[][] belegt;
     private Callback callback;
 
-    public FachStundenRecyclerAdapter(Context context, Fach fach, int state, Callback callback) {
+    public FachStundenRecyclerAdapter(Fach fach, int state, Callback callback) {
 
-        this.context = context;
+        this.state = state;
         if (state != FachStundenFragment.STATE_IMMER) {
             stunden = fach.getStunden(state == FachStundenFragment.STATE_AWOCHE);
             belegt = LocalData.getBelegteStunden(fach, state == FachStundenFragment.STATE_AWOCHE);
@@ -42,12 +42,14 @@ public class FachStundenRecyclerAdapter extends RecyclerView.Adapter<FachStunden
     public void calculateStateImmer() {
 
         stunden = new boolean[5][9];
+        stundenB = new boolean[5][9];
         belegt = new boolean[5][9];
         boolean[][] belegtCalcA = LocalData.getBelegteStunden(fach, true);
         boolean[][] belegtCalcB = LocalData.getBelegteStunden(fach, false);
         for (int i = 0; i < 5; i++) {
             for (int j = 0; j < 9; j++) {
-                stunden[i][j] = fach.getaStunden()[i][j] && fach.getbStunden()[i][j];
+                stunden[i][j] = fach.getaStunden()[i][j];
+                stundenB[i][j] = fach.getbStunden()[i][j];
                 belegt[i][j] = belegtCalcA[i][j] || belegtCalcB[i][j];
             }
         }
@@ -77,7 +79,9 @@ public class FachStundenRecyclerAdapter extends RecyclerView.Adapter<FachStunden
         int viewType = getItemViewType(holder.getAdapterPosition());
         if (viewType == TYPE_NORMAL) {
             final int[] i = getItemPosition(holder.getAdapterPosition());
-            if (stunden[i[0]][i[1]]) {
+
+            holder.wocheText.setText("");
+            if ((state != FachStundenFragment.STATE_IMMER && stunden[i[0]][i[1]]) || (state == FachStundenFragment.STATE_IMMER && stunden[i[0]][i[1]] && stundenB[i[0]][i[1]])) {
                 holder.backgroundView.setBackgroundResource(R.drawable.round_shape_yellow);
                 holder.imageView.setImageResource(R.drawable.ic_done);
                 holder.imageView.setOnClickListener(new View.OnClickListener() {
@@ -104,12 +108,21 @@ public class FachStundenRecyclerAdapter extends RecyclerView.Adapter<FachStunden
                         callback.onNewStunde(i[0], i[1], holder.getAdapterPosition());
                     }
                 });
+                if (state == FachStundenFragment.STATE_IMMER) {
+                    if (stunden[i[0]][i[1]]) holder.wocheText.setText("A");
+                    if (stundenB[i[0]][i[1]]) holder.wocheText.setText("B");
+                }
             }
-        } else if (viewType == TYPE_LEFT) {
+
+        } else if (viewType == TYPE_LEFT)
+
+        {
             int stunde = (int) Math.floor(holder.getAdapterPosition() / 6);
             if (stunde > 0) holder.textView.setText(String.valueOf(stunde));
             else holder.textView.setText("");
-        } else if (viewType == TYPE_TOP) {
+        } else if (viewType == TYPE_TOP)
+
+        {
             int tag = holder.getAdapterPosition() % 6 - 1;
             String tagString = "";
             switch (tag) {
@@ -170,6 +183,7 @@ public class FachStundenRecyclerAdapter extends RecyclerView.Adapter<FachStunden
         ImageView imageView;
         View backgroundView;
         TextView textView;
+        TextView wocheText;
 
         public ViewHolder(View itemView, int viewType) {
             super(itemView);
@@ -177,6 +191,7 @@ public class FachStundenRecyclerAdapter extends RecyclerView.Adapter<FachStunden
             else {
                 imageView = (ImageView) itemView.findViewById(R.id.imageView);
                 backgroundView = itemView.findViewById(R.id.backgroundView);
+                wocheText = (TextView) itemView.findViewById(R.id.wocheText);
             }
         }
     }

@@ -71,8 +71,10 @@ public class EventRecyclerAdapter extends RecyclerView.Adapter<EventRecyclerAdap
 
         if (fach != null) {
             eventList = fach.getEvents();
+            int fachIndex = LocalData.getInstance().getFächer().indexOf(fach);
             for (Event e : eventList) {
                 e.setFachName(fach.getName());
+                e.setFachIndex(fachIndex);
             }
         } else {
             eventList = new ArrayList<>();

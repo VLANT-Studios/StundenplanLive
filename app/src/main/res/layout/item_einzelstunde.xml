@@ -16,4 +16,13 @@
         android:padding="5dp"
         android:src="@drawable/ic_done" />
 
+    <TextView
+        android:id="@+id/wocheText"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:text="A"
+        android:textColor="@color/primary_text"
+        android:textSize="30sp" />
+
 </FrameLayout>

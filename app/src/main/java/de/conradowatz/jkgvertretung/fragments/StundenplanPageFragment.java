@@ -29,6 +29,7 @@ import de.conradowatz.jkgvertretung.events.DataReadyEvent;
 import de.conradowatz.jkgvertretung.events.DayUpdatedEvent;
 import de.conradowatz.jkgvertretung.events.EventsChangedEvent;
 import de.conradowatz.jkgvertretung.events.FaecherUpdateEvent;
+import de.conradowatz.jkgvertretung.events.KursChangedEvent;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.tools.PreferenceHelper;
 import de.conradowatz.jkgvertretung.tools.VertretungsData;
@@ -176,7 +177,13 @@ public class StundenplanPageFragment extends Fragment implements StundenPlanRecy
     @Subscribe
     public void onEvent(FaecherUpdateEvent event) {
 
-        setUpRecycler();
+        if (recyclerView != null) setUpRecycler();
+    }
+
+    @Subscribe
+    public void onEvent(KursChangedEvent event) {
+
+        if (recyclerView != null) setUpRecycler();
     }
 
     @Override
