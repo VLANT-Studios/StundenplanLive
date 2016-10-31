@@ -8,7 +8,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
-public class Event implements Parcelable {
+public class Event extends Termin implements Parcelable {
 
     public static final Creator<Event> CREATOR = new Creator<Event>() {
         @Override
@@ -83,6 +83,7 @@ public class Event implements Parcelable {
         this.fachName = fachName;
     }
 
+    @Override
     public Date getDatum() {
         return datum;
     }

@@ -265,6 +265,7 @@ public class FachActivity extends AppCompatActivity {
     @Override
     public void onBackPressed() {
         super.onBackPressed();
+
         LocalData.saveToFile(getApplicationContext());
     }
 

@@ -47,11 +47,11 @@ import de.conradowatz.jkgvertretung.events.AnalyticsEventEvent;
 import de.conradowatz.jkgvertretung.events.DayUpdatedEvent;
 import de.conradowatz.jkgvertretung.events.EventsChangedEvent;
 import de.conradowatz.jkgvertretung.events.KlassenlistUpdatedEvent;
-import de.conradowatz.jkgvertretung.fragments.EventFragment;
 import de.conradowatz.jkgvertretung.fragments.FreieZimmerFragment;
 import de.conradowatz.jkgvertretung.fragments.NotenUebersichtFragment;
 import de.conradowatz.jkgvertretung.fragments.StundenplanFragment;
 import de.conradowatz.jkgvertretung.fragments.TaskFragment;
+import de.conradowatz.jkgvertretung.fragments.TerminFragment;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.tools.PreferenceHelper;
 import de.conradowatz.jkgvertretung.tools.VertretungsData;
@@ -321,7 +321,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
             ft.replace(R.id.container, StundenplanFragment.newInstance(StundenplanFragment.MODE_VERTRETUNGSPLAN)).commit();
             toolbar.setTitle("Mein Vertretungsplan");
         } else if (identifier == 3) {
-            ft.replace(R.id.container, EventFragment.newInstance(EventFragment.MODE_ALLGEMEIN)).commit();
+            ft.replace(R.id.container, TerminFragment.newInstance(TerminFragment.MODE_ALLGEMEIN)).commit();
             toolbar.setTitle("Termine");
         } else if (identifier == 4) {
             ft.replace(R.id.container, new NotenUebersichtFragment()).commit();
@@ -670,18 +670,19 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
 
     @Override
     protected void onResume() {
+        super.onResume();
 
         isActive = true;
         if (noactiveStartscreen) {
             showStartScreen();
             noactiveStartscreen = false;
         }
-        super.onResume();
     }
 
     @Override
     protected void onPause() {
-        isActive = false;
         super.onPause();
+
+        isActive = false;
     }
 }

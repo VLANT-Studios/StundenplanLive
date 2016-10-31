@@ -142,7 +142,7 @@ public class FaecherFragment extends Fragment implements FaecherRecyclerAdapter.
                 isDeleteDialog = false;
 
                 LocalData.getInstance().getFächer().remove(fachIndex);
-                eventBus.post(new FaecherUpdateEvent(FaecherUpdateEvent.TYPE_REMOVED, fachIndex));
+                eventBus.post(new FaecherUpdateEvent());
                 LocalData.saveToFile(getActivity().getApplicationContext());
             }
         });
@@ -182,14 +182,9 @@ public class FaecherFragment extends Fragment implements FaecherRecyclerAdapter.
 
         if (recyclerView != null) {
             int faecherCount = LocalData.getInstance().getFächer().size();
-            if (event.getType() == FaecherUpdateEvent.TYPE_CHANGED)
-                if ((mode == MODE_NORMAL && faecherCount == 0) || (mode == MODE_NOFAECHER && faecherCount > 0))
-                    setUp();
-                else recyclerView.getAdapter().notifyDataSetChanged();
-            else if (event.getType() == FaecherUpdateEvent.TYPE_REMOVED)
-                if ((mode == MODE_NORMAL && faecherCount == 0) || (mode == MODE_NOFAECHER && faecherCount > 0))
-                    setUp();
-                else recyclerView.getAdapter().notifyItemRemoved(event.getRecyclerIndex());
+            if ((mode == MODE_NORMAL && faecherCount == 0) || (mode == MODE_NOFAECHER && faecherCount > 0))
+                setUp();
+            else recyclerView.getAdapter().notifyDataSetChanged();
         }
 
     }
@@ -255,7 +250,8 @@ public class FaecherFragment extends Fragment implements FaecherRecyclerAdapter.
 
     @Override
     public void onDestroyView() {
-        eventBus.unregister(this);
         super.onDestroyView();
+
+        eventBus.unregister(this);
     }
 }

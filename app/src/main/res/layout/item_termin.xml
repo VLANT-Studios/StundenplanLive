@@ -27,12 +27,12 @@
                 android:textSize="20sp" />
 
             <TextView
-                android:id="@+id/fachText"
+                android:id="@+id/titleText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginRight="5dp"
                 android:layout_toLeftOf="@id/infoText"
-                android:text="Englisch"
+                android:text="EN1: Hausaufgabe"
                 android:textColor="@color/primary_text"
                 android:textSize="20sp"
                 android:textStyle="bold" />
@@ -46,14 +46,6 @@
             android:layout_marginBottom="10dp"
             android:layout_marginTop="10dp"
             android:background="@color/divider" />
-
-        <TextView
-            android:id="@+id/titleText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Hausaufgabe"
-            android:textColor="@color/primary_text"
-            android:textSize="18sp" />
 
         <com.ms.square.android.expandabletextview.ExpandableTextView
             android:id="@+id/descText"
@@ -91,7 +83,7 @@
                 android:layout_height="wrap_content"
                 android:foreground="?android:attr/selectableItemBackground"
                 android:padding="10dp"
-                android:text="BEARBEITEN"
+                android:text="@string/bearbeiten_button"
                 android:textColor="@android:color/black"
                 android:textSize="15sp"
                 android:textStyle="bold" />
@@ -102,7 +94,7 @@
                 android:layout_height="wrap_content"
                 android:foreground="?android:attr/selectableItemBackground"
                 android:padding="10dp"
-                android:text="LÖSCHEN"
+                android:text="@string/loeschen_button"
                 android:textColor="@color/warn_text"
                 android:textSize="15sp"
                 android:textStyle="bold" />

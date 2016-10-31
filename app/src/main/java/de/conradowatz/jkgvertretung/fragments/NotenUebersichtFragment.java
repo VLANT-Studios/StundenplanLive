@@ -10,6 +10,8 @@ import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.TextView;
 
 import org.greenrobot.eventbus.EventBus;
@@ -25,11 +27,13 @@ import de.conradowatz.jkgvertretung.events.AnalyticsScreenHitEvent;
 import de.conradowatz.jkgvertretung.events.KursChangedEvent;
 import de.conradowatz.jkgvertretung.events.NotenChangedEvent;
 import de.conradowatz.jkgvertretung.tools.LocalData;
+import de.conradowatz.jkgvertretung.tools.PreferenceHelper;
 import de.conradowatz.jkgvertretung.variables.Fach;
 
 public class NotenUebersichtFragment extends Fragment implements NotenUebersichtRecyclerAdpater.Callback {
 
     private View contentView;
+    private CheckBox leistungskurseCheckbox;
     private RecyclerView recyclerView;
     private TextView durchschnittText;
     private FloatingActionButton fab;
@@ -49,6 +53,7 @@ public class NotenUebersichtFragment extends Fragment implements NotenUebersicht
 
         contentView = inflater.inflate(R.layout.fragment_notenuebersicht, container, false);
 
+        leistungskurseCheckbox = (CheckBox) contentView.findViewById(R.id.leistungskurseCheckbox);
         recyclerView = (RecyclerView) contentView.findViewById(R.id.recyclerView);
         durchschnittText = (TextView) contentView.findViewById(R.id.durchschnittText);
         fab = (FloatingActionButton) contentView.findViewById(R.id.fab);
@@ -83,17 +88,24 @@ public class NotenUebersichtFragment extends Fragment implements NotenUebersicht
         recyclerView.setLayoutManager(layoutManager);
         recyclerView.setAdapter(adpater);
 
-        double gesamtAverage = 0;
-        int n = 0;
-        for (Fach f : LocalData.getInstance().getFächer()) {
-            Double average = f.getNotenAverage();
-            if (average != null) {
-                gesamtAverage += average;
-                n++;
-            }
-        }
-        if (n > 0) gesamtAverage /= n;
-        durchschnittText.setText(n > 0 ? new DecimalFormat("#0.00").format(gesamtAverage) : "n.A.");
+        if (LocalData.isOberstufe(getActivity().getApplicationContext())) {
+
+            leistungskurseCheckbox.setVisibility(View.VISIBLE);
+
+            boolean countLKdouble = PreferenceHelper.readBooleanFromPreferences(getActivity().getApplicationContext(), "countLKdouble", true);
+            leistungskurseCheckbox.setChecked(countLKdouble);
+            leistungskurseCheckbox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+
+                    PreferenceHelper.saveBooleanToPrefernces(getActivity().getApplicationContext(), "countLKdouble", b);
+                    calculateAverage();
+                }
+            });
+
+        } else leistungskurseCheckbox.setVisibility(View.GONE);
+
+        calculateAverage();
 
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -101,6 +113,29 @@ public class NotenUebersichtFragment extends Fragment implements NotenUebersicht
                 startManagerActivity();
             }
         });
+    }
+
+    private void calculateAverage() {
+
+        boolean countLKdouble = LocalData.isOberstufe(getActivity().getApplicationContext()) && PreferenceHelper.readBooleanFromPreferences(getActivity().getApplicationContext(), "countLKdouble", true);
+
+        double gesamtAverage = 0;
+        int n = 0;
+        for (Fach f : LocalData.getInstance().getFächer()) {
+            Double average = f.getNotenAverage();
+            if (average != null) {
+                gesamtAverage += average;
+                n++;
+
+                if (countLKdouble && f.isLeistungskurs()) { //Zählt Leistungskurse doppelt
+                    gesamtAverage += average;
+                    n++;
+                }
+            }
+        }
+        if (n > 0) gesamtAverage /= n;
+        durchschnittText.setText(n > 0 ? new DecimalFormat("#0.00").format(gesamtAverage) : "n.A.");
+
     }
 
     private void startFachActivity(int fachIndex) {

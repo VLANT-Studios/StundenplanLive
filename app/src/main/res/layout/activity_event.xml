@@ -11,17 +11,33 @@
         android:background="@color/primary"
         android:theme="@style/ToolBarStyle" />
 
-    <EditText
-        android:id="@+id/nameEdit"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/primary"
-        android:hint="Bitte Eventname eingeben..."
-        android:inputType="text"
-        android:maxLines="1"
-        android:padding="15dp"
-        android:textColor="@color/white"
-        android:textColorHint="@color/white" />
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/fachText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="10dp"
+            android:text="Englisch:"
+            android:textColor="@color/white"
+            android:textSize="18sp" />
+
+        <EditText
+            android:id="@+id/nameEdit"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/event_title_hint"
+            android:inputType="text"
+            android:maxLines="1"
+            android:padding="15dp"
+            android:textColor="@color/white"
+            android:textColorHint="@color/white" />
+
+    </LinearLayout>
 
     <FrameLayout
         android:layout_width="match_parent"
@@ -49,7 +65,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_toRightOf="@id/calendarImage"
-                    android:text="Datum:"
+                    android:text="@string/datum_title"
                     android:textSize="20sp" />
 
                 <TextView
@@ -72,7 +88,7 @@
                     android:layout_toRightOf="@id/calendarImage"
                     android:foreground="?android:attr/selectableItemBackground"
                     android:padding="5dp"
-                    android:text="(Stunde auswählen)"
+                    android:text="@string/stunde_auswaehlen"
                     android:textColor="@color/primary_text"
                     android:textSize="16sp" />
 
@@ -92,7 +108,7 @@
                     android:layout_below="@id/stundenAuswahlText"
                     android:layout_marginTop="10dp"
                     android:layout_toRightOf="@id/calendarImage"
-                    android:text="Event löschen, wenn vergangen"
+                    android:text="@string/event_delete_switch"
                     android:textSize="16sp" />
 
                 <ImageView
@@ -111,7 +127,7 @@
                     android:layout_below="@id/deleteSwitch"
                     android:layout_marginTop="10dp"
                     android:layout_toRightOf="@id/calendarImage"
-                    android:text="Beschreibung:"
+                    android:text="@string/beschreibung_title"
                     android:textSize="20sp" />
 
                 <EditText
@@ -146,7 +162,7 @@
                     android:layout_height="wrap_content"
                     android:layout_below="@id/divider"
                     android:layout_toRightOf="@id/calendarImage"
-                    android:text="Erinnerungen:"
+                    android:text="@string/erinnerungen_title"
                     android:textSize="20sp" />
 
                 <android.support.v7.widget.RecyclerView

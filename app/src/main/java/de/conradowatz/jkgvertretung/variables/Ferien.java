@@ -10,7 +10,7 @@ import java.util.Locale;
 
 import de.conradowatz.jkgvertretung.tools.Utilities;
 
-public class Ferien implements Parcelable {
+public class Ferien extends Termin implements Parcelable {
 
     public static final Creator<Ferien> CREATOR = new Creator<Ferien>() {
         @Override
@@ -88,5 +88,10 @@ public class Ferien implements Parcelable {
         parcel.writeLong(c.getTimeInMillis());
         c.setTime(endDate);
         parcel.writeLong(c.getTimeInMillis());
+    }
+
+    @Override
+    public Date getDatum() {
+        return getStartDate();
     }
 }

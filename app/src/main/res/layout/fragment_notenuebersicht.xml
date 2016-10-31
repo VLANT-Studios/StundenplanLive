@@ -17,7 +17,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Fächer"
+                android:text="@string/notenuebersicht_faecher_title"
                 android:textStyle="bold" />
 
             <android.support.v7.widget.RecyclerView
@@ -30,7 +30,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="15dp"
-                android:text="Durchschnitt"
+                android:text="@string/durchschnitt"
                 android:textStyle="bold" />
 
             <LinearLayout
@@ -42,7 +42,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Durchschnitt" />
+                    android:text="@string/durchschnitt" />
 
                 <TextView
                     android:id="@+id/durchschnittText"
@@ -52,6 +52,14 @@
                     android:text="1.0" />
 
             </LinearLayout>
+
+            <CheckBox
+                android:id="@+id/leistungskurseCheckbox"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:text="@string/notenuebersicht_lks_double_prompt"
+                android:textColor="@color/secondary_text" />
 
         </LinearLayout>
     </ScrollView>

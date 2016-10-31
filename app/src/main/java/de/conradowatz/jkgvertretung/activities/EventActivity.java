@@ -59,6 +59,7 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
     private Toolbar toolbar;
     private EditText nameEdit;
     private TextView datumText;
+    private TextView fachText;
     private TextView stundenAuswahlText;
     private EditText descEdit;
     private SwitchCompat deleteSwitch;
@@ -88,6 +89,7 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
 
         nameEdit = (EditText) findViewById(R.id.nameEdit);
         datumText = (TextView) findViewById(R.id.datumText);
+        fachText = (TextView) findViewById(R.id.fachText);
         stundenAuswahlText = (TextView) findViewById(R.id.stundenAuswahlText);
         descEdit = (EditText) findViewById(R.id.descEdit);
         deleteSwitch = (SwitchCompat) findViewById(R.id.deleteSwitch);
@@ -194,14 +196,25 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
             }
         });
 
-        if (fachInt == -1 || !LocalData.getInstance().getFächer().get(fachInt).hasStunden())
+
+        if (fachInt == -1) {
+
             stundenAuswahlText.setVisibility(View.GONE);
-        else stundenAuswahlText.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                showPickStundeDialog();
-            }
-        });
+            fachText.setVisibility(View.GONE);
+
+        } else {
+
+            Fach fach = LocalData.getInstance().getFächer().get(fachInt);
+            fachText.setText(String.format(Locale.GERMANY, "%s:", fach.getName()));
+
+            if (!fach.hasStunden()) stundenAuswahlText.setVisibility(View.GONE);
+            else stundenAuswahlText.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    showPickStundeDialog();
+                }
+            });
+        }
     }
 
     private void showPickStundeDialog() {

@@ -471,7 +471,9 @@ public class LocalData {
         Collections.sort(ferien, new Comparator<Ferien>() {
             @Override
             public int compare(Ferien f1, Ferien f2) {
-                return f1.getStartDate().compareTo(f2.getStartDate());
+                int c = f1.getStartDate().compareTo(f2.getStartDate());
+                if (c == 0) return f1.getEndDate().compareTo(f2.getEndDate());
+                else return c;
             }
         });
 

@@ -95,12 +95,12 @@ public class ManagerActivity extends AppCompatActivity {
             showNewFachDialog("");
 
         } else {
-            showNewFerienActivity(-1);
+            showFerienActivity(-1);
         }
 
     }
 
-    public void showNewFerienActivity(int ferienInt) {
+    private void showFerienActivity(int ferienInt) {
 
         Intent newFerienActivityIntent = new Intent(getApplicationContext(), FerienActivity.class);
         newFerienActivityIntent.putExtra("ferienInt", ferienInt);
@@ -209,6 +209,7 @@ public class ManagerActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+
         if (item.getItemId() == android.R.id.home) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) finishAfterTransition();
             else finish();
@@ -219,6 +220,7 @@ public class ManagerActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) finishAfterTransition();
         else finish();
     }

@@ -380,8 +380,9 @@ public class KurswahlActivity extends AppCompatActivity {
 
     @Override
     public void onPause() {
-        eventBus.unregister(this);
         super.onPause();
+
+        eventBus.unregister(this);
     }
 
     @Override

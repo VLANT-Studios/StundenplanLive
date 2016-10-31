@@ -15,6 +15,8 @@ public class FaecherRecyclerAdapter extends RecyclerView.Adapter<FaecherRecycler
 
     public FaecherRecyclerAdapter(Callback callback) {
 
+        setHasStableIds(true);
+
         this.callback = callback;
     }
 
@@ -51,6 +53,11 @@ public class FaecherRecyclerAdapter extends RecyclerView.Adapter<FaecherRecycler
     @Override
     public int getItemCount() {
         return LocalData.getInstance().getFächer().size();
+    }
+
+    @Override
+    public long getItemId(int position) {
+        return LocalData.getInstance().getFächer().get(position).getName().hashCode();
     }
 
     public interface Callback {

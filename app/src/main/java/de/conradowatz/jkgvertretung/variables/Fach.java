@@ -134,4 +134,16 @@ public class Fach {
         }
         return false;
     }
+
+    /**
+     * Wenn alle Buchstaben im Namen groß sind, ist es ein Leistungskurs
+     *
+     * @return ist es ein Leistungskurs
+     */
+    public boolean isLeistungskurs() {
+
+        for (char c : name.toCharArray())
+            if (Character.isLetter(c) && Character.isLowerCase(c)) return false;
+        return true;
+    }
 }

@@ -122,7 +122,8 @@ public class FreieZimmerPageFragment extends Fragment {
 
     @Override
     public void onStop() {
-        eventBus.unregister(this);
         super.onStop();
+
+        eventBus.unregister(this);
     }
 }

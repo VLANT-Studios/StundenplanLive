@@ -5,7 +5,7 @@ import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
 
 import de.conradowatz.jkgvertretung.fragments.FaecherFragment;
-import de.conradowatz.jkgvertretung.fragments.FerienFragment;
+import de.conradowatz.jkgvertretung.fragments.TerminFragment;
 
 public class ManagerPagerAdapter extends FragmentPagerAdapter {
 
@@ -16,7 +16,7 @@ public class ManagerPagerAdapter extends FragmentPagerAdapter {
     @Override
     public Fragment getItem(int position) {
         if (position == 0) return new FaecherFragment();
-        else return new FerienFragment();
+        else return TerminFragment.newInstance(TerminFragment.MODE_FERIEN);
     }
 
     @Override
