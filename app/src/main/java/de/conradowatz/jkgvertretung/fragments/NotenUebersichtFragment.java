@@ -24,7 +24,7 @@ import de.conradowatz.jkgvertretung.activities.FachActivity;
 import de.conradowatz.jkgvertretung.activities.ManagerActivity;
 import de.conradowatz.jkgvertretung.adapters.NotenUebersichtRecyclerAdpater;
 import de.conradowatz.jkgvertretung.events.AnalyticsScreenHitEvent;
-import de.conradowatz.jkgvertretung.events.KursChangedEvent;
+import de.conradowatz.jkgvertretung.events.FaecherUpdateEvent;
 import de.conradowatz.jkgvertretung.events.NotenChangedEvent;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.tools.PreferenceHelper;
@@ -77,7 +77,7 @@ public class NotenUebersichtFragment extends Fragment implements NotenUebersicht
     }
 
     @Subscribe
-    public void onEvent(KursChangedEvent event) {
+    public void onEvent(FaecherUpdateEvent event) {
         setUp();
     }
 

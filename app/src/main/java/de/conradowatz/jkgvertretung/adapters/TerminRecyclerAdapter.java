@@ -2,7 +2,6 @@ package de.conradowatz.jkgvertretung.adapters;
 
 
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -181,7 +180,7 @@ public class TerminRecyclerAdapter extends RecyclerView.Adapter<TerminRecyclerAd
 
                 int compareNumber = Utilities.compareDays(e.getDatum(), cNow.getTime());
 
-                if (compareNumber > 0)
+                if (compareNumber >= 0)
                     holder.infoText.setText(Utilities.dayDifferenceToString(Utilities.getDayDifference(cNow.getTime(), e.getDatum())));
                 else holder.infoText.setText("vergangen");
 
@@ -264,10 +263,6 @@ public class TerminRecyclerAdapter extends RecyclerView.Adapter<TerminRecyclerAd
     public long getItemId(int position) {
 
         Termin t = getTerminAt(position);
-        if (t instanceof Event) {
-            if (((Event) t).getDescription().equals("hallo"))
-                Log.d("JKGDEBUG", "hash: " + t.hashCode());
-        }
 
         if (!isDivider[position]) return t.hashCode();
         else return t.getDatum().hashCode();

@@ -234,7 +234,7 @@ public class FachActivity extends AppCompatActivity {
 
         if (!fachName.isEmpty()) {
             for (Fach f : LocalData.getInstance().getFächer()) {
-                if (f.getName().equalsIgnoreCase(fachName)) {
+                if (f.getName().equals(fachName)) {
                     textInputLayout.setError("Dieses Fach existiert bereits!");
                     return false;
                 }
