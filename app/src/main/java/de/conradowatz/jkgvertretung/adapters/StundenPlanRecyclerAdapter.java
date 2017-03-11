@@ -64,7 +64,8 @@ public class StundenPlanRecyclerAdapter extends RecyclerView.Adapter<StundenPlan
         this.callback = callback;
         this.date = tag.getDatum();
 
-        datumString = tag.getDatumString();
+        String wochenString = (LocalData.getInstance().isAWoche(date)) ? "(A-Woche)" : "(B-Woche)";
+        datumString = String.format(Locale.GERMANY, "%s %s", tag.getDatumString(), wochenString);
         zeitStempelString = tag.getZeitStempel();
     }
 

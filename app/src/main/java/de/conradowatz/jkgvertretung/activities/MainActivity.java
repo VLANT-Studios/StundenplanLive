@@ -257,7 +257,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
         eventBus.post(new AnalyticsEventEvent("NavDrawer", "Feedback"));
 
 
-        String url = "http://conradowatz.de/android-apps/jkg-vertretung-support/";
+        String url = "http://conradowatz.de/wp/jkg-vertretungsplan-support/";
         CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder();
         builder.setToolbarColor(ContextCompat.getColor(getApplicationContext(), R.color.primary));
         builder.setStartAnimations(this, R.anim.slide_in_right, R.anim.slide_out_left);
@@ -515,7 +515,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
     @Override
     public void onDownloadFinished() {
 
-        LocalData.getInstance().updateCompareDate();
+        //LocalData.getInstance().updateCompareDate(); removed due to Server change
         taskFragment.saveVertretungsDataToFile();
 
         Toast.makeText(getApplicationContext(), "Daten erfolgreich aktualisiert", Toast.LENGTH_SHORT).show();

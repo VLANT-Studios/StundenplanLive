@@ -5,7 +5,7 @@
         android:id="@+id/action_recognizefaecher"
         android:icon="@drawable/ic_lightbulb"
         android:orderInCategory="2"
-        android:title="Fächer automatisch erkennen"
+        android:title="Smart Import"
         app:showAsAction="ifRoom" />
     <item
         android:id="@+id/action_kurswahl"
@@ -13,4 +13,10 @@
         android:orderInCategory="1"
         android:title="Klassen-/Kurswahl"
         app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/action_abwoche"
+        android:icon="@drawable/ic_event_white"
+        android:orderInCategory="3"
+        android:title="A/B Wochen Auswahl"
+        app:showAsAction="never" />
 </menu>

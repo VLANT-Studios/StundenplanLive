@@ -16,6 +16,8 @@ import android.widget.TextView;
 
 import org.greenrobot.eventbus.EventBus;
 
+import java.text.DecimalFormat;
+
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.activities.FachActivity;
 import de.conradowatz.jkgvertretung.adapters.FachNotenRecyclerAdapter;
@@ -113,9 +115,9 @@ public class FachNotenFragment extends Fragment implements FachNotenRecyclerAdap
         Double sonstigeAverage = fach.getSonstigeAverage();
         Double klausurenAverage = fach.getKlausurenAverage();
         Double gesamtAverage = fach.getNotenAverage();
-        sonstigeText.setText(sonstigeAverage == null ? "n.A." : String.valueOf(sonstigeAverage));
-        klausurenText.setText(klausurenAverage == null ? "n.A." : String.valueOf(klausurenAverage));
-        gesamtText.setText(gesamtAverage == null ? "n.A." : String.valueOf(gesamtAverage));
+        sonstigeText.setText(sonstigeAverage == null ? "n.A." : new DecimalFormat("#0.00").format(sonstigeAverage));
+        klausurenText.setText(klausurenAverage == null ? "n.A." : new DecimalFormat("#0.00").format(klausurenAverage));
+        gesamtText.setText(gesamtAverage == null ? "n.A." : new DecimalFormat("#0.00").format(gesamtAverage));
     }
 
     @Override

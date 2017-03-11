@@ -156,7 +156,7 @@ public class VertretungsData {
 
     public boolean isReady() {
 
-        return (klassenList != null && freieTageList != null && tagList != null);
+        return (klassenList != null && klassenList.size() > 0 && freieTageList != null && tagList != null);
     }
 
     public interface CreateDataFromFileListener {

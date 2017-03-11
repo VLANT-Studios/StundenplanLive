@@ -97,7 +97,7 @@ public class SplashActivity extends AppCompatActivity implements TaskFragment.Sp
 
         final AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
         dialogBuilder.setTitle("A / B Woche");
-        dialogBuilder.setMessage("Bitte wähle einen Tag aus, bei dem du sicher bist, dass es A-Woche war/ist.");
+        dialogBuilder.setMessage("Bitte wähle einen Tag aus, bei dem du sicher bist, dass es A-Woche war/ist. Dies kann später in den Einstellungen geändert werden.");
         final Activity activity = this;
         dialogBuilder.setNeutralButton("Okay", new DialogInterface.OnClickListener() {
             @Override

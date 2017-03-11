@@ -175,7 +175,7 @@ public class LocalData {
                 "%F004", "%F007", "008", "009", "010", "012",   //011 und 116 VKAs
                 "108", "109", "110", "%F111", "%F113", "%F115",
                 "%F201", "203", "204", "205", "208", "209", "210", "211", "212", "%F213", "%F215",
-                "%F301", "%F302", "304", "305", "306", "308", "309", "310", "311", "312", "%F313", "%F315"};
+                "%F301", "%F302", "304", "305", "306", "308", "309", "310", "311", "312", "%F313", "%F315", "%F317", "%F318"};
     }
 
     public static boolean isOberstufe(Context context) {
@@ -415,7 +415,10 @@ public class LocalData {
         this.noFachEvents = noFachEvents;
     }
 
+    @Deprecated
     public void updateCompareDate() {
+
+        //This method is deprecated due to a change in the xml files where A/B Woche is no longer displayed
 
         int size = VertretungsData.getInstance().getTagList().size();
         if (size > 0) {

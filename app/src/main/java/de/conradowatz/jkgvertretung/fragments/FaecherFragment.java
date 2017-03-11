@@ -1,5 +1,6 @@
 package de.conradowatz.jkgvertretung.fragments;
 
+import android.app.DatePickerDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
@@ -15,10 +16,13 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.DatePicker;
 import android.widget.LinearLayout;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
+
+import java.util.Calendar;
 
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.activities.FachActivity;
@@ -40,6 +44,7 @@ public class FaecherFragment extends Fragment implements FaecherRecyclerAdapter.
     private Button kurswahlButton;
     private boolean isDeleteDialog;
     private int deleteDialogIndex;
+    private boolean isChooseAWocheDialog;
     private int mode;
     private EventBus eventBus = EventBus.getDefault();
 
@@ -66,6 +71,8 @@ public class FaecherFragment extends Fragment implements FaecherRecyclerAdapter.
 
             if (savedInstanceState.getBoolean("isDeleteDialog"))
                 showDeleteDialog(savedInstanceState.getInt("deleteDialogIndex"));
+            if (savedInstanceState.getBoolean("isChooseAWocheDialog"))
+                showChooseAWocheDialog();
             mode = savedInstanceState.getInt("mode");
         }
 
@@ -207,9 +214,42 @@ public class FaecherFragment extends Fragment implements FaecherRecyclerAdapter.
         } else if (id == R.id.action_kurswahl) {
 
             startKurswahlActivity();
+        } else if (id == R.id.action_abwoche) {
+
+            showChooseAWocheDialog();
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    private void showChooseAWocheDialog() {
+
+        isChooseAWocheDialog = true;
+
+        final AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(getActivity());
+        dialogBuilder.setTitle("A / B Woche");
+        dialogBuilder.setMessage("Bitte wähle einen Tag aus, bei dem du sicher bist, dass es A-Woche war/ist.");
+        dialogBuilder.setNeutralButton("Okay", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+
+                final Calendar calendar = Calendar.getInstance();
+                DatePickerDialog dialog = new DatePickerDialog(getActivity(), new DatePickerDialog.OnDateSetListener() {
+                    @Override
+                    public void onDateSet(DatePicker datePicker, int year, int month, int dayOfMonth) {
+
+                        isChooseAWocheDialog = false;
+
+                        calendar.set(datePicker.getYear(), datePicker.getMonth(), datePicker.getDayOfMonth());
+                        LocalData.getInstance().setCompareDate(calendar.getTime(), true);
+
+                    }
+                }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
+                dialog.show();
+            }
+        });
+        final AlertDialog dialog = dialogBuilder.create();
+        dialog.show();
     }
 
     private void startKurswahlActivity() {
@@ -243,6 +283,7 @@ public class FaecherFragment extends Fragment implements FaecherRecyclerAdapter.
     public void onSaveInstanceState(Bundle outState) {
 
         outState.putBoolean("isDeleteDialog", isDeleteDialog);
+        outState.putBoolean("isChooseAWocheDialog", isChooseAWocheDialog);
         outState.putInt("deleteDialogIndex", deleteDialogIndex);
         outState.putInt("mode", mode);
         super.onSaveInstanceState(outState);
