@@ -10,7 +10,7 @@ Entstanden im Rahmen einer Besonderen Lernleistung.
 
 #License
 
-    Copyright 2016 Conrad Schmidt
+    Copyright 2017 Conrad Schmidt
 
     Licensed under GNU General Public License v3.0
     See LICENSE for more information.
