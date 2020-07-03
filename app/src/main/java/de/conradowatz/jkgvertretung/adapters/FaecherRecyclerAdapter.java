@@ -1,23 +1,46 @@
 package de.conradowatz.jkgvertretung.adapters;
 
-import android.support.v7.widget.RecyclerView;
+import android.os.AsyncTask;
+import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import com.raizlabs.android.dbflow.sql.language.SQLite;
+
+import java.util.List;
+
 import de.conradowatz.jkgvertretung.R;
-import de.conradowatz.jkgvertretung.tools.LocalData;
+import de.conradowatz.jkgvertretung.variables.Fach;
 
 public class FaecherRecyclerAdapter extends RecyclerView.Adapter<FaecherRecyclerAdapter.ViewHolder> {
 
     private Callback callback;
+    private List<Fach> faecher;
 
     public FaecherRecyclerAdapter(Callback callback) {
 
         setHasStableIds(true);
+        updateData();
 
         this.callback = callback;
+    }
+
+    public void updateData() {
+
+        new AsyncTask<Boolean, Integer, List<Fach>>() {
+            @Override
+            protected List<Fach> doInBackground(Boolean... params) {
+                return SQLite.select().from(Fach.class).queryList();
+            }
+
+            @Override
+            protected void onPostExecute(List<Fach> f) {
+                faecher = f;
+                notifyDataSetChanged();
+            }
+        }.execute();
     }
 
     @Override
@@ -30,17 +53,17 @@ public class FaecherRecyclerAdapter extends RecyclerView.Adapter<FaecherRecycler
     @Override
     public void onBindViewHolder(final ViewHolder holder, int position) {
 
-        holder.textView.setText(LocalData.getInstance().getFächer().get(position).getName());
+        holder.textView.setText(faecher.get(position).getName());
         holder.textView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                callback.onFachClicked(holder.getAdapterPosition());
+                callback.onFachClicked(faecher.get(holder.getAdapterPosition()).getId());
             }
         });
         holder.textView.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View view) {
-                callback.onFachLongClicked(holder.getAdapterPosition());
+                callback.onFachLongClicked(faecher.get(holder.getAdapterPosition()).getId());
                 return true;
             }
         });
@@ -52,19 +75,19 @@ public class FaecherRecyclerAdapter extends RecyclerView.Adapter<FaecherRecycler
 
     @Override
     public int getItemCount() {
-        return LocalData.getInstance().getFächer().size();
+        return faecher==null?0:faecher.size();
     }
 
     @Override
     public long getItemId(int position) {
-        return LocalData.getInstance().getFächer().get(position).getName().hashCode();
+        return faecher.get(position).getId();
     }
 
     public interface Callback {
 
-        void onFachClicked(int fachIndex);
+        void onFachClicked(long fachId);
 
-        void onFachLongClicked(int fachIndex);
+        void onFachLongClicked(long fachId);
     }
 
     public class ViewHolder extends RecyclerView.ViewHolder {

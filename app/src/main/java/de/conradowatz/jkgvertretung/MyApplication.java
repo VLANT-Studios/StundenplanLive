@@ -3,24 +3,18 @@ package de.conradowatz.jkgvertretung;
 import android.app.Application;
 import android.content.Context;
 
-import com.google.android.gms.analytics.GoogleAnalytics;
-import com.google.android.gms.analytics.HitBuilders;
-import com.google.android.gms.analytics.StandardExceptionParser;
-import com.google.android.gms.analytics.Tracker;
+
+import com.google.android.gms.ads.MobileAds;
+import com.google.android.gms.ads.initialization.InitializationStatus;
+import com.google.android.gms.ads.initialization.OnInitializationCompleteListener;
+import com.raizlabs.android.dbflow.config.FlowConfig;
+import com.raizlabs.android.dbflow.config.FlowManager;
 
 import org.greenrobot.eventbus.EventBus;
-import org.greenrobot.eventbus.Subscribe;
-
-import de.conradowatz.jkgvertretung.events.AnalyticsEventEvent;
-import de.conradowatz.jkgvertretung.events.AnalyticsScreenHitEvent;
 
 public class MyApplication extends Application {
 
-    public static GoogleAnalytics analytics;
-    public static Tracker tracker;
     private static MyApplication sInstance;
-
-    private EventBus eventBus = EventBus.getDefault();
 
     public static MyApplication getsInstance() {
         return sInstance;
@@ -35,52 +29,18 @@ public class MyApplication extends Application {
         super.onCreate();
         sInstance = this;
 
-        eventBus.register(this);
+        FlowManager.init(new FlowConfig.Builder(this).openDatabasesOnInit(true).build());
 
-        analytics = GoogleAnalytics.getInstance(this);
-        analytics.setLocalDispatchPeriod(600);
+        MobileAds.initialize(this, new OnInitializationCompleteListener() {
+            @Override
+            public void onInitializationComplete(InitializationStatus initializationStatus) {
 
-        tracker = analytics.newTracker(R.xml.app_tracker);
-        tracker.enableExceptionReporting(true);
-        tracker.enableAdvertisingIdCollection(true);
-        tracker.enableAutoActivityTracking(true);
-    }
-
-    private void fireScreenHit(String screenName) {
-
-        tracker.setScreenName(screenName);
-        tracker.send(new HitBuilders.ScreenViewBuilder().build());
-
-    }
-
-    private void fireEvent(String category, String action) {
-
-        tracker.send(new HitBuilders.EventBuilder(category, action).build());
-
-    }
-
-    public void fireException(Throwable t) {
-
-        tracker.send(new HitBuilders.ExceptionBuilder().setDescription(
-                new StandardExceptionParser(getApplicationContext(), null)
-                        .getDescription(Thread.currentThread().getName(), t))
-                .setFatal(false)
-                .build());
-    }
-
-    @Subscribe
-    public void onEvent(AnalyticsScreenHitEvent event) {
-        fireScreenHit(event.getScreenName());
-    }
-
-    @Subscribe
-    public void onEvent(AnalyticsEventEvent event) {
-        fireEvent(event.getCategory(), event.getAction());
+            }
+        });
     }
 
     @Override
     public void onTerminate() {
-        eventBus.unregister(this);
         super.onTerminate();
     }
 }

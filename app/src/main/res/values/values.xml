@@ -4,13 +4,17 @@
         <item>Mein Stundenplan</item>
         <item>Mein Vertretungsplan</item>
         <item>Termine</item>
+        <item>Allgemeiner Vertretungsplan</item>
         <item>Notenübersicht</item>
+        <item>Klassenplan</item>
     </string-array>
     <string-array name="settings_screen_title_values">
         <item>1</item>
         <item>2</item>
         <item>3</item>
         <item>4</item>
+        <item>5</item>
+        <item>6</item>
     </string-array>
 
     <string-array name="settings_day_count">

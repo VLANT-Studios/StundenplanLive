@@ -1,25 +1,41 @@
 package de.conradowatz.jkgvertretung.adapters;
 
-import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentManager;
-import android.support.v4.app.FragmentStatePagerAdapter;
+import android.os.AsyncTask;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentStatePagerAdapter;
+
+import java.text.SimpleDateFormat;
+import java.util.List;
+import java.util.Locale;
 
 import de.conradowatz.jkgvertretung.fragments.FreieZimmerPageFragment;
-import de.conradowatz.jkgvertretung.tools.VertretungsData;
+import de.conradowatz.jkgvertretung.variables.OnlineTag;
 
 public class FreieZimmerPagerAdapter extends FragmentStatePagerAdapter {
 
-    private int count;
+    private List<OnlineTag> onlineTagList;
 
     public FreieZimmerPagerAdapter(FragmentManager fm) {
         super(fm);
 
-        count = VertretungsData.getInstance().getTagList().size();
+        updateData();
     }
 
-    public void dayAdded() {
-        count = VertretungsData.getInstance().getTagList().size();
-        notifyDataSetChanged();
+    public void updateData() {
+
+        new AsyncTask<Boolean, Integer, List<OnlineTag>>() {
+            @Override
+            protected List<OnlineTag> doInBackground(Boolean... params) {
+                return OnlineTag.getAllOnlineTagSorted();
+            }
+
+            @Override
+            protected void onPostExecute(List<OnlineTag> o) {
+                onlineTagList = o;
+                notifyDataSetChanged();
+            }
+        }.execute();
     }
 
     @Override
@@ -29,11 +45,11 @@ public class FreieZimmerPagerAdapter extends FragmentStatePagerAdapter {
 
     @Override
     public CharSequence getPageTitle(int position) {
-        return VertretungsData.getInstance().getTagList().get(position).getDatumString().split(",")[0];
+        return new SimpleDateFormat("EEEE", Locale.GERMAN).format(onlineTagList.get(position).getDate());
     }
 
     @Override
     public int getCount() {
-        return count;
+        return onlineTagList==null?0:onlineTagList.size();
     }
 }

@@ -1,7 +1,21 @@
 .gradle
 /local.properties
-/.idea/workspace.xml
-/.idea/libraries
+/.idea
 .DS_Store
 /build
 /captures
+/apks/free
+/apks/pro
+/apks
+.owncloudsync.log
+
+doc
+gimp-projects
+gradle
+grafiken
+grafiken neu
+new icon
+datenschutz
+JKGVertretung.zip
+Loading Ablauf Schema.odt
+schulliste.txt

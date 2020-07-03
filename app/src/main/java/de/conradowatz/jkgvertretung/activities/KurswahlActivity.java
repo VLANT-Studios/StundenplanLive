@@ -1,11 +1,15 @@
 package de.conradowatz.jkgvertretung.activities;
 
+import android.app.Activity;
 import android.content.DialogInterface;
-import android.content.Intent;
+import android.os.AsyncTask;
 import android.os.Bundle;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
+import android.os.Parcelable;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.AppCompatSpinner;
+import androidx.appcompat.widget.SwitchCompat;
+import androidx.appcompat.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -13,52 +17,41 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.LinearLayout;
-import android.widget.Spinner;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import de.conradowatz.jkgvertretung.R;
-import de.conradowatz.jkgvertretung.events.DataReadyEvent;
 import de.conradowatz.jkgvertretung.events.KlassenlistUpdatedEvent;
 import de.conradowatz.jkgvertretung.events.KursChangedEvent;
-import de.conradowatz.jkgvertretung.tools.LocalData;
-import de.conradowatz.jkgvertretung.tools.PreferenceHelper;
-import de.conradowatz.jkgvertretung.tools.VertretungsData;
 import de.conradowatz.jkgvertretung.variables.Klasse;
 import de.conradowatz.jkgvertretung.variables.Kurs;
 
 public class KurswahlActivity extends AppCompatActivity {
 
     private Toolbar toolbar;
-    private Spinner klassenSpinner;
+    private AppCompatSpinner klassenSpinner;
     private LinearLayout kurseLayout;
     private Button buttonAlle;
     private Button buttonKeine;
+    private SwitchCompat allSwitch;
 
-    private ArrayList<Kurs> selectedKurse;
+    private List<Kurs> selectedKurse;
 
     private boolean isLoaded;
-    private int selected;
+    private long selectedKlasseId;
     private boolean isSaveDialog;
 
     private EventBus eventBus = EventBus.getDefault();
-    private boolean waitingForData = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        if (!VertretungsData.getInstance().isReady() || !LocalData.isReady()) {
-            Intent spashIntent = new Intent(this, SplashActivity.class);
-            spashIntent.putExtra("intent", getIntent());
-            startActivity(spashIntent);
-            finish();
-            return;
-        }
 
         setContentView(R.layout.activity_kurswahl);
 
@@ -69,10 +62,11 @@ public class KurswahlActivity extends AppCompatActivity {
 
         eventBus.register(this);
 
-        klassenSpinner = (Spinner) findViewById(R.id.klassenSpinner);
+        klassenSpinner = (AppCompatSpinner) findViewById(R.id.klassenSpinner);
         kurseLayout = (LinearLayout) findViewById(R.id.kurseLayout);
         buttonAlle = (Button) findViewById(R.id.buttonAlle);
         buttonKeine = (Button) findViewById(R.id.buttonKeine);
+        allSwitch = (SwitchCompat) findViewById(R.id.allSwitch);
 
         buttonAlle.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -100,14 +94,14 @@ public class KurswahlActivity extends AppCompatActivity {
                 kurseLayout.addView(checkBox);
             }
             isLoaded = savedInstanceState.getBoolean("isLoaded");
-            selected = savedInstanceState.getInt("selected");
+            selectedKlasseId = savedInstanceState.getLong("selectedKlasseId");
             selectedKurse = savedInstanceState.getParcelableArrayList("selectedKurse");
             isSaveDialog = savedInstanceState.getBoolean("isSaveDialog");
 
         } else {
 
             isLoaded = false;
-            selected = -1;
+            selectedKlasseId = -1;
 
         }
 
@@ -176,20 +170,19 @@ public class KurswahlActivity extends AppCompatActivity {
      */
     private void saveKurse() {
 
-        int meineKlasseInt = klassenSpinner.getSelectedItemPosition();
-        PreferenceHelper.saveIntToPreferences(getApplicationContext(), "meineKlasseInt", meineKlasseInt);
+        Klasse klasse = Klasse.getKlasse(selectedKlasseId);
+        Klasse.setSelectedKlasse(klasse.getName());
 
-        ArrayList<String> saveArray = new ArrayList<>();
+        ArrayList<Integer> saveArray = new ArrayList<>();
         for (int i = 0; i < kurseLayout.getChildCount(); i++) {
             CheckBox checkBox = (CheckBox) kurseLayout.getChildAt(i);
             if (!checkBox.isChecked()) {
-                saveArray.add(selectedKurse.get(i).getName());
+                saveArray.add(selectedKurse.get(i).getNr());
 
             }
         }
 
-        PreferenceHelper.saveStringListToPreferences(getApplicationContext(), "meineNichtKurse", saveArray);
-        PreferenceHelper.saveStringListToPreferences(getApplicationContext(), "nichtKurse" + meineKlasseInt, saveArray);
+        Kurs.setSelectedKurse(saveArray);
 
         eventBus.post(new KursChangedEvent());
 
@@ -200,31 +193,55 @@ public class KurswahlActivity extends AppCompatActivity {
      */
     private void showKlassen() {
 
-        ArrayList<String> klassennamenListe = new ArrayList<>();
-        for (Klasse klasse : VertretungsData.getInstance().getKlassenList()) {
-            klassennamenListe.add(klasse.getName());
-        }
-
-        ArrayAdapter<String> spinnerArrayAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, klassennamenListe);
-        spinnerArrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        klassenSpinner.setAdapter(spinnerArrayAdapter);
-
-        klassenSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+        new AsyncTask<Activity, Integer, List<String>>() {
+            Activity activity;
+            List<Klasse> klassen;
             @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                if (position != selected) {
-                    showKurse(position);
-                    selected = position;
+            protected ArrayList<String> doInBackground(Activity... params) {
+
+                this.activity = params[0];
+                ArrayList<String> klassenNamenListe = new ArrayList<>();
+                klassen = Klasse.getAllKlassenSorted();
+                for (Klasse klasse : klassen) {
+                    klassenNamenListe.add(klasse.getName());
                 }
+
+                return klassenNamenListe;
             }
 
             @Override
-            public void onNothingSelected(AdapterView<?> parent) {
+            protected void onPostExecute(List<String> klassenNamenListe) {
+
+                ArrayAdapter<String> spinnerArrayAdapter = new ArrayAdapter<String>(activity, android.R.layout.simple_spinner_item, klassenNamenListe);
+                spinnerArrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                klassenSpinner.setAdapter(spinnerArrayAdapter);
+
+                klassenSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+
+                        showKurse(klassen.get(position));
+                        selectedKlasseId = klassen.get(position).getId();
+                    }
+
+                    @Override
+                    public void onNothingSelected(AdapterView<?> parent) {
+
+                    }
+                });
+
+                allSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                    @Override
+                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                        Klasse klasse = Klasse.getKlasse(selectedKlasseId);
+                        if (klasse!=null) showKurse(klasse);
+                    }
+                });
+
+                loadKlasse();
 
             }
-        });
-
-        loadKlasse();
+        }.execute(this);
     }
 
     /**
@@ -232,10 +249,29 @@ public class KurswahlActivity extends AppCompatActivity {
      */
     private void loadKlasse() {
 
-        int meineKlasseInt = PreferenceHelper.readIntFromPreferences(getApplicationContext(), "meineKlasseInt", -1);
-        if (meineKlasseInt >= 0) {
-            klassenSpinner.setSelection(meineKlasseInt);
-        }
+        new AsyncTask<Activity, Integer, List<Klasse>>() {
+            Klasse selectedKlasse;
+            @Override
+            protected List<Klasse> doInBackground(Activity... params) {
+                selectedKlasse = Klasse.getSelectedKlasse();
+                if (selectedKlasse!=null) return Klasse.getAllKlassenSorted();
+                else return null;
+            }
+
+            @Override
+            protected void onPostExecute(List<Klasse> klassen) {
+                if (klassen!=null) {
+                    int selectedIndex = 0;
+                    for (int i=0; i<klassen.size(); i++) {
+                        if (klassen.get(i).getId()==selectedKlasse.getId()) {
+                            selectedIndex = i;
+                            break;
+                        }
+                    }
+                    klassenSpinner.setSelection(selectedIndex);
+                }
+            }
+        }.execute();
 
     }
 
@@ -243,17 +279,15 @@ public class KurswahlActivity extends AppCompatActivity {
      * Selektiert die Kurse, die vom Nutzer gespeichert wurden
      * in den SharedPreferences sind alle nicht ausgewählten Kurse gespeichert
      */
-    private void loadKurse(int position) {
+    private void loadKurse() {
 
-        //if (isLoaded) return;
-
-        ArrayList<String> meineNichtKurse = PreferenceHelper.readStringListFromPreferences(getApplicationContext(), "nichtKurse" + position);
-        if (meineNichtKurse != null) {
+        List<Integer> notSelectedKurseNr = Kurs.getNotSelectedKursNrn();
+        if (notSelectedKurseNr != null) {
 
             for (int i = 0; i < kurseLayout.getChildCount(); i++) {
                 CheckBox checkBox = (CheckBox) kurseLayout.getChildAt(i);
 
-                if (meineNichtKurse.contains(selectedKurse.get(i).getName())) {
+                if (notSelectedKurseNr.contains(selectedKurse.get(i).getNr())) {
                     checkBox.setChecked(false);
                 } else {
                     checkBox.setChecked(true);
@@ -261,54 +295,52 @@ public class KurswahlActivity extends AppCompatActivity {
             }
         }
 
-        //isLoaded = true;
-
     }
 
     /**
      * Zeigt alle Kurse einer Klasse als Checkboxen
      *
-     * @param position der Index der Klasse
+     * @param klasse Klasse
      */
-    private void showKurse(int position) {
+    private void showKurse(final Klasse klasse) {
 
-        ArrayList<Kurs> alleKurse = VertretungsData.getInstance().getKlassenList().get(position).getKurse();
+        final Activity activity = this;
+        new AsyncTask<Boolean, Integer, List<Kurs>>() {
+            @Override
+            protected List<Kurs> doInBackground(Boolean... params) {
+                Boolean showAll = params[0];
+                return showAll?klasse.getSortedKurse():klasse.getAuswaehlbareKurseSorted();
+            }
 
-        int size = alleKurse.size();
+            @Override
+            protected void onPostExecute(List<Kurs> alleKurse) {
 
-        //Manche Kurse haben den selben Namen, diese können nicht auseinander gehalten werden, also werden sie zusammen gefasst
-        for (int i = 0; i < size - 1; i++) {
-            for (int j = i + 1; j < size; j++) {
-                if (!alleKurse.get(j).getName().equals(alleKurse.get(i).getName())) {
-                    continue;
+                selectedKurse = alleKurse;
+
+                ArrayList<String> kurseStringList = new ArrayList<>();
+                for (int i = 0; i < alleKurse.size(); i++) {
+                    Kurs kurs = alleKurse.get(i);
+                    String text = kurs.getFachName();
+                    if (kurs.getBezeichnung()!=null) {
+                        text = text + ": " + kurs.getBezeichnung();
+                    }
+                    if (kurs.getLehrer()!=null) {
+                        text = text + " (" + kurs.getLehrer().getName() + ")";
+                    }
+                    kurseStringList.add(text);
                 }
-                alleKurse.get(i).setLehrer(alleKurse.get(i).getLehrer() + ", " + alleKurse.get(j).getLehrer());
-                alleKurse.remove(j);
-                j--;
-                size--;
+
+                kurseLayout.removeAllViews();
+                for (int j = 0; j < kurseStringList.size(); j++) {
+                    CheckBox checkBox = new CheckBox(activity);
+                    checkBox.setText(kurseStringList.get(j));
+                    kurseLayout.addView(checkBox);
+                }
+
+                loadKurse();
+
             }
-        }
-
-        selectedKurse = alleKurse;
-
-        ArrayList<String> kurseStringList = new ArrayList<>();
-        for (int i = 0; i < alleKurse.size(); i++) {
-            Kurs kurs = alleKurse.get(i);
-            String text = kurs.getName();
-            if (!kurs.getLehrer().isEmpty()) {
-                text = text + " (" + kurs.getLehrer() + ")";
-            }
-            kurseStringList.add(text);
-        }
-
-        kurseLayout.removeAllViews();
-        for (int j = 0; j < kurseStringList.size(); j++) {
-            CheckBox checkBox = new CheckBox(this);
-            checkBox.setText(kurseStringList.get(j));
-            kurseLayout.addView(checkBox);
-        }
-
-        loadKurse(position);
+        }.execute(allSwitch.isChecked());
 
     }
 
@@ -348,9 +380,9 @@ public class KurswahlActivity extends AppCompatActivity {
         }
         outState.putStringArray("checkBoxNames", checkBoxNames);
         outState.putBooleanArray("checkBoxChecks", checkBoxChecks);
-        outState.putParcelableArrayList("selectedKurse", selectedKurse);
+        outState.putParcelableArrayList("selectedKurse", (ArrayList<? extends Parcelable>) selectedKurse);
         outState.putBoolean("isLoaded", isLoaded);
-        outState.putInt("selected", selected);
+        outState.putLong("selectedKlasseId", selectedKlasseId);
         outState.putBoolean("isSaveDialog", isSaveDialog);
         super.onSaveInstanceState(outState);
     }
@@ -362,19 +394,9 @@ public class KurswahlActivity extends AppCompatActivity {
     @Subscribe
     public void onEvent(KlassenlistUpdatedEvent event) {
 
-        if (klassenSpinner != null && VertretungsData.getInstance().isReady())
+        if (klassenSpinner != null)
             showKlassen();
 
-    }
-
-    @Subscribe
-    public void onEvent(DataReadyEvent event) {
-
-        if (waitingForData) {
-            waitingForData = false;
-
-            showKlassen();
-        }
     }
 
 

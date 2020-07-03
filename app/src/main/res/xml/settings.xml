@@ -53,15 +53,6 @@
 
     </PreferenceCategory>
 
-    <PreferenceCategory android:title="Externe Funktionen">
-
-        <SwitchPreference
-            android:defaultValue="true"
-            android:key="onlineEvents"
-            android:title="Wichtige Schulevents herunterladen" />
-
-    </PreferenceCategory>
-
     <PreferenceCategory android:title="Backup">
 
         <Preference
@@ -70,7 +61,7 @@
 
         <Preference
             android:key="importBackup"
-            android:title="Backup importiern" />
+            android:title="Backup importieren" />
 
         <Preference
             android:key="deleteBackup"

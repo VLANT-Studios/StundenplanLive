@@ -4,37 +4,30 @@ import android.content.Context;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import android.support.v4.app.Fragment;
+
+import androidx.fragment.app.Fragment;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.tools.PreferenceHelper;
 import de.conradowatz.jkgvertretung.tools.VertretungsAPI;
-import de.conradowatz.jkgvertretung.tools.VertretungsData;
 
 public class TaskFragment extends Fragment implements Handler.Callback {
 
     public static final String TAG_TASK_FRAGMENT = "task_fragment";
 
-    private final static int VERTRETUNGSDATA_CREATED = 1;
-    private final static int VERTRETUNGSDATA_CREATE_ERROR = 2;
-    private final static int DAY_ADDED = 3;
-    private final static int KLASSENLIST_UPDATED = 4;
-    private final static int DOWNLOAD_ERROR = 5;
-    private final static int DOWNLOAD_FINISHED = 6;
-    private final static int NO_CONNECTION = 7;
-    private final static int NO_ACCES = 8;
-    private final static int LOCALDATA_CREATED = 9;
-    private final static int LOCALDATA_CREATE_ERROR = 10;
-    private final static int EVENTS_ADDED = 11;
+    private final static int DAYS_UPDATED = 0;
+    private final static int KLASSENLIST_UPDATED = 1;
+    private final static int FREIETAGE_ADDED = 2;
+    private final static int DOWNLOAD_ERROR = 3;
+    private final static int DOWNLOAD_FINISHED = 4;
+    private final static int NO_CONNECTION = 5;
+    private final static int NO_ACCESS = 6;
     private Handler taskHandler;
     private ExecutorService pool = Executors.newSingleThreadScheduledExecutor();
     private Context context;
     private Context appContext;
-    private boolean createVertretungsDataFromFileWhenAttached = false;
-    private boolean createLocalDataFromFileWhenAttached = false;
     private boolean downloadAllDataWhenAttached = false;
     private int downloadAllDataDays;
 
@@ -44,14 +37,6 @@ public class TaskFragment extends Fragment implements Handler.Callback {
 
         this.context = context;
         appContext = context.getApplicationContext();
-        if (createVertretungsDataFromFileWhenAttached) {
-            createVertretungsDataFromFile();
-            createVertretungsDataFromFileWhenAttached = false;
-        }
-        if (createLocalDataFromFileWhenAttached) {
-            createLocalDataFromFile();
-            createLocalDataFromFileWhenAttached = false;
-        }
         if (downloadAllDataWhenAttached) {
             downloadAllData(downloadAllDataDays);
             downloadAllDataWhenAttached = false;
@@ -78,25 +63,17 @@ public class TaskFragment extends Fragment implements Handler.Callback {
         if (context == null) return false;
         TaskFragmentCallbacks taskCallbacks = (TaskFragmentCallbacks) context;
         switch (message.what) {
-            case VERTRETUNGSDATA_CREATED:
-                if (taskCallbacks instanceof SplashScreenCallbacks)
-                    ((SplashScreenCallbacks) taskCallbacks).onVertretungsDataCreated();
-                else if (taskCallbacks instanceof LoginCallbacks)
-                    ((LoginCallbacks) taskCallbacks).onVertretungsDataCreated();
-                break;
-            case VERTRETUNGSDATA_CREATE_ERROR:
-                if (taskCallbacks instanceof SplashScreenCallbacks)
-                    ((SplashScreenCallbacks) taskCallbacks).onVertretungsDataCreateError((Throwable) message.obj);
-                else if (taskCallbacks instanceof LoginCallbacks)
-                    ((LoginCallbacks) taskCallbacks).onVertretungsDataCreateError((Throwable) message.obj);
-                break;
-            case DAY_ADDED:
+            case DAYS_UPDATED:
                 if (taskCallbacks instanceof MainCallbacks)
-                    ((MainCallbacks) taskCallbacks).onDayAdded(message.arg1);
+                    ((MainCallbacks) taskCallbacks).onDaysUpdated();
                 break;
             case KLASSENLIST_UPDATED:
                 if (taskCallbacks instanceof MainCallbacks)
                     ((MainCallbacks) taskCallbacks).onKlassenListUpdated();
+                break;
+            case FREIETAGE_ADDED:
+                if (taskCallbacks instanceof MainCallbacks)
+                    ((MainCallbacks) taskCallbacks).onFreieTageAdded();
                 break;
             case DOWNLOAD_ERROR:
                 taskCallbacks.onDownloadError((Throwable) message.obj);
@@ -107,20 +84,8 @@ public class TaskFragment extends Fragment implements Handler.Callback {
             case NO_CONNECTION:
                 taskCallbacks.onNoConnection();
                 break;
-            case NO_ACCES:
+            case NO_ACCESS:
                 taskCallbacks.onNoAccess();
-                break;
-            case LOCALDATA_CREATED:
-                if (taskCallbacks instanceof SplashScreenCallbacks)
-                    ((SplashScreenCallbacks) taskCallbacks).onLocalDataCreated();
-                break;
-            case LOCALDATA_CREATE_ERROR:
-                if (taskCallbacks instanceof SplashScreenCallbacks)
-                    ((SplashScreenCallbacks) taskCallbacks).onLocalDataCreateError((Throwable) message.obj);
-                break;
-            case EVENTS_ADDED:
-                if (taskCallbacks instanceof MainCallbacks)
-                    ((MainCallbacks) taskCallbacks).onEventsAdded();
                 break;
             default:
                 return false;
@@ -129,106 +94,23 @@ public class TaskFragment extends Fragment implements Handler.Callback {
         return true;
     }
 
-    /**
-     * Erstellt die VertretungsData instance aus dem Speicher
-     * Callbacks: onVertretungsDataCreated, onVertretungsDataCreateError
-     */
-    public void createVertretungsDataFromFile() {
+    public void downloadAllData(int dayCount) {
 
         if (getActivity() == null) {
-            createVertretungsDataFromFileWhenAttached = true;
+            downloadAllDataWhenAttached = true;
+            downloadAllDataDays = dayCount;
             return;
         }
 
-        pool.submit(new Runnable() {
-            @Override
-            public void run() {
+        boolean hasAuth = PreferenceHelper.readBooleanFromPreferences(appContext, "hasAuth", false);
 
-                VertretungsData.createDataFromFile(appContext, new VertretungsData.CreateDataFromFileListener() {
-                    @Override
-                    public void onCreated() {
-                        Message message = taskHandler.obtainMessage(VERTRETUNGSDATA_CREATED);
-                        taskHandler.sendMessage(message);
-                    }
-
-                    @Override
-                    public void onError(Throwable throwable) {
-                        Message message = taskHandler.obtainMessage(VERTRETUNGSDATA_CREATE_ERROR, throwable);
-                        taskHandler.sendMessage(message);
-                    }
-                });
-
-            }
-        });
-
-    }
-
-    /**
-     * Speichert die VertretungsData in den Speicher
-     * Callbacks: keine
-     */
-    public void saveVertretungsDataToFile() {
-
-        pool.submit(new Runnable() {
-            @Override
-            public void run() {
-
-                VertretungsData.saveDataToFile(appContext);
-
-            }
-        });
-
-    }
-
-    /**
-     * Erstellt die VertretungsData instance aus dem Speicher
-     * Callbacks: onVertretungsDataCreated, onVertretungsDataCreateError
-     */
-    public void createLocalDataFromFile() {
-
-        if (getActivity() == null) {
-            createLocalDataFromFileWhenAttached = true;
-            return;
+        if (hasAuth) {
+            String username = PreferenceHelper.readStringFromPreferences(appContext, "username", "");
+            String password = PreferenceHelper.readStringFromPreferences(appContext, "password", "");
+            downloadAllData(dayCount, username, password);
+        } else {
+            downloadAllData(dayCount, null, null);
         }
-
-        pool.submit(new Runnable() {
-            @Override
-            public void run() {
-
-                LocalData.createFromFile(appContext, new LocalData.CreateDataFromFileListener() {
-                    @Override
-                    public void onDataCreated() {
-                        Message message = taskHandler.obtainMessage(LOCALDATA_CREATED);
-                        taskHandler.sendMessage(message);
-                    }
-
-                    @Override
-                    public void onError(Throwable throwable) {
-                        Message message = taskHandler.obtainMessage(LOCALDATA_CREATE_ERROR, throwable);
-                        taskHandler.sendMessage(message);
-                    }
-                });
-
-            }
-        });
-
-    }
-
-    /**
-     * Speichert die VertretungsData in den Speicher
-     * Callbacks: keine
-     */
-    public void saveLocalDataToFile() {
-
-        pool.submit(new Runnable() {
-            @Override
-            public void run() {
-
-                LocalData.saveToFile(appContext);
-
-            }
-        });
-
     }
 
     /**
@@ -237,23 +119,21 @@ public class TaskFragment extends Fragment implements Handler.Callback {
      *
      * @param dayCount wie viele Schultage geladen werden sollen, 0 wenn alle
      */
-    public void downloadAllData(final int dayCount) {
-
-        if (getActivity() == null) {
-            downloadAllDataWhenAttached = true;
-            downloadAllDataDays = dayCount;
-            return;
-        }
-
-        final boolean downloadEvents = dayCount != 0 && PreferenceHelper.readBooleanFromPreferences(appContext, "onlineEvents", true);
+    public void downloadAllData(final int dayCount, final String username, final String password) {
 
         pool.submit(new Runnable() {
             @Override
             public void run() {
 
-                final String username = PreferenceHelper.readStringFromPreferences(appContext, "username", "");
-                final String password = PreferenceHelper.readStringFromPreferences(appContext, "password", "");
-                new VertretungsAPI(username, password, appContext).downloadAllData(dayCount, downloadEvents, new VertretungsAPI.DownloadAllDataResponseListener() {
+                Thread.currentThread().setPriority(Thread.MIN_PRIORITY);
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+                VertretungsAPI api = username==null||username.isEmpty()?new VertretungsAPI():new VertretungsAPI(username, password);
+                api.downloadAllData(dayCount, new VertretungsAPI.DownloadAllDataResponseListener() {
                     @Override
                     public void onSuccess() {
 
@@ -269,7 +149,7 @@ public class TaskFragment extends Fragment implements Handler.Callback {
 
                     @Override
                     public void onNoAccess() {
-                        Message message = taskHandler.obtainMessage(NO_ACCES);
+                        Message message = taskHandler.obtainMessage(NO_ACCESS);
                         taskHandler.sendMessage(message);
                     }
 
@@ -285,8 +165,8 @@ public class TaskFragment extends Fragment implements Handler.Callback {
                     }
 
                     @Override
-                    public void onDayAdded(int position) {
-                        Message message = taskHandler.obtainMessage(DAY_ADDED, position, 0);
+                    public void onDaysUpdated() {
+                        Message message = taskHandler.obtainMessage(DAYS_UPDATED);
                         taskHandler.sendMessage(message);
                     }
 
@@ -297,8 +177,8 @@ public class TaskFragment extends Fragment implements Handler.Callback {
                     }
 
                     @Override
-                    public void onEventsAdded() {
-                        Message message = taskHandler.obtainMessage(EVENTS_ADDED);
+                    public void onFreieTageAdded() {
+                        Message message = taskHandler.obtainMessage(FREIETAGE_ADDED);
                         taskHandler.sendMessage(message);
                     }
                 });
@@ -308,43 +188,19 @@ public class TaskFragment extends Fragment implements Handler.Callback {
 
     }
 
-    private interface TaskFragmentCallbacks {
+    public interface TaskFragmentCallbacks {
 
         void onDownloadError(Throwable throwable);
-
         void onNoAccess();
-
         void onNoConnection();
-
         void onDownloadFinished();
-
     }
 
     public interface MainCallbacks extends TaskFragmentCallbacks {
 
-        void onDayAdded(int position);
+        void onDaysUpdated();
         void onKlassenListUpdated();
+        void onFreieTageAdded();
 
-        void onEventsAdded();
-
-    }
-
-    public interface SplashScreenCallbacks extends TaskFragmentCallbacks {
-
-        void onLocalDataCreated();
-
-        void onLocalDataCreateError(Throwable throwable);
-
-        void onVertretungsDataCreated();
-
-        void onVertretungsDataCreateError(Throwable throwable);
-
-    }
-
-    public interface LoginCallbacks extends TaskFragmentCallbacks {
-
-        void onVertretungsDataCreated();
-
-        void onVertretungsDataCreateError(Throwable throwable);
     }
 }

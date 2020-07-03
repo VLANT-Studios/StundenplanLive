@@ -2,11 +2,11 @@ package de.conradowatz.jkgvertretung.fragments;
 
 import android.content.DialogInterface;
 import android.os.Bundle;
-import android.support.annotation.Nullable;
-import android.support.v4.app.Fragment;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.widget.GridLayoutManager;
-import android.support.v7.widget.RecyclerView;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.appcompat.app.AlertDialog;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -14,7 +14,6 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import de.conradowatz.jkgvertretung.R;
@@ -22,6 +21,7 @@ import de.conradowatz.jkgvertretung.activities.FachActivity;
 import de.conradowatz.jkgvertretung.adapters.FachStundenRecyclerAdapter;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.variables.Fach;
+import de.conradowatz.jkgvertretung.variables.UnterrichtsZeit;
 
 public class FachStundenFragment extends Fragment implements FachStundenRecyclerAdapter.Callback {
 
@@ -63,8 +63,11 @@ public class FachStundenFragment extends Fragment implements FachStundenRecycler
 
     private void setUpSpinner() {
 
-        ArrayAdapter<String> spinnerArrayAdapter = new ArrayAdapter<>(getActivity(), android.R.layout.simple_spinner_item, new String[]{"Jede Woche", "A-Woche", "B-Woche"});
-
+        ArrayAdapter<String> spinnerArrayAdapter = null;
+        if (LocalData.hasABWoche())
+            spinnerArrayAdapter = new ArrayAdapter<>(getActivity(), android.R.layout.simple_spinner_item, new String[]{"Jede Woche", "A-Woche", "B-Woche"});
+        else
+            spinnerArrayAdapter = new ArrayAdapter<>(getActivity(), android.R.layout.simple_spinner_item, new String[]{"Wöchentlich"});
         spinnerArrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         wochenSpinner.setAdapter(spinnerArrayAdapter);
         wochenSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -79,11 +82,16 @@ public class FachStundenFragment extends Fragment implements FachStundenRecycler
         });
     }
 
+    private int getState() {
+
+        return LocalData.hasABWoche()?wochenSpinner.getSelectedItemPosition():1;
+    }
+
 
     private void setUpRecycler() {
 
-        int state = wochenSpinner.getSelectedItemPosition();
-        final FachStundenRecyclerAdapter adapter = new FachStundenRecyclerAdapter(fach, state, this);
+        int state = getState();
+        final FachStundenRecyclerAdapter adapter = new FachStundenRecyclerAdapter(state, fach, this);
 
         GridLayoutManager layoutManager = new GridLayoutManager(getActivity(), 16); //3 pro Stunde, 1 pro Label = 21
         layoutManager.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
@@ -119,23 +127,25 @@ public class FachStundenFragment extends Fragment implements FachStundenRecycler
     @Override
     public void onNewStunde(int tag, int stunde, int pos) {
 
-        int state = wochenSpinner.getSelectedItemPosition();
-        if (state == STATE_AWOCHE || state == STATE_IMMER) fach.getaStunden()[tag][stunde] = true;
-        if (state == STATE_BWOCHE || state == STATE_IMMER) fach.getbStunden()[tag][stunde] = true;
-        if (state == STATE_IMMER)
-            ((FachStundenRecyclerAdapter) stundenRecycler.getAdapter()).calculateStateImmer();
-        stundenRecycler.getAdapter().notifyItemChanged(pos);
+        int state = getState();
+        if (state == STATE_AWOCHE || state == STATE_IMMER) new UnterrichtsZeit(tag, stunde, true, fach).save();
+        if (state == STATE_BWOCHE || state == STATE_IMMER) new UnterrichtsZeit(tag, stunde, false, fach).save();
+        ((FachStundenRecyclerAdapter)stundenRecycler.getAdapter()).updateData(pos);
     }
 
     @Override
     public void onRemoveStunde(int tag, int stunde, int pos) {
 
-        int state = wochenSpinner.getSelectedItemPosition();
-        if (state == STATE_AWOCHE || state == STATE_IMMER) fach.getaStunden()[tag][stunde] = false;
-        if (state == STATE_BWOCHE || state == STATE_IMMER) fach.getbStunden()[tag][stunde] = false;
-        if (state == STATE_IMMER)
-            ((FachStundenRecyclerAdapter) stundenRecycler.getAdapter()).calculateStateImmer();
-        stundenRecycler.getAdapter().notifyItemChanged(pos);
+        int state = getState();
+        if (state == STATE_AWOCHE || state == STATE_IMMER) {
+            UnterrichtsZeit u = fach.getUnterrichtsZeit(tag, stunde, true);
+            if (u!=null) u.delete();
+        }
+        if (state == STATE_BWOCHE || state == STATE_IMMER) {
+            UnterrichtsZeit u = fach.getUnterrichtsZeit(tag, stunde, false);
+            if (u!=null) u.delete();
+        }
+        ((FachStundenRecyclerAdapter)stundenRecycler.getAdapter()).updateData(pos);
 
     }
 
@@ -147,28 +157,14 @@ public class FachStundenFragment extends Fragment implements FachStundenRecycler
         replaceStunde = stunde;
         replacePos = pos;
 
-        final int state = wochenSpinner.getSelectedItemPosition();
-        final List<Fach> replaceFaecher = new ArrayList<>();
-        if (state != STATE_IMMER) {
-            for (Fach f : LocalData.getInstance().getFächer())
-                if (f != fach && f.getStunden(state == STATE_AWOCHE)[tag][stunde]) {
-                    replaceFaecher.add(f);
-                    break;
-                }
-        } else {
-            for (Fach f : LocalData.getInstance().getFächer())
-                if (f != fach && (f.getaStunden()[tag][stunde] || f.getbStunden()[tag][stunde])) {
-                    replaceFaecher.add(f);
-                    if (replaceFaecher.size() == 2) break;
-                }
-        }
-
+        final int state = getState();
+        List<UnterrichtsZeit> replaceUnterricht = UnterrichtsZeit.getBelegtenUnterricht(fach.getId(), tag, stunde, state);
 
         final AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(getActivity());
         dialogBuilder.setTitle("Stunde ersetzen");
-        String fachString = replaceFaecher.get(0).getName();
-        if (replaceFaecher.size() > 1)
-            fachString = fachString + " und " + replaceFaecher.get(1).getName();
+        String fachString = replaceUnterricht.get(0).getFach().getName();
+        if (replaceUnterricht.size() > 1)
+            fachString = fachString + " und " + replaceUnterricht.get(1).getFach().getName();
         dialogBuilder.setMessage("In dieser Stunde wurde bereits " + fachString + " eingetragen.\nSicher, dass dieses ersetzt werden soll?");
 
         dialogBuilder.setPositiveButton("Ersetzen", new DialogInterface.OnClickListener() {
@@ -177,21 +173,10 @@ public class FachStundenFragment extends Fragment implements FachStundenRecycler
 
                 isReplaceDialog = false;
 
-                if (state == STATE_AWOCHE || state == STATE_IMMER) {
-                    replaceFaecher.get(0).getaStunden()[tag][stunde] = false;
-                    fach.getaStunden()[tag][stunde] = true;
-                }
-                if (state == STATE_BWOCHE || state == STATE_IMMER) {
-                    replaceFaecher.get(0).getbStunden()[tag][stunde] = false;
-                    fach.getbStunden()[tag][stunde] = true;
-                }
-                if (replaceFaecher.size() > 1) {
-                    replaceFaecher.get(1).getaStunden()[tag][stunde] = false;
-                    replaceFaecher.get(1).getbStunden()[tag][stunde] = false;
-                }
-                if (state == STATE_IMMER)
-                    ((FachStundenRecyclerAdapter) stundenRecycler.getAdapter()).calculateStateImmer();
-                stundenRecycler.getAdapter().notifyItemChanged(pos);
+                UnterrichtsZeit.deleteBelegtenUnterricht(fach.getId(), tag, stunde, state);
+                if (state == STATE_AWOCHE || state == STATE_IMMER) new UnterrichtsZeit(tag, stunde, true, fach).save();
+                if (state == STATE_BWOCHE || state == STATE_IMMER) new UnterrichtsZeit(tag, stunde, false, fach).save();
+                ((FachStundenRecyclerAdapter)stundenRecycler.getAdapter()).updateData(pos);
 
             }
         });

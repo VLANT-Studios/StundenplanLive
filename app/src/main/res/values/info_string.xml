@@ -2,37 +2,26 @@
 <resources>
     <string name="infoDialog_text"><![CDATA[
         <h2>Infos</h2>
-        <b>JKG Vertretung Version %s</b>
+        <b>StundenplanLive Version %s</b>
         <br>
         <br>Diese App wird entwickelt von <b>Conrad Schmidt</b>. Um an die erforderlichen Daten zu gelangen, greift die App auf den Online-Stundenplan Indiware mobil von Uwe Kannenberg zu.
-        <br>Bei Problemen mit der App, oder bei anderen Anfragen zu der App, wendet euch bitte an meine E-Mail Adresse: <a href="mailto:info@conradowatz.de">info@conradowatz.de</a>.
-        <br>
-        <br>Da diese App Open-Source ist, könnt ihr den kompletten Source Code auf GitHub finden (wen es interessiert).
-            Der Link: <a href="https://github.com/Conradowatz/JKGVertretung-App>https://github.com/Conradowatz/JKGVertretung-App</a>
+        <br>Bei Problemen mit der App, oder bei anderen Anfragen zu der App, wendet euch bitte an meine E-Mail Adresse: <a href="mailto:conrad@owatz.net">conrad@owatz.de</a>.
         <br>
         <h2>Lizenzen</h2>
         Diese App verwendet folgende Libarys:
-        <br> • Material Drawer (Copyright © 2016 Mike Penz)
-        <br> • Volley (Copyright © 2016 The Android Open Source Project)
-        <br> • Material-ish Progress (Copyright © 2014 Nico Hormazábal)
-        <br> • EventBus (Copyright © 2016 Markus Junginger, greenrobot)
-        <br> • Gson (Copyright © 2008 Google)
-        <br> • ExpandableTextView (Copyright © 2014 Manabu Shimobe)
+        <br> • Material Drawer (Copyright © Mike Penz)
+        <br> • OkHttp (Copyright © Square, Inc.)
+        <br> • Material-ish Progress (Copyright © Nico Hormazábal)
+        <br> • EventBus (Copyright © Markus Junginger, greenrobot)
+        <br> • ExpandableTextView (Copyright © Manabu Shimobe)
+        <br> • DBFLow (Copyright © Raizlabs)
         <br>
-        <br>Diese App verwendet sowohl in der App, als auch im Icon Material Design Icons von Google, die teilweise verändert wurden. Diese, und alle 4 Libarys sind lizensiert unter der Apache License, Version 2.0:
+        <br>Diese App verwendet sowohl in der App, als auch im Icon Material Design Icons von Google, die teilweise verändert wurden. Diese, und die ersten 5 Libarys sind lizensiert unter der Apache License, Version 2.0.
+        <br>DBFlow ist lizensiert unter The MIT License (MIT)
         <br>
-        <tt><br>Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License.
-        <br>You may obtain a copy of the License at
+        <br>Diese App verwendet in der kostenlosen Version AdMob um Werbeanzeigen zu schalten.
+        <br><a href="http://www.google.de/policies/privacy/partners/">Datenschutzerklärungen von Google</a>
         <br>
-        <br> http://www.apache.org/licenses/LICENSE-2.0
-        <br>
-        <br>Unless required by applicable law or agreed to in writing, software
-        distributed under the License is distributed on an "AS IS" BASIS,
-        WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-        See the License for the specific language governing permissions and
-        limitations under the License.</tt>
-        <br>
-        <br>
-        <br>Diese App wird mit Hilfe von Google Analytics getrackt.
+        <br><a href="https://owatz.net/wp/stundenplanlive-datenschutzerklaerung/">Datenschutzerklärungen von StundenplanLive</a>
     ]]></string>
 </resources>

@@ -17,17 +17,8 @@ public class AlarmBootReceiver extends BroadcastReceiver {
     public void onReceive(final Context context, Intent intent) {
 
         if (intent.getAction().equals("android.intent.action.BOOT_COMPLETED")) {
-            LocalData.createFromFile(context, new LocalData.CreateDataFromFileListener() {
-                @Override
-                public void onDataCreated() {
-                    LocalData.recreateNotificationAlarms(context);
-                }
+            LocalData.recreateNotificationAlarms(context);
 
-                @Override
-                public void onError(Throwable throwable) {
-
-                }
-            });
         } else if (intent.getAction().equals(INTENT_NOTIFICATION)) {
 
             NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);

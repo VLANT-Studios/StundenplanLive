@@ -1,7 +1,6 @@
 package de.conradowatz.jkgvertretung.tools;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import android.text.format.DateUtils;
 
 import java.util.Calendar;
 import java.util.Date;
@@ -14,7 +13,7 @@ public class Utilities {
      *
      * @param day1
      * @param day2
-     * @return 0 bei gleichem Tag; <0 wenn day1 vor day2; >0 wenn day1 nach day2
+     * @return 0 bei gleichem OnlineTag; <0 wenn day1 vor day2; >0 wenn day1 nach day2
      */
     public static int compareDays(Calendar day1, Calendar day2) {
 
@@ -31,7 +30,7 @@ public class Utilities {
      *
      * @param date1
      * @param date2
-     * @return 0 bei gleichem Tag; <0 wenn date1 vor date2; >0 wenn day1 nach day2
+     * @return 0 bei gleichem OnlineTag; <0 wenn date1 vor date2; >0 wenn day1 nach day2
      */
     public static int compareDays(Date date1, Date date2) {
 
@@ -42,6 +41,16 @@ public class Utilities {
 
         return compareDays(day1, day2);
 
+    }
+
+    public static Calendar getToday() {
+
+        Calendar c = Calendar.getInstance();
+        c.set(Calendar.HOUR_OF_DAY, 0);
+        c.set(Calendar.MINUTE, 0);
+        c.set(Calendar.SECOND, 0);
+        c.set(Calendar.MILLISECOND, 0);
+        return c;
     }
 
     /**
@@ -117,11 +126,6 @@ public class Utilities {
         if (diff == 0) return "heute";
         if (diff == 1) return "morgen";
         return String.format(Locale.GERMANY, "in %s Tagen", diff);
-    }
-
-    public static Gson getDefaultGson() {
-
-        return new GsonBuilder().setDateFormat("dd.MM.yyyy HH:mm:ss").create();
     }
 
 }

@@ -4,7 +4,7 @@
     android:layout_height="match_parent"
     tools:context="de.conradowatz.jkgvertretung.activities.KurswahlActivity">
 
-    <android.support.v7.widget.Toolbar
+    <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -30,7 +30,7 @@
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
-            <Spinner
+            <androidx.appcompat.widget.AppCompatSpinner
                 android:id="@+id/klassenSpinner"
                 android:layout_width="match_parent"
                 android:layout_height="35dp"
@@ -53,15 +53,24 @@
                     android:id="@+id/buttonAlle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_weight="1"
                     android:text="Alle auswählen" />
 
                 <Button
                     android:id="@+id/buttonKeine"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_weight="1"
                     android:text="Keine auswählen" />
 
             </LinearLayout>
+
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/allSwitch"
+                android:layout_marginTop="5dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Zeige alle Kurse"/>
 
             <LinearLayout
                 android:id="@+id/kurseLayout"

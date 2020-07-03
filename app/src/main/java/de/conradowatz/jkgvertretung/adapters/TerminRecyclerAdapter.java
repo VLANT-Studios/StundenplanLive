@@ -1,13 +1,14 @@
 package de.conradowatz.jkgvertretung.adapters;
 
 
-import android.support.v7.widget.RecyclerView;
+import android.os.AsyncTask;
+import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
-
 import com.ms.square.android.expandabletextview.ExpandableTextView;
+import com.raizlabs.android.dbflow.sql.language.SQLite;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -19,11 +20,12 @@ import java.util.List;
 import java.util.Locale;
 
 import de.conradowatz.jkgvertretung.R;
-import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.tools.Utilities;
 import de.conradowatz.jkgvertretung.variables.Event;
+import de.conradowatz.jkgvertretung.variables.Event_Table;
 import de.conradowatz.jkgvertretung.variables.Fach;
 import de.conradowatz.jkgvertretung.variables.Ferien;
+import de.conradowatz.jkgvertretung.variables.Ferien_Table;
 import de.conradowatz.jkgvertretung.variables.Termin;
 
 public class TerminRecyclerAdapter extends RecyclerView.Adapter<TerminRecyclerAdapter.ViewHolder> {
@@ -48,7 +50,7 @@ public class TerminRecyclerAdapter extends RecyclerView.Adapter<TerminRecyclerAd
         this.callback = callback;
         this.fach = fach;
 
-        sortData();
+        updateData();
     }
 
     public TerminRecyclerAdapter(int mode, Callback callback) {
@@ -59,81 +61,78 @@ public class TerminRecyclerAdapter extends RecyclerView.Adapter<TerminRecyclerAd
         this.callback = callback;
         this.fach = null;
 
-        sortData();
+        updateData();
     }
 
-    public void notifyTermineChanged() {
+    public void updateData() {
 
-        sortData();
-        notifyDataSetChanged();
-    }
+        new AsyncTask<Boolean, Integer, List<Termin>>() {
 
-    private void sortData() {
+            boolean[] tmpIsDivider;
 
-        terminList = new ArrayList<>();
-
-        if (mode == MODE_EVENTS) { //Fachansicht
-
-            List<Event> eventList = fach.getEvents();
-            int fachIndex = LocalData.getInstance().getFächer().indexOf(fach);
-            for (Event e : eventList) {
-                e.setFachName(fach.getName());
-                e.setFachIndex(fachIndex);
-                terminList.add(e);
-            }
-
-        } else if (mode == MODE_TERMINE) { //Terminansicht
-
-            for (int i = 0; i < LocalData.getInstance().getFächer().size(); i++) {
-                Fach f = LocalData.getInstance().getFächer().get(i);
-                for (Event e : f.getEvents()) {
-                    e.setFachName(f.getName());
-                    e.setFachIndex(i);
-                    terminList.add(e);
-                }
-            }
-            for (Event e : LocalData.getInstance().getNoFachEvents()) {
-                e.setFachIndex(-1);
-                e.setFachName("");
-                terminList.add(e);
-            }
-
-            List<Ferien> ferienList = LocalData.getInstance().getFerien();
-            for (Ferien f : ferienList) {
-                terminList.add(f);
-            }
-        } else { //Ferienansicht
-
-            List<Ferien> ferienList = LocalData.getInstance().getFerien();
-            for (Ferien f : ferienList) {
-                terminList.add(f);
-            }
-
-        }
-
-        Collections.sort(terminList, new Comparator<Termin>() {
             @Override
-            public int compare(Termin t1, Termin t2) {
-                return t1.getDatum().compareTo(t2.getDatum());
-            }
-        });
+            protected List<Termin> doInBackground(Boolean... params) {
 
-        //DividerArray erstellen
-        int size = getItemCount();
-        if (size > 0) {
-            isDivider = new boolean[size];
-            isDivider[0] = true;
-            isDivider[1] = false;
-            int dividerCount = 0;
-            for (int i = 2; i < size; i++) {
-                if (Utilities.compareDays(terminList.get(i - dividerCount - 1).getDatum(), terminList.get(i - dividerCount - 2).getDatum()) != 0) {
-                    dividerCount++;
-                    isDivider[i] = true;
-                    isDivider[i + 1] = false;
-                    i++;
+                List<Termin> terminList = new ArrayList<>();
+
+                if (mode == MODE_EVENTS) { //Fachansicht
+
+                    terminList.addAll(fach.getEventList());
+
+                } else if (mode == MODE_TERMINE) { //Terminansicht
+
+                    List<Ferien> ferien = SQLite.select().from(Ferien.class).orderBy(Ferien_Table.startDate, true).queryList();
+                    terminList.addAll(ferien);
+                    List<Event> events = SQLite.select().from(Event.class).orderBy(Event_Table.date, true).queryList();
+                    terminList.addAll(events);
+
+                    Collections.sort(terminList, new Comparator<Termin>() {
+                        @Override
+                        public int compare(Termin t1, Termin t2) {
+                            return t1.getDate().compareTo(t2.getDate());
+                        }
+                    });
+
+                } else { //Ferienansicht
+
+                    List<Ferien> ferien = SQLite.select().from(Ferien.class).orderBy(Ferien_Table.startDate, true).queryList();
+                    terminList.addAll(ferien);
+
                 }
+
+                //DividerArray erstellen
+                int uniqueDays = 0;
+                for (int i = 1; i < terminList.size(); i++) {
+                    if (Utilities.compareDays(terminList.get(i - 1).getDate(), terminList.get(i).getDate()) != 0)
+                        uniqueDays++;
+                }
+                int size = terminList.size() + uniqueDays + 1;
+                if (terminList.size()==0) size = 0;
+                if (terminList.size() == 1) size = 2;
+                if (size > 0) {
+                    tmpIsDivider = new boolean[size];
+                    tmpIsDivider[0] = true;
+                    tmpIsDivider[1] = false;
+                    int dividerCount = 0;
+                    for (int i = 2; i < size; i++) {
+                        if (Utilities.compareDays(terminList.get(i - dividerCount - 1).getDate(), terminList.get(i - dividerCount - 2).getDate()) != 0) {
+                            dividerCount++;
+                            tmpIsDivider[i] = true;
+                            tmpIsDivider[i + 1] = false;
+                            i++;
+                        }
+                    }
+                }
+                return terminList;
             }
-        }
+
+            @Override
+            protected void onPostExecute(List<Termin> t) {
+                terminList = t;
+                isDivider = tmpIsDivider;
+                notifyDataSetChanged();
+            }
+        }.execute();
     }
 
 
@@ -178,32 +177,29 @@ public class TerminRecyclerAdapter extends RecyclerView.Adapter<TerminRecyclerAd
 
                 final Event e = (Event) termin;
 
-                int compareNumber = Utilities.compareDays(e.getDatum(), cNow.getTime());
+                int compareNumber = Utilities.compareDays(e.getDate(), cNow.getTime());
 
                 if (compareNumber >= 0)
-                    holder.infoText.setText(Utilities.dayDifferenceToString(Utilities.getDayDifference(cNow.getTime(), e.getDatum())));
+                    holder.infoText.setText(Utilities.dayDifferenceToString(Utilities.getDayDifference(cNow.getTime(), e.getDate())));
                 else holder.infoText.setText("vergangen");
 
 
-                final int fachIndex = e.getFachIndex();
                 holder.editButtonText.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
-                        int eventIndex = (fachIndex > -1 ? LocalData.getInstance().getFächer().get(fachIndex).getEvents().indexOf(e) : LocalData.getInstance().getNoFachEvents().indexOf(e));
-                        callback.onEditEvent(fachIndex, eventIndex);
+                        callback.onEditEvent(e.getId());
                     }
                 });
                 holder.deleteButtonText.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
-                        int eventIndex = (fachIndex > -1 ? LocalData.getInstance().getFächer().get(fachIndex).getEvents().indexOf(e) : LocalData.getInstance().getNoFachEvents().indexOf(e));
-                        callback.onDeleteEvent(fachIndex, eventIndex, holder.getAdapterPosition());
+                        callback.onDeleteEvent(e.getId(), holder.getAdapterPosition());
                     }
                 });
 
-                if (e.getFachName().isEmpty()) holder.titleText.setText(e.getTitle());
+                if (e.getFach()==null) holder.titleText.setText(e.getName());
                 else
-                    holder.titleText.setText(String.format(Locale.GERMANY, "%s: %s", e.getFachName(), e.getTitle()));
+                    holder.titleText.setText(String.format(Locale.GERMANY, "%s: %s", e.getFach().getName(), e.getName()));
                 holder.descText.setText(e.getDescription());
 
             } else {
@@ -216,7 +212,7 @@ public class TerminRecyclerAdapter extends RecyclerView.Adapter<TerminRecyclerAd
                 } else if (Utilities.compareDays(f.getEndDate(), cNow.getTime()) >= 0) {
                     int dayDiff = Utilities.getDayDifference(cNow.getTime(), f.getEndDate());
                     if (dayDiff == 1)
-                        holder.infoText.setText("noch 1 Tag");
+                        holder.infoText.setText("noch 1 OnlineTag");
                     else
                         holder.infoText.setText(String.format(Locale.GERMANY, "noch %s Tage", dayDiff));
                 } else holder.infoText.setText("vergangen");
@@ -226,21 +222,19 @@ public class TerminRecyclerAdapter extends RecyclerView.Adapter<TerminRecyclerAd
                 holder.deleteButtonText.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
-                        int ferienIndex = LocalData.getInstance().getFerien().indexOf(f);
-                        callback.onDeleteFerien(ferienIndex, holder.getAdapterPosition());
+                        callback.onDeleteFerien(f.getId(), holder.getAdapterPosition());
                     }
                 });
                 holder.editButtonText.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
-                        int ferienIndex = LocalData.getInstance().getFerien().indexOf(f);
-                        callback.onEditFerien(ferienIndex);
+                        callback.onEditFerien(f.getId());
                     }
                 });
 
             }
 
-        } else holder.datumText.setText(getDateString(termin.getDatum()));
+        } else holder.datumText.setText(getDateString(termin.getDate()));
 
     }
 
@@ -265,18 +259,18 @@ public class TerminRecyclerAdapter extends RecyclerView.Adapter<TerminRecyclerAd
         Termin t = getTerminAt(position);
 
         if (!isDivider[position]) return t.hashCode();
-        else return t.getDatum().hashCode();
+        else return t.getDate().hashCode();
 
     }
 
     @Override
     public int getItemCount() {
 
-        if (terminList.size() == 0) return 0;
+        if (terminList==null || terminList.size()==0) return 0;
         if (terminList.size() == 1) return 2;
         int uniqueDays = 0;
         for (int i = 1; i < terminList.size(); i++) {
-            if (Utilities.compareDays(terminList.get(i - 1).getDatum(), terminList.get(i).getDatum()) != 0)
+            if (Utilities.compareDays(terminList.get(i - 1).getDate(), terminList.get(i).getDate()) != 0)
                 uniqueDays++;
         }
 
@@ -285,13 +279,13 @@ public class TerminRecyclerAdapter extends RecyclerView.Adapter<TerminRecyclerAd
 
     public interface Callback {
 
-        void onEditEvent(int fachIndex, int eventIndex);
+        void onEditEvent(long eventId);
 
-        void onDeleteEvent(int fachIndex, int eventIndex, int recyclerIndex);
+        void onDeleteEvent(long eventId, int recyclerIndex);
 
-        void onEditFerien(int ferienIndex);
+        void onEditFerien(long ferienId);
 
-        void onDeleteFerien(int ferienIndex, int recyclerIndex);
+        void onDeleteFerien(long ferienId, int recyclerIndex);
     }
 
     public class ViewHolder extends RecyclerView.ViewHolder {

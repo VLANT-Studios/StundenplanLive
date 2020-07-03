@@ -3,16 +3,15 @@ package de.conradowatz.jkgvertretung.activities;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.os.Bundle;
-import android.support.annotation.Nullable;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
-import android.support.v7.widget.SwitchCompat;
-import android.support.v7.widget.Toolbar;
+import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.appcompat.widget.SwitchCompat;
+import androidx.appcompat.widget.Toolbar;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.Menu;
@@ -28,25 +27,28 @@ import android.widget.Toast;
 import org.greenrobot.eventbus.EventBus;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
+import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.adapters.NextLessonRecyclerAdapter;
 import de.conradowatz.jkgvertretung.adapters.ReminderRecyclerAdapter;
-import de.conradowatz.jkgvertretung.events.AnalyticsEventEvent;
 import de.conradowatz.jkgvertretung.events.EventsChangedEvent;
 import de.conradowatz.jkgvertretung.tools.LocalData;
-import de.conradowatz.jkgvertretung.tools.VertretungsData;
+import de.conradowatz.jkgvertretung.tools.Utilities;
+import de.conradowatz.jkgvertretung.variables.Erinnerung;
 import de.conradowatz.jkgvertretung.variables.Event;
 import de.conradowatz.jkgvertretung.variables.Fach;
 
 public class EventActivity extends AppCompatActivity implements ReminderRecyclerAdapter.Callback {
 
     private Event event;
-    private int fachInt;
-    private int eventInt;
+    private long eventId;
+    private List<Erinnerung> erinnerungen;
 
     private boolean isSaveDialog;
     private boolean isDatePickerDialog;
@@ -71,14 +73,6 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        if (!VertretungsData.getInstance().isReady() || !LocalData.isReady()) {
-            Intent spashIntent = new Intent(this, SplashActivity.class);
-            spashIntent.putExtra("intent", getIntent());
-            startActivity(spashIntent);
-            finish();
-            return;
-        }
-
         setContentView(R.layout.activity_event);
 
         toolbar = (Toolbar) findViewById(R.id.toolbar);
@@ -97,9 +91,13 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
 
         if (savedInstanceState != null) {
 
-            eventInt = savedInstanceState.getInt("eventInt", -1);
-            fachInt = savedInstanceState.getInt("fachInt", -1);
+            eventId = savedInstanceState.getLong("eventId", -1);
             event = savedInstanceState.getParcelable("event");
+
+            erinnerungen = new ArrayList<>();
+            for (String s : savedInstanceState.getStringArrayList("erinnerungen")) {
+                erinnerungen.add(new Erinnerung(new Date(Long.valueOf(s)), event));
+            }
 
             if (savedInstanceState.getBoolean("isSaveDialog")) showSaveDialog();
             if (savedInstanceState.getBoolean("isDatePickerDialog")) showDatePickerDialog(-1);
@@ -113,19 +111,20 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
 
         } else {
 
-            eventInt = getIntent().getIntExtra("eventInt", -1);
-            fachInt = getIntent().getIntExtra("fachInt", -1);
-            if (eventInt > -1) {
-                Event e;
-                if (fachInt > -1)
-                    e = LocalData.getInstance().getFächer().get(fachInt).getEvents().get(eventInt);
-                else
-                    e = LocalData.getInstance().getNoFachEvents().get(eventInt);
-                event = new Event(e.getDatum(), e.getTitle(), e.getDescription(), e.isDeleteWhenElapsed(), e.getFachName(), e.getReminders()); //make copy if aborted
+            eventId = getIntent().getLongExtra("eventId", (long) -1);
+            if (eventId > -1) {
+                event = Event.getEvent(eventId);
+                erinnerungen = event.getErinnerungen();
             } else {
                 Calendar calendar = Calendar.getInstance();
-                calendar.setTimeInMillis(getIntent().getLongExtra("date", calendar.getTimeInMillis()));
-                event = new Event(calendar.getTime(), "", "", false);
+                calendar.setTimeInMillis(getIntent().getLongExtra("date", Utilities.getToday().getTimeInMillis()));
+                Fach fach = Fach.getFach(getIntent().getLongExtra("fachId", -1));
+                event = new Event();
+                event.setName("");
+                event.setDescription("");
+                event.setDate(calendar.getTime());
+                event.setFach(fach);
+                erinnerungen = new ArrayList<>();
             }
 
         }
@@ -138,14 +137,14 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
     private void setUpRecycler() {
 
         RecyclerView.LayoutManager lManager = new LinearLayoutManager(this);
-        ReminderRecyclerAdapter adapter = new ReminderRecyclerAdapter(event.getReminders(), this);
+        ReminderRecyclerAdapter adapter = new ReminderRecyclerAdapter(erinnerungen, this);
         reminderRecycler.setLayoutManager(lManager);
         reminderRecycler.setAdapter(adapter);
     }
 
     private void setUpTexts() {
 
-        nameEdit.append(event.getTitle());
+        nameEdit.append(event.getName());
         nameEdit.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
@@ -158,7 +157,7 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
 
             @Override
             public void afterTextChanged(Editable editable) {
-                event.setTitle(editable.toString().trim());
+                event.setName(editable.toString().trim());
             }
         });
 
@@ -187,7 +186,7 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
             }
         });
 
-        datumText.setText(makeDateString(event.getDatum()));
+        datumText.setText(makeDateString(event.getDate()));
 
         datumText.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -197,17 +196,16 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
         });
 
 
-        if (fachInt == -1) {
+        if (event.getFach() == null) {
 
             stundenAuswahlText.setVisibility(View.GONE);
             fachText.setVisibility(View.GONE);
 
         } else {
 
-            Fach fach = LocalData.getInstance().getFächer().get(fachInt);
-            fachText.setText(String.format(Locale.GERMANY, "%s:", fach.getName()));
+            fachText.setText(String.format(Locale.GERMANY, "%s:", event.getFach().getName()));
 
-            if (!fach.hasStunden()) stundenAuswahlText.setVisibility(View.GONE);
+            if (event.getFach().getUnterrichtsZeiten().isEmpty()) stundenAuswahlText.setVisibility(View.GONE);
             else stundenAuswahlText.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
@@ -218,8 +216,6 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
     }
 
     private void showPickStundeDialog() {
-
-        final Fach fach = LocalData.getInstance().getFächer().get(fachInt);
 
         isPickStundeDialog = true;
 
@@ -236,14 +232,14 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
             }
         });
         final AlertDialog dialog = dialogBuilder.create();
-        NextLessonRecyclerAdapter adapter = new NextLessonRecyclerAdapter(fach, new NextLessonRecyclerAdapter.Callback() {
+        NextLessonRecyclerAdapter adapter = new NextLessonRecyclerAdapter(event.getFach(), new NextLessonRecyclerAdapter.Callback() {
             @Override
             public void onDateClicked(Date date) {
 
                 isPickStundeDialog = false;
 
-                event.setDatum(date);
-                datumText.setText(makeDateString(event.getDatum()));
+                event.setDate(date);
+                datumText.setText(makeDateString(event.getDate()));
                 dialog.cancel();
             }
         });
@@ -264,9 +260,9 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
 
         Calendar c = Calendar.getInstance();
         if (reminderInt > -1)
-            c.setTime(event.getReminders().get(reminderInt));
+            c.setTime(erinnerungen.get(reminderInt).getDate());
         else
-            c.setTime(event.getDatum());
+            c.setTime(event.getDate());
 
         DatePickerDialog dialog = new DatePickerDialog(this, new DatePickerDialog.OnDateSetListener() {
             @Override
@@ -274,18 +270,19 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
 
                 isDatePickerDialog = false;
 
-                Calendar c = Calendar.getInstance();
+                Calendar c = Utilities.getToday();
                 if (reminderInt > -1)
-                    c.setTime(event.getReminders().get(reminderInt));
+                    c.setTime(erinnerungen.get(reminderInt).getDate());
                 else
-                    c.setTime(event.getDatum());
-                c.set(datePicker.getYear(), datePicker.getMonth(), datePicker.getDayOfMonth(), c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE));
+                    c.setTime(event.getDate());
+                c.set(datePicker.getYear(), datePicker.getMonth(), datePicker.getDayOfMonth());
                 if (reminderInt > -1) {
-                    event.getReminders().set(reminderInt, c.getTime());
+                    erinnerungen.get(reminderInt).setDate(c.getTime());
+                    ((ReminderRecyclerAdapter)reminderRecycler.getAdapter()).updateData(erinnerungen);
                     reminderRecycler.getAdapter().notifyDataSetChanged();
                 } else {
-                    event.setDatum(c.getTime());
-                    datumText.setText(makeDateString(event.getDatum()));
+                    event.setDate(c.getTime());
+                    datumText.setText(makeDateString(event.getDate()));
                 }
 
             }
@@ -308,7 +305,7 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
     private void showTimePickerDialog(final int reminderInt) {
 
         Calendar c = Calendar.getInstance();
-        c.setTime(event.getReminders().get(reminderInt));
+        c.setTime(erinnerungen.get(reminderInt).getDate());
 
         TimePickerDialog dialog = new TimePickerDialog(this, new TimePickerDialog.OnTimeSetListener() {
             @Override
@@ -317,9 +314,10 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
                 isReminderTimePickerDialog = false;
 
                 Calendar c = Calendar.getInstance();
-                c.setTime(event.getReminders().get(reminderInt));
+                c.setTime(erinnerungen.get(reminderInt).getDate());
                 c.set(c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DATE), timePicker.getCurrentHour(), timePicker.getCurrentMinute());
-                event.getReminders().set(reminderInt, c.getTime());
+                erinnerungen.get(reminderInt).setDate(c.getTime());
+                ((ReminderRecyclerAdapter)reminderRecycler.getAdapter()).updateData(erinnerungen);
                 reminderRecycler.getAdapter().notifyDataSetChanged();
 
             }
@@ -345,7 +343,7 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
 
-        if (eventInt == -1) getMenuInflater().inflate(R.menu.menu_save, menu);
+        if (eventId == -1) getMenuInflater().inflate(R.menu.menu_save, menu);
         else getMenuInflater().inflate(R.menu.menu_save_delete, menu);
         return true;
     }
@@ -357,11 +355,7 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
 
         if (id == R.id.action_save) {
 
-            if (saveEvent()) {
-                LocalData.saveToFile(getApplicationContext());
-                eventBus.post(new EventsChangedEvent());
-                finish();
-            }
+            if (saveEvent()) finish();
             return true;
 
         } else if (id == R.id.action_delete) {
@@ -380,12 +374,12 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
 
     private void showDeleteDialog() {
 
-        if (eventInt == -1) return;
+        if (eventId == -1) return;
 
         isDeleteDialog = true;
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("'" + event.getTitle() + "' löschen");
+        builder.setTitle("'" + event.getName() + "' löschen");
         builder.setMessage("Bist du sicher dass du dieses Event löschen möchtest?");
         builder.setPositiveButton("Löschen", new DialogInterface.OnClickListener() {
             @Override
@@ -393,18 +387,9 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
 
                 isDeleteDialog = false;
 
-                if (fachInt > -1) {
-                    Event event = LocalData.getInstance().getFächer().get(fachInt).getEvents().get(eventInt);
-                    LocalData.removeEventReminder(getApplicationContext(), event, fachInt, eventInt);
-                    LocalData.getInstance().getFächer().get(fachInt).getEvents().remove(eventInt);
-                } else {
-                    Event event = LocalData.getInstance().getNoFachEvents().get(eventInt);
-                    LocalData.removeEventReminder(getApplicationContext(), event, fachInt, eventInt);
-                    LocalData.getInstance().getNoFachEvents().remove(eventInt);
-                }
-
+                LocalData.removeEventReminder(getApplicationContext(), event);
+                event.delete();
                 eventBus.post(new EventsChangedEvent());
-                LocalData.saveToFile(getApplicationContext());
                 finish();
 
             }
@@ -434,33 +419,21 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
 
     private boolean saveEvent() {
 
-        if (event.getTitle().isEmpty()) {
+        if (event.getName().isEmpty()) {
             Toast.makeText(this, "Das Event braucht eine Bezeichnung!", Toast.LENGTH_SHORT).show();
             return false;
         }
 
-        if (fachInt > -1) {
-            if (eventInt > -1) {
-                LocalData.removeEventReminder(getApplicationContext(), LocalData.getInstance().getFächer().get(fachInt).getEvents().get(eventInt), fachInt, eventInt);
-                LocalData.getInstance().getFächer().get(fachInt).getEvents().set(eventInt, event);
-            } else {
-                eventBus.post(new AnalyticsEventEvent("Manager", "Event erstellt"));
-                LocalData.getInstance().getFächer().get(fachInt).getEvents().add(event);
-            }
-            LocalData.getInstance().getFächer().get(fachInt).sortEvents();
-            LocalData.addEventReminder(getApplicationContext(), event, fachInt, LocalData.getInstance().getFächer().get(fachInt).getEvents().indexOf(event));
-        } else {
-            if (eventInt > -1) {
-                LocalData.removeEventReminder(getApplicationContext(), LocalData.getInstance().getNoFachEvents().get(eventInt), fachInt, eventInt);
-                LocalData.getInstance().getNoFachEvents().set(eventInt, event);
-            } else {
-                eventBus.post(new AnalyticsEventEvent("Manager", "Event erstellt"));
-                LocalData.getInstance().getNoFachEvents().add(event);
-            }
-            LocalData.getInstance().sortNoFachEvents();
-            LocalData.addEventReminder(getApplicationContext(), event, fachInt, LocalData.getInstance().getNoFachEvents().indexOf(event));
-        }
+        //Alte Erinnerungen löschen
+        event.deleteErinnerungen();
+        if (eventId != -1) LocalData.removeEventReminder(getApplicationContext(), event);
 
+        event.save();
+        //neue Erinnerungen speichern
+        for (Erinnerung e : erinnerungen) e.save();
+        LocalData.addEventReminder(getApplicationContext(), event);
+
+        eventBus.post(new EventsChangedEvent());
         return true;
 
     }
@@ -497,10 +470,15 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
     @Override
     protected void onSaveInstanceState(Bundle outState) {
 
-        outState.putInt("eventInt", eventInt);
-        outState.putInt("fachInt", fachInt);
+        outState.putLong("eventId", eventId);
         outState.putBoolean("isSaveDialog", isSaveDialog);
         outState.putParcelable("event", event);
+
+        ArrayList<String> erinnerungenStr = new ArrayList<>();
+        for (Erinnerung e : erinnerungen) {
+            erinnerungenStr.add(String.valueOf(e.getDate().getTime()));
+        }
+        outState.putStringArrayList("erinnerungen", erinnerungenStr);
 
         outState.putBoolean("isDatePickerDialog", isDatePickerDialog);
         outState.putBoolean("isReminderTimePickerDialog", isReminderTimePickerDialog);
@@ -529,14 +507,16 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
 
     @Override
     public void onDeleteClicked(int pos) {
-        event.getReminders().remove(pos);
+        erinnerungen.remove(pos);
+        ((ReminderRecyclerAdapter)reminderRecycler.getAdapter()).updateData(erinnerungen);
         reminderRecycler.getAdapter().notifyItemRemoved(pos);
     }
 
     @Override
     public void onAddClicked() {
         Calendar c = Calendar.getInstance();
-        event.getReminders().add(c.getTime());
-        reminderRecycler.getAdapter().notifyItemInserted(event.getReminders().size() - 1);
+        erinnerungen.add(new Erinnerung(c.getTime(), event));
+        ((ReminderRecyclerAdapter)reminderRecycler.getAdapter()).updateData(erinnerungen);
+        reminderRecycler.getAdapter().notifyItemInserted(erinnerungen.size() - 1);
     }
 }

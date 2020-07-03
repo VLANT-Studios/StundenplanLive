@@ -4,14 +4,14 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.TabLayout;
-import android.support.design.widget.TextInputLayout;
-import android.support.v4.content.ContextCompat;
-import android.support.v4.view.ViewPager;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.tabs.TabLayout;
+import com.google.android.material.textfield.TextInputLayout;
+import androidx.core.content.ContextCompat;
+import androidx.viewpager.widget.ViewPager;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import android.transition.Fade;
 import android.view.KeyEvent;
 import android.view.MenuItem;
@@ -19,15 +19,12 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.TextView;
-
 import org.greenrobot.eventbus.EventBus;
 
+import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.adapters.ManagerPagerAdapter;
-import de.conradowatz.jkgvertretung.events.AnalyticsEventEvent;
 import de.conradowatz.jkgvertretung.events.FaecherUpdateEvent;
-import de.conradowatz.jkgvertretung.tools.LocalData;
-import de.conradowatz.jkgvertretung.tools.VertretungsData;
 import de.conradowatz.jkgvertretung.variables.Fach;
 
 public class ManagerActivity extends AppCompatActivity {
@@ -45,14 +42,6 @@ public class ManagerActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        if (!VertretungsData.getInstance().isReady() || !LocalData.isReady()) {
-            Intent spashIntent = new Intent(this, SplashActivity.class);
-            spashIntent.putExtra("intent", getIntent());
-            startActivity(spashIntent);
-            finish();
-            return;
-        }
 
         setContentView(R.layout.activity_manager);
 
@@ -136,8 +125,10 @@ public class ManagerActivity extends AppCompatActivity {
                 @Override
                 public boolean onKey(View v, int keyCode, KeyEvent event) {
                     if ((event.getAction() == KeyEvent.ACTION_DOWN) && (keyCode == KeyEvent.KEYCODE_ENTER)) {
-                        if (newFach(dialogeditText.getText().toString(), textInputLayout))
+                        if (newFach(dialogeditText.getText().toString(), textInputLayout)) {
                             dialog.dismiss();
+                            isNewFachDialog = false;
+                        }
                     }
 
                     return false;
@@ -152,40 +143,43 @@ public class ManagerActivity extends AppCompatActivity {
                 button.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
-                        if (newFach(dialogeditText.getText().toString(), textInputLayout))
+                        if (newFach(dialogeditText.getText().toString(), textInputLayout)) {
                             dialog.dismiss();
+                            isNewFachDialog = false;
+                        }
                     }
                 });
             }
         });
         dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
+        dialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
+            @Override
+            public void onCancel(DialogInterface dialog) {
+                isNewFachDialog = false;
+            }
+        });
         dialog.show();
 
     }
 
     private boolean newFach(String fachName, TextInputLayout textInputLayout) {
 
-        eventBus.post(new AnalyticsEventEvent("Manager", "Fach erstellt"));
-
         fachName = fachName.trim();
 
         if (!fachName.isEmpty()) {
-            for (Fach f : LocalData.getInstance().getFächer()) {
-                if (f.getName().equalsIgnoreCase(fachName)) {
-                    textInputLayout.setError("Dieses Fach existiert bereits!");
-                    return false;
-                }
+
+            if (Fach.exists(fachName)) {
+                textInputLayout.setError("Dieses Fach existiert bereits!");
+                return false;
             }
 
             //neues Fach hinzufügen
             Fach newFach = new Fach(fachName);
-            LocalData.getInstance().getFächer().add(newFach);
-            LocalData.getInstance().sortFächer();
-            LocalData.saveToFile(getApplicationContext());
+            newFach.save();
             eventBus.post(new FaecherUpdateEvent());
 
             Intent openFachIntent = new Intent(this, FachActivity.class);
-            openFachIntent.putExtra("fachIndex", LocalData.getInstance().getFächer().indexOf(newFach));
+            openFachIntent.putExtra("fachId", newFach.getId());
             startActivity(openFachIntent);
 
             return true;

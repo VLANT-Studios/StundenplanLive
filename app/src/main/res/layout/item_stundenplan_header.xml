@@ -1,24 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginLeft="10dp"
     android:layout_marginRight="10dp"
     android:layout_marginTop="10dp"
-    android:background="@color/accent"
-    android:elevation="2dp">
+    android:elevation="2dp"
+    android:orientation="vertical">
 
-    <RelativeLayout
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingBottom="3dp">
+        android:paddingBottom="3dp"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        android:orientation="vertical"
+        android:background="@color/accent">
 
         <TextView
             android:id="@+id/datumText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            android:paddingLeft="20dp"
             android:text="Montag, 20.5.2015 (A-Woche)"
             android:textColor="@color/primary_text"
             android:textSize="15sp"
@@ -28,11 +31,38 @@
             android:id="@+id/zeitstempelText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_below="@id/datumText"
             android:layout_marginBottom="10dp"
-            android:paddingLeft="20dp"
             android:text="aktualisiert am 19.06.2015, 10:34" />
 
 
-    </RelativeLayout>
-</FrameLayout>
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/tagEventLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingTop="10dp"
+        android:paddingLeft="10dp"
+        android:paddingRight="10dp"
+        android:background="@color/white"
+        android:foreground="?android:attr/selectableItemBackground"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tagEventText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/primary"
+            android:layout_marginLeft="10dp"
+            android:layout_marginRight="10dp"
+            android:textStyle="bold"
+            android:text="Tag Event"/>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="10dp"
+            android:background="@color/divider" />
+
+    </LinearLayout>
+</LinearLayout>

@@ -1,8 +1,8 @@
 package de.conradowatz.jkgvertretung.adapters;
 
 import android.content.Context;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.widget.RecyclerView;
+import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -10,7 +10,10 @@ import android.widget.Button;
 
 import java.util.List;
 
+import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
+import de.conradowatz.jkgvertretung.variables.Fach;
+import de.conradowatz.jkgvertretung.variables.Zensur;
 
 public class FachNotenRecyclerAdapter extends RecyclerView.Adapter<FachNotenRecyclerAdapter.ViewHolder> {
 
@@ -18,17 +21,23 @@ public class FachNotenRecyclerAdapter extends RecyclerView.Adapter<FachNotenRecy
     public static final int NOTEN_TYPE_KLAUSUREN = 1;
     private static final int ITEM_TYPE_NORMAL = 0;
     private static final int ITEM_TYPE_ADD = 1;
-    private List<Integer> notenListe;
-    private Context context;
+    private List<Zensur> notenListe;
+    private Fach fach;
     private Callback callback;
     private int type;
 
-    public FachNotenRecyclerAdapter(Context context, List<Integer> notenListe, Callback callback, int type) {
+    public FachNotenRecyclerAdapter(Fach fach, Callback callback, int type) {
 
-        this.notenListe = notenListe;
-        this.context = context;
+        this.fach = fach;
         this.callback = callback;
         this.type = type;
+        updateData();
+    }
+
+    public void updateData() {
+
+        if (type==NOTEN_TYPE_SONSTIGE) notenListe = fach.getTests();
+        else notenListe = fach.getKlausuren();
     }
 
     @Override
@@ -41,8 +50,10 @@ public class FachNotenRecyclerAdapter extends RecyclerView.Adapter<FachNotenRecy
     @Override
     public void onBindViewHolder(final ViewHolder holder, int position) {
 
+        Context context = MyApplication.getAppContext();
+
         if (getItemViewType(position) == ITEM_TYPE_NORMAL) {
-            holder.button.setText(String.valueOf(notenListe.get(position)));
+            holder.button.setText(String.valueOf(notenListe.get(position).getZensur()));
             holder.button.setBackgroundColor(ContextCompat.getColor(context, R.color.accent));
             holder.button.setOnClickListener(null);
             holder.button.setOnClickListener(new View.OnClickListener() {

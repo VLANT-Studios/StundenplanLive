@@ -1,37 +1,48 @@
 package de.conradowatz.jkgvertretung.adapters;
 
 
-import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentManager;
-import android.support.v4.app.FragmentStatePagerAdapter;
+import android.os.AsyncTask;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentStatePagerAdapter;
 
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
+import java.util.Locale;
 
 import de.conradowatz.jkgvertretung.fragments.StundenplanFragment;
 import de.conradowatz.jkgvertretung.fragments.StundenplanPageFragment;
 import de.conradowatz.jkgvertretung.tools.Utilities;
 import de.conradowatz.jkgvertretung.tools.VertretungsAPI;
-import de.conradowatz.jkgvertretung.tools.VertretungsData;
-import de.conradowatz.jkgvertretung.variables.Tag;
+import de.conradowatz.jkgvertretung.variables.OnlineTag;
 
 public class StundenplanPagerAdapter extends FragmentStatePagerAdapter {
 
     private int mode;
-    private Integer klassenIndex;
+    private String klassenName;
 
-    private int onlineCount;
+    private List<OnlineTag> onlineTagList = new ArrayList<>();
 
     private Date nextSchoolDay;
     private int nextSchoolDayOfWeek;
 
-    public StundenplanPagerAdapter(FragmentManager fm, int mode, Integer klassenIndex) {
+    public StundenplanPagerAdapter(FragmentManager fm, int mode, String klassenName) {
         super(fm);
         this.mode = mode;
-        this.klassenIndex = klassenIndex;
-        onlineCount = VertretungsData.getInstance().getTagList().size();
+        this.klassenName = klassenName;
 
-        Calendar calendar = Calendar.getInstance();
+        updateNextSchoolDay();
+
+        updateData();
+
+    }
+
+    private void updateNextSchoolDay() {
+
+        Calendar calendar = Utilities.getToday();
         nextSchoolDay = calendar.getTime();
         if (VertretungsAPI.isntSchoolDay(nextSchoolDay))
             nextSchoolDay = VertretungsAPI.nextSchoolDay(nextSchoolDay);
@@ -39,40 +50,45 @@ public class StundenplanPagerAdapter extends FragmentStatePagerAdapter {
 
     }
 
-    public void dayAdded() {
-        if (mode != StundenplanFragment.MODE_STUNDENPLAN)
-            onlineCount = VertretungsData.getInstance().getTagList().size();
-        notifyDataSetChanged();
+    public void updateData() {
+
+        new AsyncTask<Boolean, Integer, List<OnlineTag>>() {
+            @Override
+            protected List<OnlineTag> doInBackground(Boolean... params) {
+                if (mode != StundenplanFragment.MODE_STUNDENPLAN)
+                    return OnlineTag.getAllOnlineTagSorted();
+                return null;
+            }
+
+            @Override
+            protected void onPostExecute(List<OnlineTag> o) {
+                onlineTagList = o;
+                updateNextSchoolDay();
+                notifyDataSetChanged();
+            }
+        }.execute();
+
     }
 
     @Override
     public Fragment getItem(int position) {
-        int onlinePosition = -1;
+
         Calendar calendar = Calendar.getInstance();
 
         if (mode == StundenplanFragment.MODE_STUNDENPLAN) {
-            //get Datum und onlinePosition
+            //get Datum
             calendar.setTime(nextSchoolDay);
             int dayToAdd = position + ((position + nextSchoolDayOfWeek - 1) / 5) * 2;
             calendar.add(Calendar.DATE, dayToAdd);
-            for (int i = 0; i < VertretungsData.getInstance().getTagList().size(); i++) {
-                Tag t = VertretungsData.getInstance().getTagList().get(i);
-                Calendar tc = Calendar.getInstance();
-                tc.setTime(t.getDatum());
-                if (Utilities.compareDays(calendar, tc) == 0) {
-                    onlinePosition = i;
-                    break;
-                }
-            }
         }
-        return StundenplanPageFragment.newInstance(position, mode, klassenIndex, calendar.getTime(), onlinePosition);
+        return StundenplanPageFragment.newInstance(position, mode, klassenName, calendar.getTime());
     }
 
     @Override
     public int getCount() {
         if (mode == StundenplanFragment.MODE_STUNDENPLAN)
             return 300;
-        else return onlineCount;
+        else return onlineTagList.size();
     }
 
     @Override
@@ -93,7 +109,7 @@ public class StundenplanPagerAdapter extends FragmentStatePagerAdapter {
                     return "Fr";
             }
         } else {
-            return VertretungsData.getInstance().getTagList().get(position).getDatumString().split(",")[0];
+            return new SimpleDateFormat("EEEE", Locale.GERMAN).format(onlineTagList.get(position).getDate());
         }
     }
 

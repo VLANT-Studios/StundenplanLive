@@ -1,6 +1,6 @@
 package de.conradowatz.jkgvertretung.adapters;
 
-import android.support.v7.widget.RecyclerView;
+import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,9 +13,7 @@ import java.util.List;
 import java.util.Locale;
 
 import de.conradowatz.jkgvertretung.R;
-import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.tools.Utilities;
-import de.conradowatz.jkgvertretung.tools.VertretungsAPI;
 import de.conradowatz.jkgvertretung.variables.Fach;
 
 public class NextLessonRecyclerAdapter extends RecyclerView.Adapter<NextLessonRecyclerAdapter.ViewHolder> {
@@ -32,12 +30,7 @@ public class NextLessonRecyclerAdapter extends RecyclerView.Adapter<NextLessonRe
 
         if (!fach.hasStunden()) return;
 
-        Calendar calendar = Calendar.getInstance();
-        Date schoolDay = calendar.getTime();
-        if (VertretungsAPI.isntSchoolDay(schoolDay))
-            schoolDay = VertretungsAPI.nextSchoolDay(schoolDay);
-
-        loadMoreDays(0, schoolDay);
+        loadMoreDays(0, Utilities.getToday().getTime());
 
     }
 
@@ -70,7 +63,7 @@ public class NextLessonRecyclerAdapter extends RecyclerView.Adapter<NextLessonRe
                 //Load more if scrolled to End
                 if (holder.getAdapterPosition() == dateList.size() - 1) {
 
-                    loadMoreDays(holder.getAdapterPosition(), VertretungsAPI.nextSchoolDay(dateList.get(holder.getAdapterPosition())));
+                    loadMoreDays(holder.getAdapterPosition(), dateList.get(holder.getAdapterPosition()));
 
                 }
             }
@@ -79,19 +72,7 @@ public class NextLessonRecyclerAdapter extends RecyclerView.Adapter<NextLessonRe
 
     private void loadMoreDays(int startPosition, Date startDate) {
 
-        int i = 0;
-        while (i < 10) {
-            boolean isAWoche = LocalData.getInstance().isAWoche(startDate);
-            int dayOfWeek = Utilities.getDayOfWeek(startDate) - 1;
-            for (int j = 0; j < 9; j++) {
-                if (fach.getStunden(isAWoche)[dayOfWeek][j]) {
-                    dateList.add(startDate);
-                    i++;
-                    break;
-                }
-            }
-            startDate = VertretungsAPI.nextSchoolDay(startDate);
-        }
+        dateList.addAll(fach.getUnterrichtDaten(startDate));
         notifyItemRangeInserted(startPosition + 1, startPosition + 21);
 
     }

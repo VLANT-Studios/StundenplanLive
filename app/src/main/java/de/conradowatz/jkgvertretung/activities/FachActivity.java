@@ -3,13 +3,13 @@ package de.conradowatz.jkgvertretung.activities;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
-import android.support.design.widget.TabLayout;
-import android.support.design.widget.TextInputLayout;
-import android.support.v4.content.ContextCompat;
-import android.support.v4.view.ViewPager;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
+import com.google.android.material.tabs.TabLayout;
+import com.google.android.material.textfield.TextInputLayout;
+import androidx.core.content.ContextCompat;
+import androidx.viewpager.widget.ViewPager;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -23,9 +23,8 @@ import org.greenrobot.eventbus.EventBus;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.adapters.FachPagerAdapter;
 import de.conradowatz.jkgvertretung.events.FaecherUpdateEvent;
-import de.conradowatz.jkgvertretung.tools.LocalData;
-import de.conradowatz.jkgvertretung.tools.VertretungsData;
 import de.conradowatz.jkgvertretung.variables.Fach;
+import de.conradowatz.jkgvertretung.variables.UnterrichtsZeit_Table;
 
 public class FachActivity extends AppCompatActivity {
 
@@ -45,22 +44,24 @@ public class FachActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        if (!VertretungsData.getInstance().isReady() || !LocalData.isReady()) {
-            Intent spashIntent = new Intent(this, SplashActivity.class);
-            spashIntent.putExtra("intent", getIntent());
-            startActivity(spashIntent);
-            finish();
-            return;
-        }
-
         setContentView(R.layout.activity_fach);
 
-        Intent intent = getIntent();
-        int tab = TAB_EVENTS;
-        if (intent != null) {
-            int fachIndex = intent.getIntExtra("fachIndex", 0);
-            tab = intent.getIntExtra("tab", TAB_EVENTS);
-            fach = LocalData.getInstance().getFächer().get(fachIndex);
+        Integer tab = TAB_EVENTS;
+        if (savedInstanceState != null) {
+            if (savedInstanceState.getBoolean("isDeleteDialog")) showDeleteDialog();
+            String renameDialogText = savedInstanceState.getString("renameDialogText");
+            if (renameDialogText != null) showRenameDialog(renameDialogText);
+            long fachId = savedInstanceState.getLong("fachId", (long) -1);
+            fach = Fach.getFach(fachId);
+        } else {
+
+            Intent intent = getIntent();
+            if (intent != null) {
+                long fachId = intent.getLongExtra("fachId", (long) -1);
+                fach = Fach.getFach(fachId);
+                tab = intent.getIntExtra("tab", TAB_EVENTS);
+            }
+
         }
 
         toolbar = (Toolbar) findViewById(R.id.toolbar);
@@ -72,13 +73,7 @@ public class FachActivity extends AppCompatActivity {
 
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
-        if (savedInstanceState != null) {
-            if (savedInstanceState.getBoolean("isDeleteDialog")) showDeleteDialog();
-            String renameDialogText = savedInstanceState.getString("renameDialogText");
-            if (renameDialogText != null) showRenameDialog(renameDialogText);
-        }
-
-        setupViewPager(tab);
+        if (tab!=null) setupViewPager(tab);
 
     }
 
@@ -91,7 +86,7 @@ public class FachActivity extends AppCompatActivity {
         FachPagerAdapter adapter = new FachPagerAdapter(getSupportFragmentManager());
         viewPager.setAdapter(adapter);
         materialTabs.setTabTextColors(ContextCompat.getColor(this, R.color.tabs_unselected), ContextCompat.getColor(this, R.color.white));
-        materialTabs.setTabMode(TabLayout.MODE_FIXED);
+        materialTabs.setTabMode(TabLayout.MODE_SCROLLABLE);
         materialTabs.setupWithViewPager(viewPager);
         viewPager.setCurrentItem(tab);
 
@@ -112,11 +107,6 @@ public class FachActivity extends AppCompatActivity {
             showDeleteDialog();
         } else if (id == R.id.action_rename) {
             showRenameDialog(fach.getName());
-        } else if (id == android.R.id.home) {
-
-            LocalData.saveToFile(getApplicationContext());
-            return false;
-
         }
 
         return super.onOptionsItemSelected(item);
@@ -135,9 +125,8 @@ public class FachActivity extends AppCompatActivity {
 
                 isDeleteDialog = false;
 
-                LocalData.getInstance().getFächer().remove(fach);
+                fach.delete();
                 eventBus.post(new FaecherUpdateEvent());
-                LocalData.saveToFile(getApplicationContext());
                 finish();
             }
         });
@@ -233,18 +222,17 @@ public class FachActivity extends AppCompatActivity {
         fachName = fachName.trim();
 
         if (!fachName.isEmpty()) {
-            for (Fach f : LocalData.getInstance().getFächer()) {
-                if (f.getName().equals(fachName)) {
-                    textInputLayout.setError("Dieses Fach existiert bereits!");
-                    return false;
-                }
+
+            if (Fach.exists(fachName)) {
+                textInputLayout.setError("Dieses Fach existiert bereits!");
+                return false;
             }
 
             //Fach umbenennen
             fach.setName(fachName);
             toolbar.setTitle(fachName);
+            fach.save();
             eventBus.post(new FaecherUpdateEvent());
-            LocalData.saveToFile(getApplicationContext());
             return true;
 
         } else {
@@ -256,17 +244,11 @@ public class FachActivity extends AppCompatActivity {
     @Override
     protected void onSaveInstanceState(Bundle outState) {
 
+        outState.putLong("fachId", fach.getId());
         outState.putBoolean("isDeleteDialog", isDeleteDialog);
         if (isRenameDialog && renameEditText != null)
             outState.putString("renameDialogText", renameEditText.getText().toString());
         super.onSaveInstanceState(outState);
-    }
-
-    @Override
-    public void onBackPressed() {
-        super.onBackPressed();
-
-        LocalData.saveToFile(getApplicationContext());
     }
 
 }

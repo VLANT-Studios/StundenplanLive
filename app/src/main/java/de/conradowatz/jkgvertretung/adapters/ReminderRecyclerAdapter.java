@@ -1,6 +1,6 @@
 package de.conradowatz.jkgvertretung.adapters;
 
-import android.support.v7.widget.RecyclerView;
+import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,17 +13,24 @@ import java.util.List;
 import java.util.Locale;
 
 import de.conradowatz.jkgvertretung.R;
+import de.conradowatz.jkgvertretung.variables.Erinnerung;
 
 public class ReminderRecyclerAdapter extends RecyclerView.Adapter<ReminderRecyclerAdapter.ViewHolder> {
 
     private static final int VIEWTYPE_ITEM = 0;
     private static final int VIEWTYPE_ADD = 1;
-    private List<Date> reminders;
+    private List<Erinnerung> erinnerungen;
     private Callback callback;
 
-    public ReminderRecyclerAdapter(List<Date> reminders, Callback callback) {
-        this.reminders = reminders;
+    public ReminderRecyclerAdapter(List<Erinnerung> erinnerungen, Callback callback) {
         this.callback = callback;
+
+        updateData(erinnerungen);
+    }
+
+    public void updateData(List<Erinnerung> erinnerungen) {
+
+        this.erinnerungen = erinnerungen;
     }
 
     @Override
@@ -40,8 +47,8 @@ public class ReminderRecyclerAdapter extends RecyclerView.Adapter<ReminderRecycl
     public void onBindViewHolder(final ViewHolder holder, int position) {
 
         if (getItemViewType(position) == VIEWTYPE_ITEM) {
-            holder.datumText.setText(makeDateString(reminders.get(position)));
-            holder.uhrzeitText.setText(makeTimeString(reminders.get(position)));
+            holder.datumText.setText(makeDateString(erinnerungen.get(position).getDate()));
+            holder.uhrzeitText.setText(makeTimeString(erinnerungen.get(position).getDate()));
             holder.datumText.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
@@ -85,12 +92,12 @@ public class ReminderRecyclerAdapter extends RecyclerView.Adapter<ReminderRecycl
 
     @Override
     public int getItemViewType(int position) {
-        return position == reminders.size() ? VIEWTYPE_ADD : VIEWTYPE_ITEM;
+        return position == erinnerungen.size() ? VIEWTYPE_ADD : VIEWTYPE_ITEM;
     }
 
     @Override
     public int getItemCount() {
-        return reminders.size() + 1;
+        return erinnerungen.size() + 1;
     }
 
     public interface Callback {

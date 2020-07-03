@@ -1,22 +1,17 @@
 package de.conradowatz.jkgvertretung.adapters;
 
 
-import android.content.Context;
-import android.support.v7.widget.RecyclerView;
+import android.os.AsyncTask;
+import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
-
 import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 
 import de.conradowatz.jkgvertretung.R;
-import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.variables.Fach;
 
 public class NotenUebersichtRecyclerAdpater extends RecyclerView.Adapter<NotenUebersichtRecyclerAdpater.ViewHolder> {
@@ -24,35 +19,28 @@ public class NotenUebersichtRecyclerAdpater extends RecyclerView.Adapter<NotenUe
     private List<Fach> fachList;
     private DecimalFormat decimalFormat = new DecimalFormat("#0.00");
     private Callback callback;
-    private Context context;
 
-    public NotenUebersichtRecyclerAdpater(Callback callback, Context context) {
+    public NotenUebersichtRecyclerAdpater(Callback callback) {
 
         this.callback = callback;
-        this.context = context;
 
-        calculateItems();
+        updateData();
     }
 
-    private void calculateItems() {
+    public void updateData() {
 
-        fachList = new ArrayList<>();
-
-        for (Fach f : LocalData.getInstance().getFächer()) {
-            Double average = f.getNotenAverage();
-            if (average != null) {
-                fachList.add(f);
-            }
-        }
-
-        final boolean isOberstufe = LocalData.isOberstufe(context);
-        Collections.sort(fachList, new Comparator<Fach>() {
+        new AsyncTask<Boolean, Integer, List<Fach>>() {
             @Override
-            public int compare(Fach f1, Fach f2) {
-                return isOberstufe ? f2.getNotenAverage().compareTo(f1.getNotenAverage()) : f1.getNotenAverage().compareTo(f2.getNotenAverage());
+            protected List<Fach> doInBackground(Boolean... params) {
+                return Fach.getFaecherWithZensuren();
             }
-        });
 
+            @Override
+            protected void onPostExecute(List<Fach> f) {
+                fachList = f;
+                notifyDataSetChanged();
+            }
+        }.execute();
     }
 
     @Override
@@ -66,23 +54,25 @@ public class NotenUebersichtRecyclerAdpater extends RecyclerView.Adapter<NotenUe
 
         final Fach fach = fachList.get(position);
         holder.fachNameText.setText(fach.getName());
-        holder.fachValueText.setText(decimalFormat.format(fach.getNotenAverage()));
+        holder.fachValueText.setText(decimalFormat.format(fach.getZensurenDurchschnitt()));
         holder.layout.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                callback.onFachClicked(LocalData.getInstance().getFächer().indexOf(fach));
+                callback.onFachClicked(fach.getId());
             }
         });
     }
 
+
+
     @Override
     public int getItemCount() {
-        return fachList.size();
+        return fachList==null?0:fachList.size();
     }
 
     public interface Callback {
 
-        void onFachClicked(int fachIndex);
+        void onFachClicked(long fachId);
     }
 
     public class ViewHolder extends RecyclerView.ViewHolder {

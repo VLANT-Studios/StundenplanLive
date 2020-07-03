@@ -3,19 +3,19 @@ package de.conradowatz.jkgvertretung.fragments;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
-import android.support.annotation.Nullable;
-import android.support.v4.app.Fragment;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.appcompat.app.AlertDialog;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
+import org.greenrobot.eventbus.ThreadMode;
 
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 
@@ -24,47 +24,45 @@ import de.conradowatz.jkgvertretung.activities.EventActivity;
 import de.conradowatz.jkgvertretung.activities.FachActivity;
 import de.conradowatz.jkgvertretung.activities.FerienActivity;
 import de.conradowatz.jkgvertretung.activities.MainActivity;
+import de.conradowatz.jkgvertretung.adapters.AllVertretungsplanRecyclerAdapter;
+import de.conradowatz.jkgvertretung.adapters.KlassenplanRecyclerAdapter;
 import de.conradowatz.jkgvertretung.adapters.StundenPlanRecyclerAdapter;
-import de.conradowatz.jkgvertretung.events.DataReadyEvent;
-import de.conradowatz.jkgvertretung.events.DayUpdatedEvent;
+import de.conradowatz.jkgvertretung.adapters.VertretungsplanRecyclerAdapter;
+import de.conradowatz.jkgvertretung.events.DaysUpdatedEvent;
 import de.conradowatz.jkgvertretung.events.EventsChangedEvent;
 import de.conradowatz.jkgvertretung.events.FaecherUpdateEvent;
 import de.conradowatz.jkgvertretung.events.KursChangedEvent;
 import de.conradowatz.jkgvertretung.tools.LocalData;
-import de.conradowatz.jkgvertretung.tools.PreferenceHelper;
-import de.conradowatz.jkgvertretung.tools.VertretungsData;
+import de.conradowatz.jkgvertretung.tools.Utilities;
 import de.conradowatz.jkgvertretung.variables.Event;
 import de.conradowatz.jkgvertretung.variables.Fach;
-import de.conradowatz.jkgvertretung.variables.Tag;
+import de.conradowatz.jkgvertretung.variables.OnlineTag_Table;
 
 public class StundenplanPageFragment extends Fragment implements StundenPlanRecyclerAdapter.Callback {
 
     private int mode;
     private int position;
-    private int onlinePosition;
-    private Integer klassenPlanIndex;
+    private String klassenName;
     private Date date;
 
     private RecyclerView recyclerView;
 
     private EventBus eventBus = EventBus.getDefault();
-    private boolean waitingForData = false;
 
     public StundenplanPageFragment() {
 
     }
 
-    public static StundenplanPageFragment newInstance(int position, int mode, Integer klassenPlanIndex, Date date, int onlinePosition) {
+    public static StundenplanPageFragment newInstance(int position, int mode, String klassenName, Date date) {
 
         Bundle args = new Bundle();
         args.putInt("position", position);
         args.putInt("mode", mode);
-        args.putInt("onlinePosition", onlinePosition);
-        Calendar calendar = Calendar.getInstance();
+        Calendar calendar = Utilities.getToday();
         calendar.setTime(date);
 
         args.putLong("date", calendar.getTimeInMillis());
-        if (klassenPlanIndex != null) args.putInt("klassenPlanIndex", klassenPlanIndex);
+        if (klassenName != null) args.putString("klassenName", klassenName);
 
         StundenplanPageFragment fragment = new StundenplanPageFragment();
         fragment.setArguments(args);
@@ -83,17 +81,15 @@ public class StundenplanPageFragment extends Fragment implements StundenPlanRecy
 
             Bundle arguments = getArguments();
             position = arguments.getInt("position");
-            onlinePosition = arguments.getInt("onlinePosition");
             mode = arguments.getInt("mode");
-            klassenPlanIndex = arguments.getInt("klassenPlanIndex");
+            klassenName = arguments.getString("klassenName");
             calendar.setTimeInMillis(arguments.getLong("date"));
             date = calendar.getTime();
         } else {
 
             position = savedInstanceState.getInt("position");
             mode = savedInstanceState.getInt("mode");
-            onlinePosition = savedInstanceState.getInt("onlinePosition");
-            klassenPlanIndex = savedInstanceState.getInt("klassenPlanIndex");
+            klassenName = savedInstanceState.getString("klassenName");
             calendar.setTimeInMillis(savedInstanceState.getLong("date"));
             date = calendar.getTime();
         }
@@ -111,79 +107,80 @@ public class StundenplanPageFragment extends Fragment implements StundenPlanRecy
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
 
-        if (!VertretungsData.getInstance().isReady()) {
-            waitingForData = true;
-            return;
-        }
-
         setUpRecycler();
     }
 
     private void setUpRecycler() {
 
-        int meinKlassenIndex = PreferenceHelper.readIntFromPreferences(getActivity(), "meineKlasseInt", 0);
-        ArrayList<String> nichtKurse = PreferenceHelper.readStringListFromPreferences(getActivity(), "meineNichtKurse");
-        if (nichtKurse == null) nichtKurse = new ArrayList<>();
-        String meinKlassenString = VertretungsData.getInstance().getKlassenList().get(meinKlassenIndex).getName();
-        ArrayList<Tag> tagList = VertretungsData.getInstance().getTagList();
-
-        StundenPlanRecyclerAdapter adapter;
-        if (mode == StundenplanFragment.MODE_STUNDENPLAN)
-            if (onlinePosition > -1)
-                adapter = StundenPlanRecyclerAdapter.newOnlineStundenplanInstance(tagList.get(onlinePosition), meinKlassenIndex, nichtKurse, this);
-            else
-                adapter = StundenPlanRecyclerAdapter.newOfflineStundenplanInstance(date, this);
-        else if (mode == StundenplanFragment.MODE_VERTRETUNGSPLAN)
-            adapter = StundenPlanRecyclerAdapter.newVertretungsplanInstance(tagList.get(position), meinKlassenString, nichtKurse);
-        else if (mode == StundenplanFragment.MODE_ALGVERTRETUNGSPLAN)
-            adapter = StundenPlanRecyclerAdapter.newAllgvertretungsplanInstance(tagList.get(position));
-        else //KLASSENPLAN
-            adapter = StundenPlanRecyclerAdapter.newKlassenplanplanInstance(tagList.get(position), klassenPlanIndex);
-        recyclerView.setAdapter(adapter);
+        switch (mode) {
+            case StundenplanFragment.MODE_STUNDENPLAN:
+                recyclerView.setAdapter(new StundenPlanRecyclerAdapter(date, this));
+                break;
+            case StundenplanFragment.MODE_VERTRETUNGSPLAN:
+                recyclerView.setAdapter(new VertretungsplanRecyclerAdapter(position));
+                break;
+            case StundenplanFragment.MODE_ALGVERTRETUNGSPLAN:
+                recyclerView.setAdapter(new AllVertretungsplanRecyclerAdapter(position));
+                break;
+            case StundenplanFragment.MODE_KLASSENPLAN:
+                recyclerView.setAdapter(new KlassenplanRecyclerAdapter(position, klassenName));
+                break;
+        }
 
     }
 
     @Subscribe
-    public void onEvent(DayUpdatedEvent event) {
+    public void onEvent(DaysUpdatedEvent event) {
 
-        if (recyclerView == null) return;
+        if (recyclerView == null || recyclerView.getAdapter() == null) return;
 
-        if (event.getPosition() == position) {
-
-            setUpRecycler();
+        switch (mode) {
+            case StundenplanFragment.MODE_STUNDENPLAN:
+                ((StundenPlanRecyclerAdapter) recyclerView.getAdapter()).updateData();
+                break;
+            case StundenplanFragment.MODE_VERTRETUNGSPLAN:
+                ((VertretungsplanRecyclerAdapter) recyclerView.getAdapter()).updateData();
+                break;
+            case StundenplanFragment.MODE_ALGVERTRETUNGSPLAN:
+                ((AllVertretungsplanRecyclerAdapter) recyclerView.getAdapter()).updateData();
+                break;
+            case StundenplanFragment.MODE_KLASSENPLAN:
+                ((KlassenplanRecyclerAdapter) recyclerView.getAdapter()).updateData();
+                break;
         }
 
 
     }
 
-    @Subscribe
+    @Subscribe(threadMode = ThreadMode.MAIN)
     public void onEvent(EventsChangedEvent event) {
 
-        if (recyclerView != null) setUpRecycler();
+        if (recyclerView != null && recyclerView.getAdapter() != null && mode == StundenplanFragment.MODE_STUNDENPLAN)
+            ((StundenPlanRecyclerAdapter) recyclerView.getAdapter()).updateData();
 
 
     }
 
-    @Subscribe
-    public void onEvent(DataReadyEvent event) {
-
-        if (waitingForData) {
-            waitingForData = false;
-
-            setUpRecycler();
-        }
-    }
-
-    @Subscribe
+    @Subscribe(threadMode = ThreadMode.MAIN)
     public void onEvent(FaecherUpdateEvent event) {
 
-        if (recyclerView != null) setUpRecycler();
+        if (recyclerView != null && recyclerView.getAdapter() != null && mode == StundenplanFragment.MODE_STUNDENPLAN)
+            ((StundenPlanRecyclerAdapter) recyclerView.getAdapter()).updateData();
     }
 
     @Subscribe
     public void onEvent(KursChangedEvent event) {
 
-        if (recyclerView != null) setUpRecycler();
+        if (recyclerView == null || recyclerView.getAdapter() == null) return;
+
+        switch (mode) {
+            case StundenplanFragment.MODE_STUNDENPLAN:
+                ((StundenPlanRecyclerAdapter) recyclerView.getAdapter()).updateData();
+                break;
+            case StundenplanFragment.MODE_VERTRETUNGSPLAN:
+                ((VertretungsplanRecyclerAdapter) recyclerView.getAdapter()).updateData();
+                break;
+        }
     }
 
     @Override
@@ -191,11 +188,10 @@ public class StundenplanPageFragment extends Fragment implements StundenPlanRecy
 
         outState.putInt("mode", mode);
         outState.putInt("position", position);
-        outState.putInt("onlinePosition", onlinePosition);
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(date);
         outState.putLong("date", calendar.getTimeInMillis());
-        if (klassenPlanIndex != null) outState.putInt("klassenPlanIndex", klassenPlanIndex);
+        if (klassenName != null) outState.putString("klassenName", klassenName);
         super.onSaveInstanceState(outState);
     }
 
@@ -216,15 +212,13 @@ public class StundenplanPageFragment extends Fragment implements StundenPlanRecy
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
 
-                int fachInt = LocalData.getInstance().getFächer().indexOf(fach);
-
                 if (i == 0) { //neues Event
 
-                    startEventActivity(fachInt, date);
+                    startEventActivity(fach.getId(), date);
 
                 } else if (i == 1) { //Fach bearbeiten
 
-                    startFachActivity(fachInt);
+                    startFachActivity(fach.getId());
 
                 }
             }
@@ -235,51 +229,43 @@ public class StundenplanPageFragment extends Fragment implements StundenPlanRecy
 
     }
 
-    private void startEventActivity(int fachIndex, Date datum) {
+    private void startEventActivity(long fachId, Date date) {
 
         Calendar calendar = Calendar.getInstance();
-        calendar.setTime(datum);
+        calendar.setTime(date);
         Intent startEventActivityIntent = new Intent(getActivity(), EventActivity.class);
-        startEventActivityIntent.putExtra("fachInt", fachIndex);
-        startEventActivityIntent.putExtra("eventInt", -1);
+        startEventActivityIntent.putExtra("fachId", fachId);
+        startEventActivityIntent.putExtra("eventId", -1);
         startEventActivityIntent.putExtra("date", calendar.getTimeInMillis());
         getActivity().startActivity(startEventActivityIntent);
     }
 
-    private void startEventActivity(int fachIndex, int eventInt) {
+    private void startEventActivity(long eventId) {
 
         Intent startEventActivityIntent = new Intent(getActivity(), EventActivity.class);
-        startEventActivityIntent.putExtra("fachInt", fachIndex);
-        startEventActivityIntent.putExtra("eventInt", eventInt);
+        startEventActivityIntent.putExtra("eventId", eventId);
         getActivity().startActivity(startEventActivityIntent);
     }
 
-    private void startFachActivity(int fachIndex) {
+    private void startFachActivity(long fachId) {
 
         Intent openFachIntent = new Intent(getContext(), FachActivity.class);
-        openFachIntent.putExtra("fachIndex", fachIndex);
+        openFachIntent.putExtra("fachId", fachId);
         openFachIntent.putExtra("tab", FachActivity.TAB_STUNDEN);
         startActivity(openFachIntent);
     }
 
     @Override
-    public void onNewStundeClicked(final String kursName, final boolean aWoche, final int tag, final int stunde) {
+    public void onNewStundeClicked(final String fachName) {
 
         AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(getActivity());
-        dialogBuilder.setTitle(kursName);
-        dialogBuilder.setMessage("Zu dieser Stunde ist noch kein Fach eingetragen. Möchtest du ein neues Fach erstellen?");
+        dialogBuilder.setTitle(fachName);
+        dialogBuilder.setMessage("Mit dieser Stunde ist kein Fach verknüpft. Möchtest du den Smart Import benutzen um fehlende Fächer zu importieren?");
         dialogBuilder.setPositiveButton("Ja", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
 
-                //neues Fach hinzufügen
-                Fach newFach = new Fach(kursName);
-                newFach.getStunden(aWoche)[tag][stunde] = true;
-                LocalData.getInstance().getFächer().add(newFach);
-                LocalData.getInstance().sortFächer();
-                LocalData.saveToFile(getActivity().getApplicationContext());
-                int fachInt = LocalData.getInstance().getFächer().indexOf(newFach);
-                startFachActivity(fachInt);
+                LocalData.smartImport(getActivity());
             }
         });
         dialogBuilder.setNegativeButton("Abbrechen", null);
@@ -295,38 +281,37 @@ public class StundenplanPageFragment extends Fragment implements StundenPlanRecy
     }
 
     @Override
-    public void onFerienClicked(int ferienIndex) {
+    public void onFerienClicked(long ferienId) {
 
         Intent newFerienActivityIntent = new Intent(getActivity().getApplicationContext(), FerienActivity.class);
-        newFerienActivityIntent.putExtra("ferienInt", ferienIndex);
+        newFerienActivityIntent.putExtra("ferienId", ferienId);
         startActivity(newFerienActivityIntent);
 
     }
 
     @Override
-    public void onEventClicked(final Fach fach, final Event event, final Date date) {
+    public void onEventClicked(final Event event, final Date date) {
 
         AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(getActivity());
-        dialogBuilder.setTitle(fach.getName());
-        String[] optionen = new String[]{"Event bearbeiten", "Neues Event erstellen", "Fach bearbeiten"};
+        final Fach fach = event.getFach();
+        if (fach==null) dialogBuilder.setTitle(event.getName());
+        else dialogBuilder.setTitle(fach.getName());
+        String[] optionen = fach!=null?new String[]{"Event bearbeiten", "Neues Event erstellen", "Fach bearbeiten"}:new String[]{"Event bearbeiten"};
         dialogBuilder.setItems(optionen, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
 
-                int fachInt = LocalData.getInstance().getFächer().indexOf(fach);
-
                 if (i == 0) { //Event bearbeiten
 
-                    int eventInt = fach.getEvents().indexOf(event);
-                    startEventActivity(fachInt, eventInt);
+                    startEventActivity(event.getId());
 
                 } else if (i == 1) { //neues Event
 
-                    startEventActivity(fachInt, date);
+                    startEventActivity(fach.getId(), date);
 
                 } else if (i == 2) { //Fach bearbeiten
 
-                    startFachActivity(fachInt);
+                    startFachActivity(fach.getId());
 
                 }
             }

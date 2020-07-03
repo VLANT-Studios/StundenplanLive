@@ -8,86 +8,135 @@
     android:background="@color/white"
     android:elevation="2dp">
 
+
     <LinearLayout
-        android:id="@+id/linearLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="11dp"
-        android:foreground="?android:attr/selectableItemBackground"
-        android:orientation="vertical"
-        android:paddingBottom="10dp"
-        android:paddingLeft="20dp"
-        android:paddingRight="20dp"
-        android:paddingTop="10dp">
+        android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/kursText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:paddingBottom="3dp"
-            android:text="10n,10v1,10v2:"
-            android:textColor="@color/primary_text"
-            android:textSize="15sp" />
-
-        <RelativeLayout
+        <LinearLayout
+            android:id="@+id/linearLayout"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:foreground="?android:attr/selectableItemBackground"
+            android:orientation="vertical"
+            android:paddingBottom="10dp"
+            android:paddingLeft="20dp"
+            android:paddingRight="20dp"
+            android:paddingTop="10dp">
 
             <TextView
-                android:id="@+id/stundeText"
+                android:id="@+id/kursText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_centerVertical="true"
-                android:text="1."
+                android:paddingBottom="3dp"
+                android:text="10n,10v1,10v2:"
                 android:textColor="@color/primary_text"
-                android:textSize="20sp" />
+                android:textSize="15sp" />
 
-            <TextView
-                android:id="@+id/raumText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentRight="true"
-                android:layout_centerVertical="true"
-                android:text="204"
-                android:textColor="@color/primary_text"
-                android:textSize="20sp" />
-
-            <LinearLayout
+            <RelativeLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_centerVertical="true"
-                android:layout_marginLeft="45dp"
-                android:layout_marginRight="10dp"
-                android:layout_toLeftOf="@id/raumText"
-                android:gravity="center_vertical"
-                android:orientation="vertical">
+                android:layout_height="wrap_content">
 
                 <TextView
-                    android:id="@+id/fachText"
+                    android:id="@+id/stundeText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="MA"
+                    android:layout_centerVertical="true"
+                    android:text="1."
                     android:textColor="@color/primary_text"
-                    android:textSize="18sp" />
+                    android:textSize="20sp" />
 
                 <TextView
-                    android:id="@+id/infoText"
+                    android:id="@+id/raumText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentRight="true"
+                    android:layout_centerVertical="true"
+                    android:text="204"
+                    android:textColor="@color/primary_text"
+                    android:textSize="20sp" />
+
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Zimmer geändert"
-                    android:textColor="@color/primary_text" />
+                    android:layout_centerVertical="true"
+                    android:layout_marginLeft="45dp"
+                    android:layout_marginRight="10dp"
+                    android:layout_toLeftOf="@id/raumText"
+                    android:gravity="center_vertical"
+                    android:orientation="vertical">
 
-                <TextView
-                    android:id="@+id/eventText"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Mathe Klausur"
-                    android:textColor="@color/primary"
-                    android:textStyle="bold"
-                    android:visibility="gone" />
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
 
-            </LinearLayout>
+                        <TextView
+                            android:id="@+id/fachText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="MA"
+                            android:textColor="@color/primary_text"
+                            android:textSize="18sp" />
 
-        </RelativeLayout>
+                        <TextView
+                            android:id="@+id/lehrerText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginLeft="10dp"
+                            android:text="(Saa)"
+                            android:textSize="15sp" />
+
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/infoText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Zimmer geändert"
+                        android:textColor="@color/primary_text" />
+
+                    <TextView
+                        android:id="@+id/eventText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Mathe Klausur"
+                        android:textColor="@color/primary"
+                        android:textStyle="bold"
+                        android:visibility="gone" />
+
+                </LinearLayout>
+
+            </RelativeLayout>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/tagInfoLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="10dp"
+            android:paddingLeft="20dp"
+            android:paddingRight="20dp"
+            android:visibility="gone">
+
+            <View
+                android:id="@+id/divider"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginBottom="10dp"
+                android:background="@color/divider" />
+
+            <TextView
+                android:id="@+id/tagInfoText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="InfoText"
+                android:textColor="@color/primary_text" />
+
+        </LinearLayout>
+
     </LinearLayout>
 </FrameLayout>

@@ -3,12 +3,27 @@ package de.conradowatz.jkgvertretung.variables;
 import android.os.Parcel;
 import android.os.Parcelable;
 
-import java.util.ArrayList;
+import com.raizlabs.android.dbflow.annotation.Column;
+import com.raizlabs.android.dbflow.annotation.ForeignKey;
+import com.raizlabs.android.dbflow.annotation.ForeignKeyAction;
+import com.raizlabs.android.dbflow.annotation.InheritedColumn;
+import com.raizlabs.android.dbflow.annotation.InheritedPrimaryKey;
+import com.raizlabs.android.dbflow.annotation.OneToMany;
+import com.raizlabs.android.dbflow.annotation.PrimaryKey;
+import com.raizlabs.android.dbflow.annotation.Table;
+import com.raizlabs.android.dbflow.sql.language.SQLite;
+import com.raizlabs.android.dbflow.structure.Model;
+
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
+@Table(database = AppDatabase.class, inheritedColumns = {@InheritedColumn(column = @Column, fieldName = "date")})
 public class Event extends Termin implements Parcelable {
+
+    public Event() {
+
+    }
 
     public static final Creator<Event> CREATOR = new Creator<Event>() {
         @Override
@@ -21,45 +36,40 @@ public class Event extends Termin implements Parcelable {
             return new Event[size];
         }
     };
-    private Date datum;
-    private String title;
-    private String description;
-    private boolean deleteWhenElapsed;
-    private String fachName; //only set when displaying
-    private int fachIndex; //only set when displaying
-    private List<Date> reminders;
 
-    public Event(Date datum, String title, String description, boolean deleteWhenElapsed) {
-        this.datum = datum;
-        this.title = title;
-        this.deleteWhenElapsed = deleteWhenElapsed;
-        this.description = description;
-        reminders = new ArrayList<>();
+    @PrimaryKey(autoincrement = true)
+    long id;
+    @Column
+    private Date date;
+    @Column
+    private String name;
+    @Column
+    private String description;
+    @Column
+    private boolean deleteWhenElapsed;
+    @ForeignKey(onDelete = ForeignKeyAction.CASCADE)
+    private Fach fach;
+
+    public List<Erinnerung> getErinnerungen() {
+
+        return SQLite.select().from(Erinnerung.class).where(Erinnerung_Table.event_id.eq(id)).queryList();
+    }
+
+    public Fach getFach() {
+        return fach;
+    }
+
+    public void setFach(Fach fach) {
+        this.fach = fach;
     }
 
     protected Event(Parcel in) {
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(in.readLong());
-        datum = calendar.getTime();
-        title = in.readString();
+        setDate(calendar.getTime());
+        name = in.readString();
         description = in.readString();
         deleteWhenElapsed = in.readByte() != 0;
-        fachName = in.readString();
-        fachIndex = in.readInt();
-        reminders = new ArrayList<>();
-        for (long l : in.createLongArray()) {
-            calendar.setTimeInMillis(l);
-            reminders.add(calendar.getTime());
-        }
-    }
-
-    public Event(Date datum, String title, String description, boolean deleteWhenElapsed, String fachName, List<Date> reminders) {
-        this.datum = datum;
-        this.title = title;
-        this.description = description;
-        this.deleteWhenElapsed = deleteWhenElapsed;
-        this.fachName = fachName;
-        this.reminders = reminders;
 
     }
 
@@ -71,33 +81,12 @@ public class Event extends Termin implements Parcelable {
         this.deleteWhenElapsed = deleteWhenElapsed;
     }
 
-    public List<Date> getReminders() {
-        return reminders;
+    public String getName() {
+        return name;
     }
 
-    public String getFachName() {
-        return fachName;
-    }
-
-    public void setFachName(String fachName) {
-        this.fachName = fachName;
-    }
-
-    @Override
-    public Date getDatum() {
-        return datum;
-    }
-
-    public void setDatum(Date datum) {
-        this.datum = datum;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getDescription() {
@@ -108,12 +97,32 @@ public class Event extends Termin implements Parcelable {
         this.description = description;
     }
 
-    public int getFachIndex() {
-        return fachIndex;
+    public long getId() {
+        return id;
     }
 
-    public void setFachIndex(int fachIndex) {
-        this.fachIndex = fachIndex;
+    public void setId(long id) {
+        this.id = id;
+    }
+
+    @Override
+    public Date getDate() {
+        return date;
+    }
+
+    @Override
+    public void setDate(Date date) {
+        this.date = date;
+    }
+
+    public static Event getEvent(long id) {
+
+        return SQLite.select().from(Event.class).where(Event_Table.id.eq(id)).querySingle();
+    }
+
+    public void deleteErinnerungen() {
+
+        SQLite.delete().from(Erinnerung.class).where(Erinnerung_Table.event_id.eq(id)).execute();
     }
 
     @Override
@@ -124,16 +133,10 @@ public class Event extends Termin implements Parcelable {
     @Override
     public void writeToParcel(Parcel parcel, int i) {
         Calendar calendar = Calendar.getInstance();
-        calendar.setTime(datum);
+        calendar.setTime(getDate());
         parcel.writeLong(calendar.getTimeInMillis());
-        parcel.writeString(title);
+        parcel.writeString(name);
         parcel.writeString(description);
         parcel.writeByte((byte) (deleteWhenElapsed ? 1 : 0));
-        parcel.writeString(fachName);
-        parcel.writeInt(fachIndex);
-        for (Date date : reminders) {
-            calendar.setTime(date);
-            parcel.writeLong(calendar.getTimeInMillis());
-        }
     }
 }

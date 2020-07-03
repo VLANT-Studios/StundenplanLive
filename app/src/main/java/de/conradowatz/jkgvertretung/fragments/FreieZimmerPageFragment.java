@@ -1,25 +1,27 @@
 package de.conradowatz.jkgvertretung.fragments;
 
+import android.os.AsyncTask;
 import android.os.Bundle;
-import android.support.annotation.Nullable;
-import android.support.v4.app.Fragment;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import com.raizlabs.android.dbflow.sql.language.SQLite;
+
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
-import java.util.ArrayList;
+import java.util.List;
 
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.adapters.FreieZimmerRecyclerAdapter;
-import de.conradowatz.jkgvertretung.events.DataReadyEvent;
-import de.conradowatz.jkgvertretung.events.DayUpdatedEvent;
-import de.conradowatz.jkgvertretung.tools.VertretungsData;
-import de.conradowatz.jkgvertretung.variables.Tag;
+import de.conradowatz.jkgvertretung.events.DaysUpdatedEvent;
+import de.conradowatz.jkgvertretung.variables.OnlineTag;
+import de.conradowatz.jkgvertretung.variables.OnlineTag_Table;
 
 public class FreieZimmerPageFragment extends Fragment {
 
@@ -28,7 +30,6 @@ public class FreieZimmerPageFragment extends Fragment {
     private RecyclerView recyclerView;
 
     private EventBus eventBus = EventBus.getDefault();
-    private boolean waitingForData = false;
 
     public FreieZimmerPageFragment() {
 
@@ -72,45 +73,36 @@ public class FreieZimmerPageFragment extends Fragment {
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
 
-        if (!VertretungsData.getInstance().isReady()) {
-            waitingForData = true;
-            return;
-        }
-
         setUpRecycler();
     }
 
     private void setUpRecycler() {
 
-        ArrayList<Tag> tagList = VertretungsData.getInstance().getTagList();
+        new AsyncTask<Boolean, Integer, List<OnlineTag>>() {
+            @Override
+            protected List<OnlineTag> doInBackground(Boolean... params) {
+                return SQLite.select().from(OnlineTag.class).orderBy(OnlineTag_Table.date, true).queryList();
+            }
 
-        FreieZimmerRecyclerAdapter adapter = new FreieZimmerRecyclerAdapter(tagList.get(position));
+            @Override
+            protected void onPostExecute(List<OnlineTag> onlineTagList) {
 
-        recyclerView.setAdapter(adapter);
+                FreieZimmerRecyclerAdapter adapter = new FreieZimmerRecyclerAdapter(onlineTagList.get(position));
+                if (recyclerView!=null) recyclerView.setAdapter(adapter);
+
+            }
+        }.execute();
 
     }
 
     @Subscribe
-    public void onEvent(DayUpdatedEvent event) {
+    public void onEvent(DaysUpdatedEvent event) {
 
         if (recyclerView == null) return;
 
-        if (event.getPosition() == position) {
-
-            setUpRecycler();
-        }
+        setUpRecycler();
 
 
-    }
-
-    @Subscribe
-    public void onEvent(DataReadyEvent event) {
-
-        if (waitingForData) {
-            waitingForData = false;
-
-            setUpRecycler();
-        }
     }
 
     @Override

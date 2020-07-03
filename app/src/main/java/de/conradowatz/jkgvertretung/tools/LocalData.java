@@ -8,214 +8,67 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.support.v4.app.TaskStackBuilder;
-import android.support.v7.app.NotificationCompat;
-import android.util.Log;
+import android.graphics.BitmapFactory;
+import androidx.core.app.TaskStackBuilder;
+import androidx.core.app.NotificationCompat;
+
 import android.widget.Toast;
 
-import com.google.gson.Gson;
+import com.raizlabs.android.dbflow.config.FlowManager;
+import com.raizlabs.android.dbflow.sql.language.SQLite;
+import com.raizlabs.android.dbflow.structure.database.DatabaseWrapper;
+import com.raizlabs.android.dbflow.structure.database.transaction.ITransaction;
 
 import org.greenrobot.eventbus.EventBus;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.charset.Charset;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
+import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.activities.EventActivity;
 import de.conradowatz.jkgvertretung.activities.FachActivity;
+import de.conradowatz.jkgvertretung.events.EventsChangedEvent;
 import de.conradowatz.jkgvertretung.events.FaecherUpdateEvent;
+import de.conradowatz.jkgvertretung.events.FerienChangedEvent;
+import de.conradowatz.jkgvertretung.variables.AppDatabase;
+import de.conradowatz.jkgvertretung.variables.Erinnerung;
 import de.conradowatz.jkgvertretung.variables.Event;
+import de.conradowatz.jkgvertretung.variables.Event_Table;
 import de.conradowatz.jkgvertretung.variables.Fach;
 import de.conradowatz.jkgvertretung.variables.Ferien;
-import de.conradowatz.jkgvertretung.variables.StuPlaKlasse;
+import de.conradowatz.jkgvertretung.variables.Ferien_Table;
+import de.conradowatz.jkgvertretung.variables.Klasse;
+import de.conradowatz.jkgvertretung.variables.Kurs;
+import de.conradowatz.jkgvertretung.variables.Schule;
 import de.conradowatz.jkgvertretung.variables.Stunde;
-import de.conradowatz.jkgvertretung.variables.Tag;
+import de.conradowatz.jkgvertretung.variables.UnterrichtsZeit;
+import de.conradowatz.jkgvertretung.variables.Zensur;
 
 public class LocalData {
 
-    public static final String SAVE_FILE_NAME = "localData.json";
-    public static int latestSaveFileVersion = 2;
-    private static LocalData sInstance = null;
-    private int saveFileVersion;
-    private List<Event> noFachEvents;
-    private Date compareDate;
-    private boolean isCompareAWoche;
-    private List<Fach> fächer;
-    private List<Ferien> ferien;
-    private List<Integer> uniqueEventNumbers;
+    public static boolean isOberstufe() {
 
-    private LocalData() {
-
-        fächer = new ArrayList<>();
-        noFachEvents = new ArrayList<>();
-        ferien = new ArrayList<>();
-        uniqueEventNumbers = new ArrayList<>();
-        saveFileVersion = latestSaveFileVersion;
-
+        String klassenName = PreferenceHelper.readStringFromPreferences(MyApplication.getAppContext(), "selectedKlasse", "");
+        return klassenName.contains("11") || klassenName.contains("12");
     }
 
-    public static LocalData getInstance() {
+    public static String makeDateHeadingString(Date date) {
 
-        return sInstance;
-    }
-
-    public static void setInstance(LocalData localData) {
-
-        sInstance = localData;
-    }
-
-    public static void saveToFile(Context context) {
-
-        Gson gson = Utilities.getDefaultGson();
-        String json = gson.toJson(LocalData.getInstance(), LocalData.class);
-
-
-        try {
-
-            FileOutputStream outputStream = context.openFileOutput(SAVE_FILE_NAME, Context.MODE_PRIVATE);
-            outputStream.write(json.getBytes(Charset.forName("UTF-8")));
-            outputStream.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-
-    }
-
-    public static void createFromFile(Context context, CreateDataFromFileListener listener) {
-
-        String json = "";
-        LocalData localData;
-        //Read Data
-        try {
-            FileInputStream inputStream = context.openFileInput(SAVE_FILE_NAME);
-            BufferedReader r = new BufferedReader(new InputStreamReader(inputStream));
-            StringBuilder total = new StringBuilder(inputStream.available());
-            String line;
-            while ((line = r.readLine()) != null) {
-                total.append(line);
-            }
-
-            json = total.toString();
-            Gson gson = Utilities.getDefaultGson();
-            localData = gson.fromJson(json, LocalData.class);
-            if (localData == null || localData.saveFileVersion != latestSaveFileVersion) {
-                localData = DataVersionCompat.createLocalData(json);
-            }
-
-        } catch (Exception e) {
-
-            e.printStackTrace();
-            localData = DataVersionCompat.createLocalData(json);
-        }
-
-        if (localData == null) {
-            listener.onError(new Throwable("Fehler beim lesen der Datei"));
-            return;
-        }
-
-        LocalData.setInstance(localData);
-
-        //Lösche vergangene Events
-        Calendar heute = Calendar.getInstance();
-        List<Event> eventList = LocalData.getInstance().getNoFachEvents();
-        for (int i = 0; i < eventList.size(); i++) {
-            Event e = eventList.get(i);
-            if (e.isDeleteWhenElapsed() && Utilities.compareDays(heute.getTime(), e.getDatum()) > 0) {
-                eventList.remove(i);
-                i--;
-            }
-        }
-        for (Fach f : LocalData.getInstance().getFächer()) {
-            eventList = f.getEvents();
-            for (int i = 0; i < eventList.size(); i++) {
-                Event e = eventList.get(i);
-                if (e.isDeleteWhenElapsed() && Utilities.compareDays(heute.getTime(), e.getDatum()) > 0) {
-                    eventList.remove(i);
-                    i--;
-                }
-            }
-        }
-
-        //Lösche vergangene Ferien
-        List<Ferien> ferienList = LocalData.getInstance().getFerien();
-        for (int i = 0; i < ferienList.size(); i++) {
-            Ferien ferien = ferienList.get(i);
-            if (Utilities.compareDays(heute.getTime(), ferien.getEndDate()) > 0) {
-                ferienList.remove(i);
-                i--;
-            }
-        }
-
-        listener.onDataCreated();
-
-    }
-
-    public static void createNewLocalData() {
-
-        LocalData.setInstance(new LocalData());
-    }
-
-    public static String[] getAllRooms() {
-
-        return new String[]{"%FK08", "%FK10",
-                "%F004", "%F007", "008", "009", "010", "012",   //011 und 116 VKAs
-                "108", "109", "110", "%F111", "%F113", "%F115",
-                "%F201", "203", "204", "205", "208", "209", "210", "211", "212", "%F213", "%F215",
-                "%F301", "%F302", "304", "305", "306", "308", "309", "310", "311", "312", "%F313", "%F315", "%F317", "%F318"};
-    }
-
-    public static boolean isOberstufe(Context context) {
-
-        //Wenn die eigene Klasse eine der letzten beiden Einträge in der Liste ist muss es 11/12 sein
-        return PreferenceHelper.readIntFromPreferences(context, "meineKlasseInt", 0) > VertretungsData.getInstance().getKlassenList().size() - 3;
-    }
-
-    public static boolean[][] getBelegteStunden(Fach fach, boolean isaWoche) {
-
-        boolean[][] belegt = new boolean[5][9];
-
-        for (int tag = 0; tag < 5; tag++) {
-            for (int stunde = 0; stunde < 9; stunde++) {
-                for (Fach f : getInstance().getFächer()) {
-                    if (f == fach) continue;
-                    if (f.getStunden(isaWoche)[tag][stunde]) {
-                        belegt[tag][stunde] = true;
-                        break;
-                    }
-                }
-            }
-        }
-        return belegt;
-    }
-
-    public static List<Stunde> getOfflineStundenList(int dayOfWeek, boolean isAWoche) {
-
-        List<Stunde> stundenList = new ArrayList<>();
-
-        for (int i = 0; i < 9; i++) {
-            for (Fach f : getInstance().getFächer()) {
-                if (f.getStunden(isAWoche)[dayOfWeek - 1][i]) {
-                    Stunde stunde = new Stunde(String.valueOf(i + 1), f.getName(), "", false, "", false, "");
-                    stundenList.add(stunde);
-                }
-            }
-        }
-
-        return stundenList;
+        SimpleDateFormat dateFormat = new SimpleDateFormat("EEEE, dd. MMMM yyyy", Locale.GERMAN);
+        if (hasABWoche()) {
+            String wochenString = (LocalData.isAWoche(date)) ? "(A-Woche)" : "(B-Woche)";
+            return String.format(Locale.GERMANY, "%s %s", dateFormat.format(date), wochenString);
+        } else return dateFormat.format(date);
     }
 
     private static void activateAlarmManager(Context context) {
@@ -243,23 +96,11 @@ public class LocalData {
         Calendar calendar = Calendar.getInstance();
         Date now = calendar.getTime();
 
-        for (int i = 0; i < LocalData.getInstance().getNoFachEvents().size(); i++) {
-            Event e = LocalData.getInstance().getNoFachEvents().get(i);
-            for (Date d : e.getReminders()) {
-                if (d.after(now))
-                    cancelNotification(context, buildReminderNotification(context, e, -1, i), d);
-            }
-        }
+        List<Erinnerung> erinnerungen = SQLite.select().from(Erinnerung.class).queryList();
 
-        for (int i = 0; i < LocalData.getInstance().getFächer().size(); i++) {
-            Fach f = LocalData.getInstance().getFächer().get(i);
-            for (int j = 0; j < f.getEvents().size(); j++) {
-                Event e = f.getEvents().get(j);
-                for (Date d : e.getReminders()) {
-                    if (d.after(now))
-                        cancelNotification(context, buildReminderNotification(context, e, i, j), d);
-                }
-            }
+        for (Erinnerung e : erinnerungen) {
+            if (e.getDate().after(now))
+                cancelNotification(context, buildReminderNotification(context, e.getEvent()), e.getDate());
         }
     }
 
@@ -268,23 +109,11 @@ public class LocalData {
         Calendar calendar = Calendar.getInstance();
         Date now = calendar.getTime();
 
-        for (int i = 0; i < LocalData.getInstance().getNoFachEvents().size(); i++) {
-            Event e = LocalData.getInstance().getNoFachEvents().get(i);
-            for (Date d : e.getReminders()) {
-                if (d.after(now))
-                    scheduleNotification(context, buildReminderNotification(context, e, -1, i), d);
-            }
-        }
+        List<Erinnerung> erinnerungen = SQLite.select().from(Erinnerung.class).queryList();
 
-        for (int i = 0; i < LocalData.getInstance().getFächer().size(); i++) {
-            Fach f = LocalData.getInstance().getFächer().get(i);
-            for (int j = 0; j < f.getEvents().size(); j++) {
-                Event e = f.getEvents().get(j);
-                for (Date d : e.getReminders()) {
-                    if (d.after(now))
-                        scheduleNotification(context, buildReminderNotification(context, e, i, j), d);
-                }
-            }
+        for (Erinnerung e : erinnerungen) {
+            if (e.getDate().after(now))
+                scheduleNotification(context, buildReminderNotification(context, e.getEvent()), e.getDate());
         }
     }
 
@@ -301,16 +130,16 @@ public class LocalData {
         }
     }
 
-    private static Notification buildReminderNotification(Context context, Event event, int fachInt, int eventInt) {
+    private static Notification buildReminderNotification(Context context, Event event) {
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context);
-        String title = event.getTitle();
-        if (fachInt > -1) {
-            Fach fach = LocalData.getInstance().getFächer().get(fachInt);
-            title = fach.getName() + ": " + title;
+        String title = event.getName();
+        if (event.getFach() != null) {
+            title = event.getFach().getName() + ": " + title;
         }
         builder.setContentTitle(title);
         if (!event.getDescription().isEmpty()) builder.setContentText(event.getDescription());
+        builder.setLargeIcon(BitmapFactory.decodeResource(context.getResources(), R.mipmap.ic_launcher));
         builder.setSmallIcon(R.drawable.ic_assignment_late_white_18dp);
         builder.setAutoCancel(true);
         builder.setDefaults(getNotificationDefaults(context));
@@ -329,12 +158,12 @@ public class LocalData {
         TaskStackBuilder stackBuilder = TaskStackBuilder.create(context);
 
         Intent openEventIntent = new Intent(context, EventActivity.class);
-        openEventIntent.putExtra("eventInt", eventInt);
-        openEventIntent.putExtra("fachInt", fachInt);
+        openEventIntent.putExtra("eventId", event.getId());
 
-        if (fachInt > -1) {
+        if (event.getFach() != null) {
             Intent openFachEvent = new Intent(context, FachActivity.class);
-            openEventIntent.putExtra("fachIndex", fachInt);
+            openEventIntent.putExtra("fachId", event.getFach().getId());
+            openFachEvent.putExtra("fachId", event.getFach().getId());
             stackBuilder.addNextIntent(openFachEvent);
         }
         stackBuilder.addNextIntent(openEventIntent);
@@ -346,24 +175,24 @@ public class LocalData {
 
     }
 
-    public static void removeEventReminder(Context context, Event event, int fachInt, int eventInt) {
+    public static void removeEventReminder(Context context, Event event) {
 
-        for (Date d : event.getReminders())
-            cancelNotification(context, buildReminderNotification(context, event, fachInt, eventInt), d);
+        for (Erinnerung e : event.getErinnerungen())
+            cancelNotification(context, buildReminderNotification(context, e.getEvent()), e.getDate());
 
     }
 
-    public static void addEventReminder(Context context, Event event, int fachInt, int eventInt) {
+    public static void addEventReminder(Context context, Event event) {
 
-        if (LocalData.getInstance().hasReminders()) activateAlarmManager(context);
+        if (LocalData.hasReminders()) activateAlarmManager(context);
         else deactivateAlarmManager(context);
 
         Calendar calendar = Calendar.getInstance();
         Date now = calendar.getTime();
 
-        for (Date d : event.getReminders())
-            if (d.after(now))
-                scheduleNotification(context, buildReminderNotification(context, event, fachInt, eventInt), d);
+        for (Erinnerung e : event.getErinnerungen())
+            if (e.getDate().after(now))
+                scheduleNotification(context, buildReminderNotification(context, event), e.getDate());
     }
 
     private static void scheduleNotification(Context context, Notification notification, Date date) {
@@ -398,233 +227,396 @@ public class LocalData {
         alarmManager.cancel(pendingIntent);
     }
 
-    public static boolean isReady() {
-        return sInstance != null && sInstance.compareDate != null;
+    public static boolean isLoggedIn() {
+
+        return PreferenceHelper.readBooleanFromPreferences(MyApplication.getAppContext(), "loggedIn", false);
     }
 
-    public void setSaveFileVersion(int saveFileVersion) {
+    public static void setLoggedIn(boolean loggedIn) {
 
-        this.saveFileVersion = saveFileVersion;
+        PreferenceHelper.saveBooleanToPrefernces(MyApplication.getAppContext(), "loggedIn", loggedIn);
     }
 
-    public List<Event> getNoFachEvents() {
-        return noFachEvents;
+    public static Schule[] getSchulen() {
+
+        return new Schule[]{
+                new Schule("Johannes-Kepler-Gymnasium Chemnitz", true, "https://plan.kepler-chemnitz.de/stuplanindiware/VmobilS/"),
+                new Schule("Immanuel-Kant-Gymnasium Leipzig", false, "http://www.kantgym-leipzig.de/App/"),
+                new Schule("KGS Altentreptow", false, "http://mobil.kgs-altentreptow.de/"),
+                new Schule("neue friedländer gesamtschule", false, "http://www.nfg24.de/planung/mobil/"),
+                new Schule("Gymnasium Martineum Halberstadt", false, "http://www.martineum-halberstadt.de/mobil/"),
+                new Schule("Evangelisches Schulzentrum Leipzig", false, "https://schulzentrum.de/files/plaene/VPmobil/"),
+                new Schule("Wehrdigtschule Glauchau", false, "https://www.wehrdigtschule.de/mobil/"),
+                new Schule("Martin-Rinckart-Gymnasium Eilenburg", false, "https://www.mrge.de/mobile/kl/"),
+                new Schule("Gymnasium Luisenstift Radebeul", false, "http://luisenstift.de/vplan/mobil/"),
+                new Schule("Freies Gymnasium Naunhof", false, "http://freies-gymnasium-naunhof.de/plan/klassen/"),
+                new Schule("Christian Weise Gymnasium Zittau", false, "http://gymnasium-zittau.de/indiware/mobil/"),
+                new Schule("Oberschule Bischofswerda", false, "http://os.bischofswerda.de/vp/mobil/"),
+                new Schule("Staatliche Regelschule \"Anne Frank\" Themar", false, "http://www.regelschule-annefrank-themar.de/Mobil/"),
+                new Schule("CJD Christophorusschule Droyßig", false, "http://www.cjd-droyssig.de/fileadmin/assets/droyssig/2014/Termine/VPmobilKlassen/"),
+                new Schule("Luther-Melanchthon-Gymnasium Wittenberg", false, "http://www.hundertwasserschule.de/fileadmin/Daten/Daten_Lehrer/Daten_Vertretungsplan/IndiwareMobil/"),
+                new Schule("Gerhart-Hauptmann-Gymnasium Wernigerode", false, "http://www.ghgw.de/mobil/"),
+                new Schule("Kurfürst-Joachim-Friedrich-Gymnasium", true, "https://kjf-gym.de/vplansmobile/"),
+                new Schule("Schulzentrum Am Sund Stralsund", false, "http://plan.schulzentrum-am-sund.de/"),
+                new Schule("Regionale Schule Waren/West", false, "http://www.rww24.de/Vertretungsplan/mobil-Schueler/"),
+                new Schule("SportOberschule Leipzig", false, "http://www.sportoberschule-leipzig.de/1_Vertretungsplan/"),
+                new Schule("Hans-Dietrich-Genscher Gymnasium Halle", true, "http://planung.hdg-gymnasium.de/mobil/"),
+                new Schule("Gymnasiales Schulzentrum \"Felix Stillfried\" Stralendorf", false, "http://www.schulzentrum-stralendorf.de/mobil/"),
+                new Schule("Thüringer Gemeinschaftsschule Bürgel", false, "http://www.schule-buergel.de/tl_files/schwarzesbrett/Mobil/"),
+                new Schule("Friedrich-Ludwig-Jahn-Gymnasium Salzwedel", false, "http://mobil.jahngymnasium-salzwedel.de/"),
+                new Schule("Albert-Schweitzer-Gymnasium Wolfsburg", false, "http://asg-wob.de/sites/default/files/mobil/"),
+                new Schule("Christliche Schule Dresden-Zschachwitz", false, "http://archiv.cs-dresden.de/gym/ablage/mobil/"),
+                new Schule("Geschwister-Scholl-Gymnasium Taucha", true, "http://www.gymnasium-taucha.de/vplan/mobil/"),
+                new Schule("Richard-Wossidlo-Gymnasium Waren", false, "http://www.richard-wossidlo-gymnasium-waren.de/stundenplan/vplan/"),
+                new Schule("Léon-Foucault-Gymnasium Hoyerswerda", true, "http://www.foucault-gymnasium.de/svplan/"),
+                new Schule("Goethe-Gymnasium Bischofswerda", false, "http://www.goethegym-biw.de/mobile/klassen/")
+        };
     }
 
-    public void setNoFachEvents(List<Event> noFachEvents) {
-        this.noFachEvents = noFachEvents;
-    }
+    /*public static void testSchools() {
 
-    @Deprecated
-    public void updateCompareDate() {
+        for (final Schule s : getSchulen()) {
 
-        //This method is deprecated due to a change in the xml files where A/B Woche is no longer displayed
+            if (s.baseUrl.isEmpty() || s.hasAuth) continue;
 
-        int size = VertretungsData.getInstance().getTagList().size();
-        if (size > 0) {
-            compareDate = VertretungsData.getInstance().getTagList().get(size - 1).getDatum();
-            isCompareAWoche = VertretungsData.getInstance().getTagList().get(size - 1).getDatumString().contains("A");
+            OkHttpClient client = new OkHttpClient.Builder().build();
+            client.newCall(new Request.Builder().url(s.baseUrl+"mobdaten/Klassen.xml").build()).enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    Log.d("JKGDEBUG", "Schule: " + s.name);
+                    Log.d("JKGDEBUG", "failed");
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    if (response.isSuccessful()) {
+                        String html = response.body().string();
+
+                        try {
+                            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+                            DocumentBuilder builder = factory.newDocumentBuilder();
+                            InputSource is = new InputSource();
+                            is.setCharacterStream(new StringReader(html));
+                            Document dom = builder.parse(is);
+
+                            NodeList list = dom.getElementsByTagName("UeNr");
+                            Log.d("JKGDEBUG", "Schule: " + s.name);
+                            Log.d("JKGDEBUG", "found: "+list.getLength());
+                        } catch (SAXException | ParserConfigurationException e) {
+                            Log.d("JKGDEBUG", "Schule: " + s.name);
+                            Log.d("JKGDEBUG", "failed");
+                            e.printStackTrace();
+                        }
+
+
+                    } else {
+                        Log.d("JKGDEBUG", "Schule: " + s.name);
+                        Log.d("JKGDEBUG", "failed");
+                    }
+                }
+            });
         }
-    }
+    }*/
 
-    public void setCompareDate(Date compareDate, boolean isCompareAWoche) {
+    public static Schule setSchule(int index) {
 
-        this.compareDate = compareDate;
-        this.isCompareAWoche = isCompareAWoche;
-    }
-
-    public List<Fach> getFächer() {
-        return fächer;
-    }
-
-    public void setFächer(List<Fach> fächer) {
-        this.fächer = fächer;
-    }
-
-    public void sortFächer() {
-
-        Collections.sort(fächer, new Comparator<Fach>() {
-            @Override
-            public int compare(Fach f1, Fach f2) {
-                return f1.getName().compareTo(f2.getName());
-            }
-        });
-    }
-
-    public List<Integer> getUniqueEventNumbers() {
-        return uniqueEventNumbers;
-    }
-
-    public void setUniqueEventNumbers(List<Integer> uniqueEventNumbers) {
-        this.uniqueEventNumbers = uniqueEventNumbers;
-    }
-
-    public void sortNoFachEvents() {
-
-        Collections.sort(noFachEvents, new Comparator<Event>() {
-            @Override
-            public int compare(Event e1, Event e2) {
-                return e1.getDatum().compareTo(e2.getDatum());
-            }
-        });
-    }
-
-    public void sortFerien() {
-
-        Collections.sort(ferien, new Comparator<Ferien>() {
-            @Override
-            public int compare(Ferien f1, Ferien f2) {
-                int c = f1.getStartDate().compareTo(f2.getStartDate());
-                if (c == 0) return f1.getEndDate().compareTo(f2.getEndDate());
-                else return c;
-            }
-        });
+        Schule schule = getSchulen()[index];
+        PreferenceHelper.saveBooleanToPrefernces(MyApplication.getAppContext(), "hasAuth", schule.hasAuth);
+        PreferenceHelper.saveStringToPreferences(MyApplication.getAppContext(), "baseUrl", schule.baseUrl);
+        return schule;
 
     }
 
-    public List<Ferien> getFerien() {
-        return ferien;
+    public static void setStundenplan24(String schulnummer) {
+
+        PreferenceHelper.saveStringToPreferences(MyApplication.getAppContext(), "baseUrl", "https://www.stundenplan24.de/" + schulnummer + "/mobil/");
+
     }
 
-    public void setFerien(List<Ferien> ferien) {
-        this.ferien = ferien;
+    public static void setSchulUrl(String url) {
+
+        int slashIndex = url.lastIndexOf("/");
+        //remove subpage
+        if (slashIndex>-1&&slashIndex!=url.indexOf("/")+1&&slashIndex<url.lastIndexOf("."))
+            url = url.substring(0, slashIndex);
+        //add trailing slash
+        if (slashIndex+1!=url.length())
+            url += "/";
+        //add http
+        if (!url.startsWith("http://")&&!url.startsWith("https://"))
+            url = "http://"+url;
+        PreferenceHelper.saveStringToPreferences(MyApplication.getAppContext(), "baseUrl", url);
+
     }
 
-    public boolean isFerien(Date date) {
+    public static void setHasABWoche(boolean hasABWoche) {
 
-        for (Ferien f : ferien) {
-            if (Utilities.compareDays(date, f.getStartDate()) >= 0 && Utilities.compareDays(date, f.getEndDate()) <= 0)
-                return true;
-        }
-        return false;
+        PreferenceHelper.saveBooleanToPrefernces(MyApplication.getAppContext(), "hasABWoche", hasABWoche);
     }
 
-    public boolean isAWoche(Date date) {
+    public static boolean hasABWoche() {
+
+        return PreferenceHelper.readBooleanFromPreferences(MyApplication.getAppContext(), "hasABWoche", false);
+    }
+
+    public static String getBaseUrl() {
+
+        return PreferenceHelper.readStringFromPreferences(MyApplication.getAppContext(), "baseUrl", null);
+    }
+
+    public static boolean isAWoche(Date date) {
+
+        if (!hasABWoche()) return true;
 
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(date);
         Calendar compareCalendar = Calendar.getInstance();
-        compareCalendar.setTime(compareDate);
+        compareCalendar.setTime(getCompareDate());
 
         int diff = calendar.get(Calendar.WEEK_OF_YEAR) - compareCalendar.get(Calendar.WEEK_OF_YEAR);
+        boolean isCompareAWoche = true;
         return ((diff % 2 == 1) != isCompareAWoche);
 
     }
 
-    private boolean hasReminders() {
+    public static void setCompareDate(Date date) {
 
-        for (Event e : noFachEvents) {
-            if (e.getReminders().size() > 0) return true;
-        }
-        for (Fach f : fächer) {
-            for (Event e : f.getEvents()) {
-                if (e.getReminders().size() > 0) return true;
-            }
-        }
-        return false;
+        PreferenceHelper.saveLongToPreferences(MyApplication.getAppContext(), "compareDate", date.getTime());
+    }
+
+    private static Date getCompareDate() {
+
+        long time = PreferenceHelper.readLongFromPreferences(MyApplication.getAppContext(), "compareDate", 0);
+        if (time == 0) return null;
+        else return new Date(time);
+    }
+
+    private static boolean hasReminders() {
+
+        return SQLite.select().from(Erinnerung.class).querySingle() != null;
     }
 
     /**
      * Erstellt offline Daten Fächer automatisch anhand der vorhandenen online Vertretungs Daten
      */
-    public void smartImport(Activity context) {
+    public static void smartImport(Activity context) {
 
-        int meineKlasseInt = PreferenceHelper.readIntFromPreferences(context.getApplicationContext(), "meineKlasseInt", -1);
-        if (meineKlasseInt == -1) {
+        if (Klasse.getSelectedKlasse() == null) {
             Toast.makeText(context, "Kein(e) Klasse/Kurs ausgewählt!", Toast.LENGTH_LONG).show();
             return;
         }
-        ArrayList<String> nichtKurse = PreferenceHelper.readStringListFromPreferences(context.getApplicationContext(), "meineNichtKurse");
-        if (nichtKurse == null) nichtKurse = new ArrayList<>();
 
-        for (Tag tag : VertretungsData.getInstance().getTagList()) {
-            boolean isAWoche = isAWoche(tag.getDatum());
-            int wochenTagIndex = Utilities.getDayOfWeek(tag.getDatum()) - 1; //0-4
-            StuPlaKlasse stuPlaKlasse = tag.getStuplaKlasseList().get(meineKlasseInt);
-            for (Stunde stunde : stuPlaKlasse.getStundenList()) {
+        FlowManager.getDatabase(AppDatabase.class).beginTransactionAsync(new ITransaction() {
+            @Override
+            public void execute(DatabaseWrapper databaseWrapper) {
 
-                if (nichtKurse.contains(stunde.getKurs())) continue;
+                boolean isOberstufe = isOberstufe();
 
-                String stundenName = stunde.getKurs() != null ? stunde.getKurs() : stunde.getFach();
+                List<Kurs> meineKurse = Kurs.getAllSelectedKurse();
+                for (Kurs k : meineKurse) {
+                    Fach fach = k.getFach();
+                    if (fach == null) {
+                        fach = new Fach(k.getFachName());
+                        fach.setKurs(k);
+                        fach.setAssKursNr(k.getNr());
+                    }
 
-                try {
-                    int stundenIndex = Integer.valueOf(stunde.getStunde()) - 1; //0-9
-                    Fach fach = null;
-                    for (Fach f : LocalData.getInstance().getFächer()) {
-                        if (f.getName().equals(stundenName)) {
-                            fach = f;
-                            break;
+                    if (isOberstufe && k.getBezeichnung() != null) {
+                        boolean isLeistungskurs = true;
+                        for (char c : k.getBezeichnung().toCharArray())
+                            if (Character.isLetter(c) && Character.isLowerCase(c)) {
+                                isLeistungskurs = false;
+                                break;
+                            }
+                        fach.setLeistungskurs(isLeistungskurs);
+                    }
+
+                    fach.save();
+
+                    List<Stunde> stunden = k.getStunden();
+                    for (Stunde s : stunden) {
+                        int stunde = s.getStunde();
+                        int wochenTag = Utilities.getDayOfWeek(s.getOnlineTag().getDate());
+                        boolean aWoche = isAWoche(s.getOnlineTag().getDate());
+                        if (!fach.hasUnterrichtsZeit(stunde, wochenTag, aWoche)) {
+                            UnterrichtsZeit u = new UnterrichtsZeit(wochenTag, stunde, aWoche, fach);
+                            u.save();
                         }
                     }
-                    if (fach == null) {
-                        fach = new Fach(stundenName);
-                        LocalData.getInstance().getFächer().add(fach);
+                }
+
+
+                EventBus.getDefault().post(new FaecherUpdateEvent());
+            }
+        }).execute();
+
+    }
+
+    public static void deleteElapsedData() {
+
+        FlowManager.getDatabase(AppDatabase.class).beginTransactionAsync(new ITransaction() {
+            @Override
+            public void execute(DatabaseWrapper databaseWrapper) {
+                Date heute = Utilities.getToday().getTime();
+                List<Event> events = SQLite.select().from(Event.class).where(Event_Table.deleteWhenElapsed.eq(true)).and(Event_Table.date.lessThan(heute)).queryList(databaseWrapper);
+                for (Event e : events) removeEventReminder(MyApplication.getAppContext(), e);
+                SQLite.delete().from(Event.class).where(Event_Table.deleteWhenElapsed.eq(true)).and(Event_Table.date.lessThan(heute)).execute(databaseWrapper);
+                SQLite.delete().from(Ferien.class).where(Ferien_Table.endDate.lessThan(heute)).execute(databaseWrapper);
+
+                EventBus.getDefault().post(new EventsChangedEvent());
+                EventBus.getDefault().post(new FerienChangedEvent());
+            }
+        }).execute();
+    }
+
+    public static boolean isOldLocalData() {
+
+        String SAVE_FILE_NAME = "localData.json";
+        File localDataFile = new File(MyApplication.getAppContext().getFilesDir(), SAVE_FILE_NAME);
+        return localDataFile.exists();
+
+    }
+
+    public static void deleteOldLocalData() {
+
+        PreferenceHelper.deleteAllPreferences(MyApplication.getAppContext());
+        String SAVE_FILE_NAME = "localData.json";
+        File localDataFile = new File(MyApplication.getAppContext().getFilesDir(), SAVE_FILE_NAME);
+        localDataFile.delete();
+    }
+
+    public static void importOldLocalData(final Context context) {
+
+        final String SAVE_FILE_NAME = "localData.json";
+        final SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
+        LocalData localData;
+        //Read Data
+        try {
+            FileInputStream inputStream = MyApplication.getAppContext().openFileInput(SAVE_FILE_NAME);
+            BufferedReader r = new BufferedReader(new InputStreamReader(inputStream));
+            StringBuilder total = new StringBuilder(inputStream.available());
+            String line;
+            while ((line = r.readLine()) != null) {
+                total.append(line);
+            }
+            r.close();
+            inputStream.close();
+
+            final String json = total.toString();
+            FlowManager.getDatabase(AppDatabase.class).beginTransactionAsync(new ITransaction() {
+                @Override
+                public void execute(DatabaseWrapper databaseWrapper) {
+
+                    try {
+                        Toast.makeText(context, "Start import...", Toast.LENGTH_SHORT).show();
+
+                        JSONObject all = new JSONObject(json);
+                        if (all.getInt("saveFileVersion") != 2)
+                            throw new Exception("saveFileVersion wrong");
+
+                        //ferien
+                        JSONArray ferienArray = all.getJSONArray("ferien");
+                        for (int i = 0; i < ferienArray.length(); i++) {
+                            JSONObject ferienObject = ferienArray.getJSONObject(i);
+                            Ferien ferien = new Ferien(
+                                    dateFormat.parse(ferienObject.getString("startDate")),
+                                    dateFormat.parse(ferienObject.getString("endDate")),
+                                    ferienObject.getString("name")
+                            );
+                            ferien.save(databaseWrapper);
+                        }
+
+                        //fächer
+                        JSONArray faecherArray = all.getJSONArray("fächer");
+                        for (int i = 0; i < faecherArray.length(); i++) {
+                            JSONObject faecherObject = faecherArray.getJSONObject(i);
+                            String fachName = faecherObject.getString("name");
+                            Fach fach = new Fach(fachName);
+                            boolean isLeistungskurs = true;
+                            for (char c : fachName.toCharArray())
+                                if (Character.isLetter(c) && Character.isLowerCase(c)) {
+                                    isLeistungskurs = false;
+                                    break;
+                                }
+                            fach.setLeistungskurs(isLeistungskurs);
+                            fach.save(databaseWrapper);
+
+                            JSONArray aStundenArray = faecherObject.getJSONArray("aStunden");
+                            for (int j = 0; j < aStundenArray.length(); j++) { //j=wochenTag-1
+                                JSONArray tag = aStundenArray.getJSONArray(j);
+                                for (int k = 0; k < tag.length(); k++)
+                                    if (tag.getBoolean(k))
+                                        new UnterrichtsZeit(j + 1, k + 1, true, fach).save(databaseWrapper);
+                            }
+                            JSONArray bStundenArray = faecherObject.getJSONArray("bStunden");
+                            for (int j = 0; j < bStundenArray.length(); j++) { //j=wochenTag-1
+                                JSONArray tag = bStundenArray.getJSONArray(j);
+                                for (int k = 0; k < tag.length(); k++)
+                                    if (tag.getBoolean(k))
+                                        new UnterrichtsZeit(j + 1, k + 1, false, fach).save(databaseWrapper);
+                            }
+
+                            JSONArray eventsArray = faecherObject.getJSONArray("events");
+                            for (int j = 0; j < eventsArray.length(); j++) {
+                                JSONObject eventObject = eventsArray.getJSONObject(j);
+                                Event event = new Event();
+                                event.setDate(dateFormat.parse(eventObject.getString("datum")));
+                                event.setDeleteWhenElapsed(eventObject.getBoolean("deleteWhenElapsed"));
+                                event.setDescription(eventObject.getString("description"));
+                                event.setName(eventObject.getString("title"));
+                                event.setFach(fach);
+                                event.save(databaseWrapper);
+                                JSONArray reminderArray = eventObject.getJSONArray("reminders");
+                                for (int k = 0; k < reminderArray.length(); k++)
+                                    new Erinnerung(dateFormat.parse(reminderArray.getString(k)), event).save(databaseWrapper);
+                            }
+
+                            JSONArray klausurArray = faecherObject.getJSONArray("klausurenNoten");
+                            for (int j = 0; j < klausurArray.length(); j++)
+                                new Zensur(klausurArray.getInt(j), true, fach).save(databaseWrapper);
+                            JSONArray sonstigeArray = faecherObject.getJSONArray("sonstigeNoten");
+                            for (int j = 0; j < sonstigeArray.length(); j++)
+                                new Zensur(sonstigeArray.getInt(j), false, fach).save(databaseWrapper);
+
+                        }
+
+                        //sonsige Events
+                        JSONArray eventsArray = all.getJSONArray("noFachEvents");
+                        for (int j = 0; j < eventsArray.length(); j++) {
+                            JSONObject eventObject = eventsArray.getJSONObject(j);
+                            Event event = new Event();
+                            event.setDate(dateFormat.parse(eventObject.getString("datum")));
+                            event.setDeleteWhenElapsed(eventObject.getBoolean("deleteWhenElapsed"));
+                            event.setDescription(eventObject.getString("description"));
+                            event.setName(eventObject.getString("title"));
+                            event.save(databaseWrapper);
+                            JSONArray reminderArray = eventObject.getJSONArray("reminders");
+                            for (int k = 0; k < reminderArray.length(); k++)
+                                new Erinnerung(dateFormat.parse(reminderArray.getString(k)), event).save(databaseWrapper);
+                        }
+
+                        //delete File
+                        deleteOldLocalData();
+
+                        Toast.makeText(context, "Import erfolgreich!", Toast.LENGTH_SHORT).show();
+
+                    } catch (Exception e) {
+                        Toast.makeText(context, "Fehler beim Import!", Toast.LENGTH_SHORT).show();
                     }
-                    fach.getStunden(isAWoche)[wochenTagIndex][stundenIndex] = true;
-                } catch (NumberFormatException e) {
-                    Log.e("JKGDEBUG", "SmartImport: Stunde hat iregulären Index");
-                    e.printStackTrace();
-                }
-            }
-        }
 
-        LocalData.getInstance().sortFächer();
-        EventBus.getDefault().post(new FaecherUpdateEvent());
-        LocalData.saveToFile(context.getApplicationContext());
+                }
+            }).execute();
+
+        } catch (Exception e) {
+
+            Toast.makeText(context, "Fehler beim Import!", Toast.LENGTH_SHORT).show();
+
+        }
 
     }
 
-    public void addFreieTageToFerien() {
+    public static boolean isFreeVersion(Context context) {
 
-        final SimpleDateFormat dateFormat = new SimpleDateFormat(VertretungsAPI.getFreieTageDateFormat(), Locale.GERMANY);
-
-        //Lokale Kopie die sortiert werden kann
-        List<Date> freieTage = new ArrayList<>();
-        for (String dateString : VertretungsData.getInstance().getFreieTageList()) {
-            try {
-                Date date = dateFormat.parse(dateString);
-                freieTage.add(date);
-            } catch (ParseException e) {
-                e.printStackTrace();
-            }
-        }
-        Collections.sort(freieTage);
-
-        Calendar heute = Calendar.getInstance();
-        for (Date freierTag : freieTage) {
-
-            if (isFerien(freierTag)) continue;
-            if (Utilities.compareDays(heute.getTime(), freierTag) > 0) continue;
-
-            //Berechnet den Tag vor dem freien Tag
-            Calendar calendar = Calendar.getInstance();
-            calendar.setTime(freierTag);
-            if (calendar.get(Calendar.DAY_OF_WEEK) == Calendar.MONDAY)
-                calendar.add(Calendar.DATE, -3);
-            else calendar.add(Calendar.DATE, -1);
-            Date prevDay = calendar.getTime();
-
-            //Wenn Tag davor Ferien -> freien Tag hinzufügen
-            boolean shouldCreateNewFerien = true;
-            for (Ferien f : ferien) {
-                if (Utilities.compareDays(prevDay, f.getStartDate()) >= 0 && Utilities.compareDays(prevDay, f.getEndDate()) <= 0) {
-                    shouldCreateNewFerien = false;
-                    f.setEndDate(freierTag);
-                    break;
-                }
-            }
-            //Wenn Tag davor keine Ferien, neue Ferien hinzufügen
-            if (shouldCreateNewFerien)
-                LocalData.getInstance().getFerien().add(new Ferien(freierTag, freierTag, "Schulfrei"));
-
-        }
-        LocalData.getInstance().sortFerien();
-    }
-
-    public interface CreateDataFromFileListener {
-
-        void onDataCreated();
-
-        void onError(Throwable throwable);
+        return !context.getPackageName().contains("pro");
     }
 }

@@ -2,13 +2,12 @@ package de.conradowatz.jkgvertretung.activities;
 
 import android.app.DatePickerDialog;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.os.Bundle;
-import android.support.annotation.Nullable;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
+import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.Menu;
@@ -18,7 +17,6 @@ import android.widget.DatePicker;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import org.greenrobot.eventbus.EventBus;
 
 import java.text.SimpleDateFormat;
@@ -26,18 +24,16 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 
+import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
-import de.conradowatz.jkgvertretung.events.AnalyticsEventEvent;
 import de.conradowatz.jkgvertretung.events.FerienChangedEvent;
-import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.tools.Utilities;
-import de.conradowatz.jkgvertretung.tools.VertretungsData;
 import de.conradowatz.jkgvertretung.variables.Ferien;
 
 public class FerienActivity extends AppCompatActivity {
 
     private Ferien ferien;
-    private int ferienInt;
+    private long ferienId;
 
     private boolean isSaveDialog;
     private boolean isDatePickerDialog;
@@ -55,14 +51,6 @@ public class FerienActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        if (!VertretungsData.getInstance().isReady() || !LocalData.isReady()) {
-            Intent spashIntent = new Intent(this, SplashActivity.class);
-            spashIntent.putExtra("intent", getIntent());
-            startActivity(spashIntent);
-            finish();
-            return;
-        }
-
         setContentView(R.layout.activity_ferien);
 
         toolbar = (Toolbar) findViewById(R.id.toolbar);
@@ -77,7 +65,7 @@ public class FerienActivity extends AppCompatActivity {
 
         if (savedInstanceState != null) {
 
-            ferienInt = savedInstanceState.getInt("ferienInt", -1);
+            ferienId = savedInstanceState.getLong("ferienId", -1);
             ferien = savedInstanceState.getParcelable("ferien");
 
             if (savedInstanceState.getBoolean("isSaveDialog")) showSaveDialog();
@@ -87,10 +75,9 @@ public class FerienActivity extends AppCompatActivity {
 
         } else {
 
-            ferienInt = getIntent().getIntExtra("ferienInt", -1);
-            if (ferienInt > -1) {
-                Ferien f = LocalData.getInstance().getFerien().get(ferienInt);
-                ferien = new Ferien(f.getStartDate(), f.getEndDate(), f.getName()); //make copy if aborted
+            ferienId = getIntent().getLongExtra("ferienId", -1);
+            if (ferienId > -1) {
+                ferien = Ferien.getFerien(ferienId);
             } else {
                 Calendar calendar = Calendar.getInstance();
                 ferien = new Ferien(calendar.getTime(), calendar.getTime(), "");
@@ -148,13 +135,13 @@ public class FerienActivity extends AppCompatActivity {
 
                 isDatePickerDialog = false;
 
-                Calendar c = Calendar.getInstance();
+                Calendar c = Utilities.getToday();
                 c.set(datePicker.getYear(), datePicker.getMonth(), datePicker.getDayOfMonth());
                 if (isStartDate) {
                     ferien.setStartDate(c.getTime());
                     startText.setText(makeDateString(ferien.getStartDate()));
 
-                    Calendar endCalendar = Calendar.getInstance();
+                    Calendar endCalendar = Utilities.getToday();
                     endCalendar.setTime(ferien.getEndDate());
                     if (Utilities.compareDays(endCalendar, c) < 0) {
                         ferien.setEndDate(c.getTime());
@@ -188,7 +175,7 @@ public class FerienActivity extends AppCompatActivity {
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
 
-        if (ferienInt == -1) getMenuInflater().inflate(R.menu.menu_save, menu);
+        if (ferienId == -1) getMenuInflater().inflate(R.menu.menu_save, menu);
         else getMenuInflater().inflate(R.menu.menu_save_delete, menu);
         return true;
     }
@@ -201,8 +188,8 @@ public class FerienActivity extends AppCompatActivity {
         if (id == R.id.action_save) {
 
             if (saveFerien()) {
+                ferien.save();
                 eventBus.post(new FerienChangedEvent());
-                LocalData.saveToFile(getApplicationContext());
                 finish();
             }
             return true;
@@ -224,7 +211,7 @@ public class FerienActivity extends AppCompatActivity {
 
     private void showDeleteDialog() {
 
-        if (ferienInt == -1) return;
+        if (ferienId == -1) return;
 
         isDeleteDialog = true;
 
@@ -237,10 +224,8 @@ public class FerienActivity extends AppCompatActivity {
 
                 isDeleteDialog = false;
 
-                LocalData.getInstance().getFerien().remove(ferienInt);
-
+                ferien.delete();
                 eventBus.post(new FerienChangedEvent());
-                LocalData.saveToFile(getApplicationContext());
                 finish();
 
             }
@@ -284,12 +269,8 @@ public class FerienActivity extends AppCompatActivity {
             return false;
         }
 
-        if (ferienInt > -1) LocalData.getInstance().getFerien().set(ferienInt, ferien);
-        else {
-            eventBus.post(new AnalyticsEventEvent("Manager", "Ferien erstellt"));
-            LocalData.getInstance().getFerien().add(ferien);
-        }
-        LocalData.getInstance().sortFerien();
+        ferien.save();
+
         return true;
 
     }
@@ -326,7 +307,7 @@ public class FerienActivity extends AppCompatActivity {
     @Override
     protected void onSaveInstanceState(Bundle outState) {
 
-        outState.putInt("ferienInt", ferienInt);
+        outState.putLong("ferienInt", ferienId);
         outState.putBoolean("isSaveDialog", isSaveDialog);
         outState.putParcelable("ferien", ferien);
 

@@ -6,9 +6,18 @@ import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 public class PreferenceHelper {
+
+    public static void deleteAllPreferences(Context context) {
+
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.clear();
+        editor.apply();
+    }
 
     public static void saveStringToPreferences(Context context, String preferenceName, String preferenceValue) {
 
@@ -38,28 +47,52 @@ public class PreferenceHelper {
         editor.apply();
     }
 
-    public static void saveStringListToPreferences(Context context, String preferenceName, ArrayList<String> preferenceValue) {
+    public static void saveStringListToPreferences(Context context, String preferenceName, List<String> preferenceValue) {
 
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putInt(preferenceName + "_count", preferenceValue.size());
-        for (int i=0; i<preferenceValue.size(); i++) {
-            editor.putString(preferenceName+"_"+String.valueOf(i), preferenceValue.get(i));
+        for (int i = 0; i < preferenceValue.size(); i++) {
+            editor.putString(preferenceName + "_" + String.valueOf(i), preferenceValue.get(i));
         }
 
         editor.apply();
     }
 
-    public static ArrayList<String> readStringListFromPreferences(Context context, String preferenceName) {
+    public static List<String> readStringListFromPreferences(Context context, String preferenceName) {
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
         ArrayList<String> stringList = new ArrayList<>();
         int count = sharedPreferences.getInt(preferenceName + "_count", -1);
         if (count < 0) return null;
-        for (int i=0; i<count; i++) {
-            String string = sharedPreferences.getString(preferenceName+"_"+String.valueOf(i), "");
+        for (int i = 0; i < count; i++) {
+            String string = sharedPreferences.getString(preferenceName + "_" + String.valueOf(i), "");
             stringList.add(string);
         }
         return stringList;
+    }
+
+    public static void saveIntListToPreferences(Context context, String preferenceName, List<Integer> preferenceValue) {
+
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putInt(preferenceName + "_count", preferenceValue.size());
+        for (int i = 0; i < preferenceValue.size(); i++) {
+            editor.putInt(preferenceName + "_" + String.valueOf(i), preferenceValue.get(i));
+        }
+
+        editor.apply();
+    }
+
+    public static List<Integer> readIntListFromPreferences(Context context, String preferenceName) {
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        ArrayList<Integer> intList = new ArrayList<>();
+        int count = sharedPreferences.getInt(preferenceName + "_count", -1);
+        if (count < 0) return null;
+        for (int i = 0; i < count; i++) {
+            int number = sharedPreferences.getInt(preferenceName + "_" + String.valueOf(i), 0);
+            intList.add(number);
+        }
+        return intList;
     }
 
     public static void saveIntToPreferences(Context context, String preferenceName, int preferenceValue) {
@@ -73,6 +106,19 @@ public class PreferenceHelper {
     public static int readIntFromPreferences(Context context, String preferenceName, int defaultValue) {
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
         return sharedPreferences.getInt(preferenceName, defaultValue);
+    }
+
+    public static void saveLongToPreferences(Context context, String preferenceName, long preferenceValue) {
+
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putLong(preferenceName, preferenceValue);
+        editor.apply();
+    }
+
+    public static long readLongFromPreferences(Context context, String preferenceName, long defaultValue) {
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        return sharedPreferences.getLong(preferenceName, defaultValue);
     }
 
     public static Map<String, ?> getSharedPrefrencesForBackup(Context context) {

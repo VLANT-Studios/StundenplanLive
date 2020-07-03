@@ -1,31 +1,31 @@
 package de.conradowatz.jkgvertretung.fragments;
 
 
+import android.app.Activity;
+import android.os.AsyncTask;
 import android.os.Bundle;
-import android.support.design.widget.TabLayout;
-import android.support.v4.app.Fragment;
-import android.support.v4.content.ContextCompat;
-import android.support.v4.view.ViewPager;
+import com.google.android.material.tabs.TabLayout;
+import androidx.fragment.app.Fragment;
+import androidx.core.content.ContextCompat;
+import androidx.viewpager.widget.ViewPager;
+import androidx.appcompat.widget.AppCompatSpinner;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.Spinner;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
 import java.util.ArrayList;
+import java.util.List;
 
+import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.adapters.StundenplanPagerAdapter;
-import de.conradowatz.jkgvertretung.events.AnalyticsScreenHitEvent;
-import de.conradowatz.jkgvertretung.events.DataReadyEvent;
-import de.conradowatz.jkgvertretung.events.DayUpdatedEvent;
-import de.conradowatz.jkgvertretung.events.FerienChangedEvent;
-import de.conradowatz.jkgvertretung.tools.PreferenceHelper;
-import de.conradowatz.jkgvertretung.tools.VertretungsData;
+import de.conradowatz.jkgvertretung.events.DaysUpdatedEvent;
+import de.conradowatz.jkgvertretung.events.KursChangedEvent;
 import de.conradowatz.jkgvertretung.variables.Klasse;
 
 public class StundenplanFragment extends Fragment {
@@ -38,12 +38,11 @@ public class StundenplanFragment extends Fragment {
     private View contentView;
     private ViewPager viewPager;
     private TabLayout tabs;
-    private Spinner spinner;
+    private AppCompatSpinner spinner;
     private int mode;
     private int viewpagerCount;
-    private Integer klassenIndex;
+    private String klassenName;
     private EventBus eventBus = EventBus.getDefault();
-    private boolean waitingForData = false;
 
     public StundenplanFragment() {
         // Required empty public constructor
@@ -71,23 +70,9 @@ public class StundenplanFragment extends Fragment {
 
             mode = savedInstanceState.getInt("mode");
             viewpagerCount = savedInstanceState.getInt("viewpagerCount");
-            klassenIndex = savedInstanceState.getInt("klassenIndex");
+            klassenName = savedInstanceState.getString("klassenName");
         }
 
-        //Analytics
-        switch (mode) {
-            case MODE_STUNDENPLAN:
-                eventBus.post(new AnalyticsScreenHitEvent("Mein Stundenplan"));
-                break;
-            case MODE_VERTRETUNGSPLAN:
-                eventBus.post(new AnalyticsScreenHitEvent("Mein Vertretungsplan"));
-                break;
-            case MODE_ALGVERTRETUNGSPLAN:
-                eventBus.post(new AnalyticsScreenHitEvent("Allgemeiner Vertretungsplan"));
-                break;
-            case MODE_KLASSENPLAN:
-                eventBus.post(new AnalyticsScreenHitEvent("Klassenplan"));
-        }
 
         if (mode == MODE_KLASSENPLAN)
             contentView = inflater.inflate(R.layout.fragment_klassenplan, container, false);
@@ -104,67 +89,95 @@ public class StundenplanFragment extends Fragment {
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
 
-        if (!VertretungsData.getInstance().isReady()) {
-            waitingForData = true;
-            return;
-        }
-
         showData();
     }
 
 
     private void showData() {
 
-        if (mode == MODE_KLASSENPLAN) {
+        new AsyncTask<Boolean, Integer, Klasse>() {
+            @Override
+            protected Klasse doInBackground(Boolean... params) {
+                return Klasse.getSelectedKlasse();
+            }
 
-            spinner = (Spinner) contentView.findViewById(R.id.spinner);
-            setUpSpinner();
-            if (klassenIndex != null) setUpViewPager(klassenIndex, null);
-        } else {
-            setUpViewPager(null, null);
-        }
+            @Override
+            protected void onPostExecute(Klasse klasse) {
+
+                if ((mode==MODE_STUNDENPLAN || mode==MODE_VERTRETUNGSPLAN) && klasse==null) return;
+                if (mode == MODE_KLASSENPLAN) {
+
+                    spinner = (AppCompatSpinner) contentView.findViewById(R.id.spinner);
+                    setUpSpinner();
+                    if (klassenName != null) setUpViewPager(klassenName, null);
+                } else {
+                    setUpViewPager(null, null);
+                }
+
+            }
+        }.execute();
     }
 
     private void setUpSpinner() {
 
-        ArrayList<String> klassennamenListe = new ArrayList<>();
-        for (Klasse klasse : VertretungsData.getInstance().getKlassenList()) {
-            klassennamenListe.add(klasse.getName());
-        }
-
-        ArrayAdapter<String> spinnerArrayAdapter = new ArrayAdapter<>(getActivity(), R.layout.item_klassenplan_spinner, klassennamenListe);
-        spinnerArrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinner.setAdapter(spinnerArrayAdapter);
-
-        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+        new AsyncTask<Activity, Integer, ArrayAdapter<String>>() {
+            Activity activity;
+            Klasse selectedKlasse;
+            final List<Klasse> klassen = new ArrayList<>();
             @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+            protected ArrayAdapter<String> doInBackground(Activity... params) {
+                this.activity = params[0];
+                ArrayList<String> klassenNamenListe = new ArrayList<>();
+                klassen.addAll(Klasse.getAllKlassenSorted());
+                for (Klasse klasse : klassen) klassenNamenListe.add(klasse.getName());
 
-                if (klassenIndex == null || position != klassenIndex) {
-                    int lastposition = viewPager.getCurrentItem();
-                    setUpViewPager(position, lastposition);
-                    klassenIndex = position;
+                selectedKlasse = Klasse.getSelectedKlasse();
+
+                return new ArrayAdapter<>(activity, R.layout.item_klassenplan_spinner, klassenNamenListe);
+            }
+
+            @Override
+            protected void onPostExecute(ArrayAdapter<String> spinnerArrayAdapter) {
+
+                spinnerArrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                spinner.setAdapter(spinnerArrayAdapter);
+
+                spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+
+                        int viewPagerPosition = viewPager.getCurrentItem();
+                        klassenName = klassen.get(position).getName();
+                        setUpViewPager(klassenName, viewPagerPosition);
+
+                    }
+
+                    @Override
+                    public void onNothingSelected(AdapterView<?> parent) {
+
+                    }
+                });
+
+                if (selectedKlasse!=null) {
+                    int selectedIndex = 0;
+                    for (int i=0; i<klassen.size(); i++) {
+                        if (klassen.get(i).getId()==selectedKlasse.getId()) {
+                            selectedIndex = i;
+                            break;
+                        }
+                    }
+                    spinner.setSelection(selectedIndex);
                 }
             }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-
-            }
-        });
-
-        int meineKlasseInt = PreferenceHelper.readIntFromPreferences(getActivity(), "meineKlasseInt", -1);
-        if (meineKlasseInt >= 0) {
-            spinner.setSelection(meineKlasseInt);
-        }
+        }.execute(getActivity());
 
     }
 
-    private void setUpViewPager(Integer klassenIndex, Integer lastPosition) {
+    private void setUpViewPager(String klassenName, Integer viewPagerPosition) {
 
         final boolean firstStart = viewPager.getAdapter() == null;
-        if (VertretungsData.getInstance().getTagList() == null) return;
-        final StundenplanPagerAdapter adapter = new StundenplanPagerAdapter(getChildFragmentManager(), mode, klassenIndex);
+        if (!isAdded()) return;
+        final StundenplanPagerAdapter adapter = new StundenplanPagerAdapter(getChildFragmentManager(), mode, klassenName);
         viewPager.setAdapter(adapter);
 
         if (firstStart) {
@@ -241,7 +254,7 @@ public class StundenplanFragment extends Fragment {
             }
         }
 
-        if (lastPosition != null) viewPager.setCurrentItem(lastPosition);
+        if (viewPagerPosition != null) viewPager.setCurrentItem(viewPagerPosition);
 
         viewpagerCount = adapter.getCount();
     }
@@ -286,32 +299,17 @@ public class StundenplanFragment extends Fragment {
      * Läd den ViewPager neu, wenn Tage hinzugefügt wurden
      */
     @Subscribe
-    public void onEvent(DayUpdatedEvent event) {
+    public void onEvent(DaysUpdatedEvent event) {
 
-        if (viewPager == null) return;
+        if (viewPager==null || viewPager.getAdapter()==null) return;
 
-        if (event.getPosition() > viewPager.getAdapter().getCount() - 1) {
-
-            ((StundenplanPagerAdapter) viewPager.getAdapter()).dayAdded();
-            tabs.setupWithViewPager(viewPager);
-        }
-
+        if (mode!=MODE_STUNDENPLAN) ((StundenplanPagerAdapter)viewPager.getAdapter()).updateData();
     }
 
     @Subscribe
-    public void onEvent(DataReadyEvent event) {
+    public void onEvent(KursChangedEvent event) {
 
-        if (waitingForData) {
-            waitingForData = false;
-
-            showData();
-        }
-    }
-
-    @Subscribe
-    public void onEvent(FerienChangedEvent event) {
-
-        showData();
+        if (viewPager!=null && viewPager.getAdapter()==null) showData();
     }
 
     @Override
@@ -319,7 +317,7 @@ public class StundenplanFragment extends Fragment {
 
         outState.putInt("mode", mode);
         outState.putInt("viewpagerCount", viewpagerCount);
-        if (klassenIndex != null) outState.putInt("klassenIndex", klassenIndex);
+        if (klassenName != null) outState.putString("klassenName", klassenName);
         super.onSaveInstanceState(outState);
     }
 

@@ -3,10 +3,10 @@ package de.conradowatz.jkgvertretung.fragments;
 import android.content.DialogInterface;
 import android.content.res.Resources;
 import android.os.Bundle;
-import android.support.v4.app.Fragment;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.widget.GridLayoutManager;
-import android.support.v7.widget.RecyclerView;
+import androidx.fragment.app.Fragment;
+import androidx.appcompat.app.AlertDialog;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -24,6 +24,7 @@ import de.conradowatz.jkgvertretung.adapters.FachNotenRecyclerAdapter;
 import de.conradowatz.jkgvertretung.events.NotenChangedEvent;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.variables.Fach;
+import de.conradowatz.jkgvertretung.variables.Zensur;
 
 public class FachNotenFragment extends Fragment implements FachNotenRecyclerAdapter.Callback {
 
@@ -62,7 +63,7 @@ public class FachNotenFragment extends Fragment implements FachNotenRecyclerAdap
         TextView klausurenDurchscnittText = (TextView) contentView.findViewById(R.id.klausurenDurchschnittLabelText);
 
         fach = ((FachActivity) getActivity()).getFach();
-        klausurenString = LocalData.isOberstufe(getActivity().getApplicationContext()) ? "Klausuren" : "Klassenarbeiten";
+        klausurenString = LocalData.isOberstufe() ? "Klausuren" : "Klassenarbeiten";
         klausurenText.setText(klausurenString);
         klausurenDurchscnittText.setText("Durchschnitt " + klausurenString);
 
@@ -103,8 +104,8 @@ public class FachNotenFragment extends Fragment implements FachNotenRecyclerAdap
 
         sonstigeRecycler.setLayoutManager(sLayoutManager);
         klausurenRecycler.setLayoutManager(kLayoutManager);
-        FachNotenRecyclerAdapter sAdapter = new FachNotenRecyclerAdapter(getActivity().getApplicationContext(), fach.getSonstigeNoten(), this, FachNotenRecyclerAdapter.NOTEN_TYPE_SONSTIGE);
-        FachNotenRecyclerAdapter kAdapter = new FachNotenRecyclerAdapter(getActivity().getApplicationContext(), fach.getKlausurenNoten(), this, FachNotenRecyclerAdapter.NOTEN_TYPE_KLAUSUREN);
+        FachNotenRecyclerAdapter sAdapter = new FachNotenRecyclerAdapter(fach, this, FachNotenRecyclerAdapter.NOTEN_TYPE_SONSTIGE);
+        FachNotenRecyclerAdapter kAdapter = new FachNotenRecyclerAdapter(fach, this, FachNotenRecyclerAdapter.NOTEN_TYPE_KLAUSUREN);
         sonstigeRecycler.setAdapter(sAdapter);
         klausurenRecycler.setAdapter(kAdapter);
 
@@ -112,9 +113,9 @@ public class FachNotenFragment extends Fragment implements FachNotenRecyclerAdap
 
     private void calculateAverage() {
 
-        Double sonstigeAverage = fach.getSonstigeAverage();
-        Double klausurenAverage = fach.getKlausurenAverage();
-        Double gesamtAverage = fach.getNotenAverage();
+        Double sonstigeAverage = fach.getTestDurchschnitt();
+        Double klausurenAverage = fach.getKlausurenDurchschnitt();
+        Double gesamtAverage = fach.getZensurenDurchschnitt();
         sonstigeText.setText(sonstigeAverage == null ? "n.A." : new DecimalFormat("#0.00").format(sonstigeAverage));
         klausurenText.setText(klausurenAverage == null ? "n.A." : new DecimalFormat("#0.00").format(klausurenAverage));
         gesamtText.setText(gesamtAverage == null ? "n.A." : new DecimalFormat("#0.00").format(gesamtAverage));
@@ -129,8 +130,8 @@ public class FachNotenFragment extends Fragment implements FachNotenRecyclerAdap
 
         int note;
         if (type == FachNotenRecyclerAdapter.NOTEN_TYPE_SONSTIGE)
-            note = fach.getSonstigeNoten().get(position);
-        else note = fach.getKlausurenNoten().get(position);
+            note = fach.getTests().get(position).getZensur();
+        else note = fach.getKlausuren().get(position).getZensur();
 
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
         builder.setTitle("Note entfernen");
@@ -142,10 +143,12 @@ public class FachNotenFragment extends Fragment implements FachNotenRecyclerAdap
                 isNoteDeleteDialog = false;
 
                 if (type == FachNotenRecyclerAdapter.NOTEN_TYPE_SONSTIGE) {
-                    fach.getSonstigeNoten().remove(position);
+                    fach.getTests().get(position).delete();
+                    ((FachNotenRecyclerAdapter)sonstigeRecycler.getAdapter()).updateData();
                     sonstigeRecycler.getAdapter().notifyItemRemoved(position);
                 } else {
-                    fach.getKlausurenNoten().remove(position);
+                    fach.getKlausuren().get(position).delete();
+                    ((FachNotenRecyclerAdapter)klausurenRecycler.getAdapter()).updateData();
                     klausurenRecycler.getAdapter().notifyItemRemoved(position);
                 }
                 calculateAverage();
@@ -176,7 +179,7 @@ public class FachNotenFragment extends Fragment implements FachNotenRecyclerAdap
         dialogType = type;
 
         final String[] noten;
-        if (LocalData.isOberstufe(getActivity().getApplicationContext())) {
+        if (LocalData.isOberstufe()) {
             noten = new String[16];
             for (int i = 0; i <= 15; i++) noten[i] = String.valueOf(15 - i);
         } else {
@@ -192,11 +195,13 @@ public class FachNotenFragment extends Fragment implements FachNotenRecyclerAdap
                 isNoteAddDialog = false;
 
                 if (type == FachNotenRecyclerAdapter.NOTEN_TYPE_SONSTIGE) {
-                    fach.getSonstigeNoten().add(Integer.valueOf(noten[which]));
-                    sonstigeRecycler.getAdapter().notifyItemInserted(fach.getSonstigeNoten().size() - 1);
+                    new Zensur(Integer.valueOf(noten[which]), false, fach).save();
+                    ((FachNotenRecyclerAdapter)sonstigeRecycler.getAdapter()).updateData();
+                    sonstigeRecycler.getAdapter().notifyItemInserted(fach.getTests().size() - 1);
                 } else {
-                    fach.getKlausurenNoten().add(Integer.valueOf(noten[which]));
-                    klausurenRecycler.getAdapter().notifyItemInserted(fach.getKlausurenNoten().size() - 1);
+                    new Zensur(Integer.valueOf(noten[which]), true, fach).save();
+                    ((FachNotenRecyclerAdapter)klausurenRecycler.getAdapter()).updateData();
+                    klausurenRecycler.getAdapter().notifyItemInserted(fach.getKlausuren().size() - 1);
                 }
                 calculateAverage();
                 eventBus.post(new NotenChangedEvent());

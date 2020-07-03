@@ -1,69 +1,73 @@
 package de.conradowatz.jkgvertretung.variables;
 
 
+import android.content.Context;
+
+import com.raizlabs.android.dbflow.annotation.Column;
+import com.raizlabs.android.dbflow.annotation.ForeignKey;
+import com.raizlabs.android.dbflow.annotation.ForeignKeyAction;
+import com.raizlabs.android.dbflow.annotation.PrimaryKey;
+import com.raizlabs.android.dbflow.annotation.Table;
+import com.raizlabs.android.dbflow.sql.language.Method;
+import com.raizlabs.android.dbflow.sql.language.SQLite;
+import com.raizlabs.android.dbflow.structure.BaseModel;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.List;
 
-public class Fach {
+import de.conradowatz.jkgvertretung.tools.LocalData;
+import de.conradowatz.jkgvertretung.tools.Utilities;
+import de.conradowatz.jkgvertretung.tools.VertretungsAPI;
 
+@Table(database = AppDatabase.class)
+public class Fach extends BaseModel {
+
+    public Fach() {
+
+    }
+
+    public static final int MODE_5050 = 0;
+    public static final int MODE_7030 = 1;
+    public static final int MODE_6040 = 2;
+    public static final int MODE_2LK = 3;
+
+    @PrimaryKey(autoincrement = true)
+    long id;
+
+    @Column
     private String name;
-    private List<Integer> sonstigeNoten;
-    private List<Integer> klausurenNoten;
-    private List<Event> events;
-    private boolean[][] aStunden;
-    private boolean[][] bStunden;
+    @Column
+    private boolean isLeistungskurs;
+    @ForeignKey(onDelete = ForeignKeyAction.SET_NULL)
+    private Kurs kurs;
+    @Column
+    private int assKursNr;
+    @Column
+    private int notenModus;
+
+    public long getId() {
+        return id;
+    }
+
+    public void setId(long id) {
+        this.id = id;
+    }
+
+    public List<Zensur> getZensuren() {
+
+        return SQLite.select().from(Zensur.class).where(Zensur_Table.fach_id.eq(id)).queryList();
+    }
+
+    public List<UnterrichtsZeit> getUnterrichtsZeiten() {
+
+        return SQLite.select().from(UnterrichtsZeit.class).where(UnterrichtsZeit_Table.fach_id.eq(id)).queryList();
+    }
 
     public Fach(String name) {
-
         this.name = name;
-        sonstigeNoten = new ArrayList<>();
-        klausurenNoten = new ArrayList<>();
-        events = new ArrayList<>();
-        aStunden = new boolean[5][9];
-        bStunden = new boolean[5][9];
-    }
-
-    public Double getSonstigeAverage() {
-
-        if (sonstigeNoten.isEmpty()) return null;
-        int sum = 0;
-        for (Integer note : sonstigeNoten) {
-            sum += note;
-        }
-        return ((double) sum) / sonstigeNoten.size();
-
-    }
-
-    public Double getKlausurenAverage() {
-
-        if (klausurenNoten.isEmpty()) return null;
-        int sum = 0;
-        for (Integer note : klausurenNoten) {
-            sum += note;
-        }
-        return ((double) sum) / klausurenNoten.size();
-
-    }
-
-    public Double getNotenAverage() {
-
-        if (sonstigeNoten.isEmpty() && klausurenNoten.isEmpty()) return null;
-        Double sontsige = getSonstigeAverage();
-        Double klausuren = getKlausurenAverage();
-        if (sontsige == null) return klausuren;
-        if (klausuren == null) return sontsige;
-        return (sontsige + klausuren) / 2;
-
-    }
-
-    public List<Integer> getKlausurenNoten() {
-        return klausurenNoten;
-    }
-
-    public void setKlausurenNoten(List<Integer> klausurenNoten) {
-        this.klausurenNoten = klausurenNoten;
     }
 
     public String getName() {
@@ -74,76 +78,231 @@ public class Fach {
         this.name = name;
     }
 
-    public List<Integer> getSonstigeNoten() {
-        return sonstigeNoten;
+    public boolean isLeistungskurs() {
+        return isLeistungskurs;
     }
 
-    public void setSonstigeNoten(List<Integer> sonstigeNoten) {
-        this.sonstigeNoten = sonstigeNoten;
+    public void setLeistungskurs(boolean leistungskurs) {
+        isLeistungskurs = leistungskurs;
     }
 
-    public List<Event> getEvents() {
-        return events;
+    public Kurs getKurs() {
+        return kurs;
     }
 
-    public void setEvents(List<Event> events) {
-        this.events = events;
+    public void setKurs(Kurs kurs) {
+        this.kurs = kurs;
     }
 
-    public boolean[][] getaStunden() {
-        return aStunden;
+    public int getNotenModus() {
+        return notenModus;
     }
 
-    public void setaStunden(boolean[][] aStunden) {
-        this.aStunden = aStunden;
+    public void setNotenModus(int notenModus) {
+        this.notenModus = notenModus;
     }
 
-    public boolean[][] getStunden(boolean isaWoche) {
-        return (isaWoche ? aStunden : bStunden);
+    public int getAssKursNr() {
+        return assKursNr;
     }
 
-    public boolean[][] getbStunden() {
-        return bStunden;
+    public void setAssKursNr(int assKursNr) {
+        this.assKursNr = assKursNr;
     }
 
-    public void setbStunden(boolean[][] bStunden) {
-        this.bStunden = bStunden;
+    public Double getZensurenDurchschnitt() {
+
+        if (notenModus==MODE_2LK) {
+
+            //return SQLite.select(Method.avg(Zensur_Table.zensur.as("avgZensur"))).from().where(Zensur_Table.fach_id.eq(id)).queryCustomSingle(AverageZensur.class).avgZensur;
+
+            List <Zensur> zensuren = SQLite.select().from(Zensur.class).where(Zensur_Table.fach_id.eq(id)).queryList();
+            double sum = 0;
+            int count = zensuren.size();
+            for (Zensur z : zensuren) {
+                sum+=z.getZensur();
+                if (z.isKlausur()) {
+                    sum+=z.getZensur();
+                    count++;
+                }
+            }
+            return sum==0?null:(sum/count);
+
+        }
+
+        Double klausuren = getKlausurenDurchschnitt();
+        Double tests = getTestDurchschnitt();
+
+        if (klausuren==null || tests==null) {
+            if (klausuren==null && tests==null) return null;
+            if (klausuren==null) return tests;
+            else return klausuren;
+        }
+
+        switch (notenModus) {
+            case MODE_5050:
+                return 0.5*klausuren+0.5*tests;
+            case MODE_6040:
+                return 0.4*klausuren+0.6*tests;
+            case MODE_7030:
+                return 0.3*klausuren+0.7*tests;
+            default:
+                return null;
+        }
+
     }
 
-    public void sortEvents() {
+    public List<Zensur> getTests() {
 
-        Collections.sort(events, new Comparator<Event>() {
+        return SQLite.select().from(Zensur.class).where(Zensur_Table.fach_id.eq(id)).and(Zensur_Table.isKlausur.eq(false)).queryList();
+    }
+
+    public List<Zensur> getKlausuren() {
+
+        return SQLite.select().from(Zensur.class).where(Zensur_Table.fach_id.eq(id)).and(Zensur_Table.isKlausur.eq(true)).queryList();
+    }
+
+    public Double getTestDurchschnitt() {
+
+        //return SQLite.select(Method.avg(Zensur_Table.zensur).as("avgZensur")).from(Zensur.class).where(Zensur_Table.fach_id.eq(id)).and(Zensur_Table.isKlausur.eq(false)).queryCustomSingle(AverageZensur.class).avgZensur;
+
+        List <Zensur> zensuren = getTests();
+        double sum = 0;
+        for (Zensur z : zensuren) sum+=z.getZensur();
+        return sum==0?null:(sum/zensuren.size());
+    }
+
+    public Double getKlausurenDurchschnitt() {
+
+        List <Zensur> zensuren = getKlausuren();
+        double sum = 0;
+        for (Zensur z : zensuren) sum+=z.getZensur();
+        return sum==0?null:(sum/zensuren.size());
+    }
+
+    public static List<Fach> getFaecherWithZensuren() {
+
+        List<Zensur> zensuren = SQLite.select(Zensur_Table.fach_id).from(Zensur.class).groupBy(Zensur_Table.fach_id).queryList();
+        List<Fach> faecher = new ArrayList<>();
+        for (Zensur z : zensuren) faecher.add(z.getFach());
+
+        final boolean isOberstufe = LocalData.isOberstufe();
+        Collections.sort(faecher, new Comparator<Fach>() {
             @Override
-            public int compare(Event e1, Event e2) {
-                return e1.getDatum().compareTo(e2.getDatum());
+            public int compare(Fach f1, Fach f2) {
+                return isOberstufe ? f2.getZensurenDurchschnitt().compareTo(f1.getZensurenDurchschnitt()) : f1.getZensurenDurchschnitt().compareTo(f2.getZensurenDurchschnitt());
             }
         });
 
+        return faecher;
+    }
+
+    public static List<Fach> getSortedFaecherList() {
+
+        return SQLite.select().from(Fach.class).orderBy(Fach_Table.name, true).queryList();
+    }
+
+    public static Fach getFach(long id) {
+
+        return SQLite.select().from(Fach.class).where(Fach_Table.id.eq(id)).querySingle();
+    }
+
+    public static boolean exists(String name) {
+
+        return SQLite.select().from(Fach.class).where(Fach_Table.name.eq(name)).querySingle()!=null;
+    }
+
+    public boolean[][] getAStunden() {
+
+        List<UnterrichtsZeit> unterricht = SQLite.select().from(UnterrichtsZeit.class).where(UnterrichtsZeit_Table.fach_id.eq(id)).and(UnterrichtsZeit_Table.aWoche.eq(true)).queryList();
+        boolean[][] aStunden = new boolean[5][13];
+        for (UnterrichtsZeit u : unterricht) aStunden[u.getWochentag()-1][u.getStunde()] = true;
+        return aStunden;
+
+    }
+
+    public boolean[][] getBStunden() {
+
+        List<UnterrichtsZeit> unterricht = SQLite.select().from(UnterrichtsZeit.class).where(UnterrichtsZeit_Table.fach_id.eq(id)).and(UnterrichtsZeit_Table.aWoche.eq(false)).queryList();
+        boolean[][] bStunden = new boolean[5][13];
+        for (UnterrichtsZeit u : unterricht) bStunden[u.getWochentag()-1][u.getStunde()] = true;
+        return bStunden;
+
+    }
+
+    public boolean[][] getBelegteAStunden() {
+
+        List<UnterrichtsZeit> unterricht = SQLite.select().from(UnterrichtsZeit.class).where(UnterrichtsZeit_Table.aWoche.eq(true)).and(UnterrichtsZeit_Table.fach_id.notEq(id)).queryList();
+        boolean[][] belegt = new boolean[5][13];
+        for (UnterrichtsZeit u : unterricht) belegt[u.getWochentag()-1][u.getStunde()] = true;
+        return belegt;
+    }
+
+    public boolean[][] getBelegteBStunden() {
+
+        List<UnterrichtsZeit> unterricht = SQLite.select().from(UnterrichtsZeit.class).where(UnterrichtsZeit_Table.aWoche.eq(false)).and(UnterrichtsZeit_Table.fach_id.notEq(id)).queryList();
+        boolean[][] belegt = new boolean[5][13];
+        for (UnterrichtsZeit u : unterricht) belegt[u.getWochentag()-1][u.getStunde()] = true;
+        return belegt;
+    }
+
+    public boolean[][] getBelegteStunden() {
+
+        List<UnterrichtsZeit> unterricht = SQLite.select().from(UnterrichtsZeit.class).where(UnterrichtsZeit_Table.fach_id.notEq(id)).queryList();
+        boolean[][] belegt = new boolean[5][13];
+        for (UnterrichtsZeit u : unterricht) belegt[u.getWochentag()-1][u.getStunde()] = true;
+        return belegt;
     }
 
     public boolean hasStunden() {
-        for (boolean[] anAStunden : aStunden) {
-            for (boolean anAnAStunden : anAStunden) {
-                if (anAnAStunden) return true;
-            }
-        }
-        for (boolean[] aBStunden : bStunden) {
-            for (boolean anABStunden : aBStunden) {
-                if (anABStunden) return true;
-            }
-        }
-        return false;
+        return SQLite.select().from(UnterrichtsZeit.class).where(UnterrichtsZeit_Table.fach_id.eq(id)).hasData();
     }
 
-    /**
-     * Wenn alle Buchstaben im Namen groß sind, ist es ein Leistungskurs
-     *
-     * @return ist es ein Leistungskurs
-     */
-    public boolean isLeistungskurs() {
+    public List<Date> getUnterrichtDaten(Date startDate) {
 
-        for (char c : name.toCharArray())
-            if (Character.isLetter(c) && Character.isLowerCase(c)) return false;
-        return true;
+        boolean[] wochenTage = new boolean[5];
+        for (int i=0; i<5; i++) wochenTage[i] = SQLite.select().from(UnterrichtsZeit.class).where(UnterrichtsZeit_Table.fach_id.eq(id)).and(UnterrichtsZeit_Table.wochentag.eq(i+1)).hasData();
+
+        if (VertretungsAPI.isntSchoolDay(startDate)) startDate = VertretungsAPI.nextSchoolDay(startDate);
+        List<Date> dates = new ArrayList<>();
+        for (int i=0; i<10; i++) {
+            if (wochenTage[Utilities.getDayOfWeek(startDate)-1]) dates.add(startDate);
+            startDate = VertretungsAPI.nextSchoolDay(startDate);
+        }
+        return dates;
+    }
+
+    public List<Event> getEventList(Date date) {
+
+        return SQLite.select().from(Event.class).where(Event_Table.fach_id.eq(id)).and(Event_Table.date.eq(date)).queryList();
+    }
+
+    public List<Event> getEventList() {
+
+        return SQLite.select().from(Event.class).where(Event_Table.fach_id.eq(id)).queryList();
+    }
+
+    public UnterrichtsZeit getUnterrichtsZeit(int wochentag, int stunde, boolean awoche) {
+
+        return SQLite.select().from(UnterrichtsZeit.class).where(UnterrichtsZeit_Table.fach_id.eq(id)).and(UnterrichtsZeit_Table.wochentag.eq(wochentag)).and(UnterrichtsZeit_Table.stunde.eq(stunde)).and(UnterrichtsZeit_Table.aWoche.eq(awoche)).querySingle();
+    }
+
+    public static boolean hasFaecher() {
+
+        return SQLite.select().from(Fach.class).querySingle()!=null;
+    }
+
+    public static Fach getFachByKursNr(int kursNr) {
+
+        return SQLite.select().from(Fach.class).where(Fach_Table.kurs_nr.eq(kursNr)).querySingle();
+    }
+
+    public boolean hasUnterrichtsZeit(int stunde, int wochenTag, boolean aWoche) {
+
+        return SQLite.select().from(UnterrichtsZeit.class).where(UnterrichtsZeit_Table.fach_id.eq(id))
+                .and(UnterrichtsZeit_Table.stunde.eq(stunde))
+                .and(UnterrichtsZeit_Table.wochentag.eq(wochenTag))
+                .and(UnterrichtsZeit_Table.aWoche.eq(aWoche))
+                .querySingle()!=null;
     }
 }

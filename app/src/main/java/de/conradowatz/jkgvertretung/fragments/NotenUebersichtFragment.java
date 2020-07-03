@@ -1,12 +1,13 @@
 package de.conradowatz.jkgvertretung.fragments;
 
 import android.content.Intent;
+import android.os.AsyncTask;
 import android.os.Bundle;
-import android.support.annotation.Nullable;
-import android.support.design.widget.FloatingActionButton;
-import android.support.v4.app.Fragment;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
+import androidx.annotation.Nullable;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -14,17 +15,21 @@ import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.TextView;
 
+import com.raizlabs.android.dbflow.sql.language.SQLite;
+
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
 import java.text.DecimalFormat;
+import java.util.List;
 
+import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.activities.FachActivity;
 import de.conradowatz.jkgvertretung.activities.ManagerActivity;
 import de.conradowatz.jkgvertretung.adapters.NotenUebersichtRecyclerAdpater;
-import de.conradowatz.jkgvertretung.events.AnalyticsScreenHitEvent;
 import de.conradowatz.jkgvertretung.events.FaecherUpdateEvent;
+import de.conradowatz.jkgvertretung.events.KursChangedEvent;
 import de.conradowatz.jkgvertretung.events.NotenChangedEvent;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.tools.PreferenceHelper;
@@ -48,9 +53,6 @@ public class NotenUebersichtFragment extends Fragment implements NotenUebersicht
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
 
-        //Analytics
-        eventBus.post(new AnalyticsScreenHitEvent("Notenübersicht"));
-
         contentView = inflater.inflate(R.layout.fragment_notenuebersicht, container, false);
 
         leistungskurseCheckbox = (CheckBox) contentView.findViewById(R.id.leistungskurseCheckbox);
@@ -73,22 +75,50 @@ public class NotenUebersichtFragment extends Fragment implements NotenUebersicht
 
     @Subscribe
     public void onEvent(NotenChangedEvent event) {
-        setUp();
+
+        if (recyclerView!=null) {
+            ((NotenUebersichtRecyclerAdpater) recyclerView.getAdapter()).updateData();
+            calculateAverage();
+        }
     }
 
     @Subscribe
     public void onEvent(FaecherUpdateEvent event) {
-        setUp();
+
+        if (recyclerView!=null) {
+            ((NotenUebersichtRecyclerAdpater) recyclerView.getAdapter()).updateData();
+            calculateAverage();
+        }
+    }
+
+    @Subscribe
+    public void onEvent(KursChangedEvent event) {
+
+        setUpLeistungskurs();
     }
 
     private void setUp() {
 
         RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(getActivity());
-        NotenUebersichtRecyclerAdpater adpater = new NotenUebersichtRecyclerAdpater(this, getActivity().getApplicationContext());
+        NotenUebersichtRecyclerAdpater adpater = new NotenUebersichtRecyclerAdpater(this);
         recyclerView.setLayoutManager(layoutManager);
         recyclerView.setAdapter(adpater);
 
-        if (LocalData.isOberstufe(getActivity().getApplicationContext())) {
+        setUpLeistungskurs();
+
+        calculateAverage();
+
+        fab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                startManagerActivity();
+            }
+        });
+    }
+
+    private void setUpLeistungskurs() {
+
+        if (LocalData.isOberstufe()) {
 
             leistungskurseCheckbox.setVisibility(View.VISIBLE);
 
@@ -105,43 +135,48 @@ public class NotenUebersichtFragment extends Fragment implements NotenUebersicht
 
         } else leistungskurseCheckbox.setVisibility(View.GONE);
 
-        calculateAverage();
-
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                startManagerActivity();
-            }
-        });
     }
 
     private void calculateAverage() {
 
-        boolean countLKdouble = LocalData.isOberstufe(getActivity().getApplicationContext()) && PreferenceHelper.readBooleanFromPreferences(getActivity().getApplicationContext(), "countLKdouble", true);
+        new AsyncTask<Boolean, Integer, Double>() {
 
-        double gesamtAverage = 0;
-        int n = 0;
-        for (Fach f : LocalData.getInstance().getFächer()) {
-            Double average = f.getNotenAverage();
-            if (average != null) {
-                gesamtAverage += average;
-                n++;
+            int n = 0;
+            @Override
+            protected Double doInBackground(Boolean... params) {
 
-                if (countLKdouble && f.isLeistungskurs()) { //Zählt Leistungskurse doppelt
-                    gesamtAverage += average;
-                    n++;
+                boolean countLKdouble = LocalData.isOberstufe() && PreferenceHelper.readBooleanFromPreferences(MyApplication.getAppContext(), "countLKdouble", true);
+
+                double gesamtAverage = 0;
+                List<Fach> faecher = SQLite.select().from(Fach.class).queryList();
+                for (Fach f : faecher) {
+                    Double average = f.getZensurenDurchschnitt();
+                    if (average != null) {
+                        gesamtAverage += average;
+                        n++;
+
+                        if (countLKdouble && f.isLeistungskurs()) { //Zählt Leistungskurse doppelt
+                            gesamtAverage += average;
+                            n++;
+                        }
+                    }
                 }
+                if (n > 0) gesamtAverage /= n;
+                return gesamtAverage;
             }
-        }
-        if (n > 0) gesamtAverage /= n;
-        durchschnittText.setText(n > 0 ? new DecimalFormat("#0.00").format(gesamtAverage) : "n.A.");
+
+            @Override
+            protected void onPostExecute(Double gesamtAverage) {
+                durchschnittText.setText(n > 0 ? new DecimalFormat("#0.00").format(gesamtAverage) : "n.A.");
+            }
+        }.execute();
 
     }
 
-    private void startFachActivity(int fachIndex) {
+    private void startFachActivity(long fachId) {
 
         Intent openFachIntent = new Intent(getContext(), FachActivity.class);
-        openFachIntent.putExtra("fachIndex", fachIndex);
+        openFachIntent.putExtra("fachId", fachId);
         openFachIntent.putExtra("tab", FachActivity.TAB_NOTEN);
         startActivity(openFachIntent);
 
@@ -156,8 +191,8 @@ public class NotenUebersichtFragment extends Fragment implements NotenUebersicht
 
 
     @Override
-    public void onFachClicked(int fachIndex) {
+    public void onFachClicked(long fachId) {
 
-        startFachActivity(fachIndex);
+        startFachActivity(fachId);
     }
 }

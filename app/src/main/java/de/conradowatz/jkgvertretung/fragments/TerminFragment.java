@@ -3,13 +3,13 @@ package de.conradowatz.jkgvertretung.fragments;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
-import android.support.annotation.Nullable;
-import android.support.design.widget.FloatingActionButton;
-import android.support.v4.app.Fragment;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
+import androidx.annotation.Nullable;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import androidx.fragment.app.Fragment;
+import androidx.core.content.ContextCompat;
+import androidx.appcompat.app.AlertDialog;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -17,20 +17,22 @@ import android.view.ViewGroup;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
+import java.util.List;
 import java.util.Locale;
 
+import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.activities.EventActivity;
 import de.conradowatz.jkgvertretung.activities.FachActivity;
 import de.conradowatz.jkgvertretung.activities.FerienActivity;
 import de.conradowatz.jkgvertretung.adapters.TerminRecyclerAdapter;
-import de.conradowatz.jkgvertretung.events.AnalyticsScreenHitEvent;
 import de.conradowatz.jkgvertretung.events.EventsChangedEvent;
 import de.conradowatz.jkgvertretung.events.FerienChangedEvent;
 import de.conradowatz.jkgvertretung.events.TermineChangedEvent;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.variables.Event;
 import de.conradowatz.jkgvertretung.variables.Fach;
+import de.conradowatz.jkgvertretung.variables.Ferien;
 
 public class TerminFragment extends Fragment implements TerminRecyclerAdapter.Callback {
 
@@ -44,9 +46,8 @@ public class TerminFragment extends Fragment implements TerminRecyclerAdapter.Ca
     private boolean isDeleteEventDialog;
     private boolean isDeleteFerienDialog;
     private boolean isNewEventDialog;
-    private int deleteEventIndex;
-    private int deleteFerienIndex;
-    private int deleteFachIndex;
+    private long deleteEventId;
+    private long deleteFerienId;
     private int deleteRecyclerIndex;
     private EventBus eventBus = EventBus.getDefault();
     private int mode;
@@ -73,13 +74,12 @@ public class TerminFragment extends Fragment implements TerminRecyclerAdapter.Ca
 
         if (savedInstanceState == null) {
             mode = getArguments().getInt("mode");
-            if (mode == MODE_ALLGEMEIN) eventBus.post(new AnalyticsScreenHitEvent("Termine"));
         } else {
             mode = savedInstanceState.getInt("mode");
             if (savedInstanceState.getBoolean("isDeleteEventDialog"))
-                showDeleteEventDialog(savedInstanceState.getInt("deleteFachIndex"), savedInstanceState.getInt("deleteEventIndex"), savedInstanceState.getInt("deleteRecyclerIndex"));
+                showDeleteEventDialog(savedInstanceState.getLong("deleteEventId"), savedInstanceState.getInt("deleteRecyclerIndex"));
             if (savedInstanceState.getBoolean("isDeleteFerienDialog"))
-                showDeleteFerienDialog(savedInstanceState.getInt("deleteFerienIndex"), savedInstanceState.getInt("deleteRecyclerIndex"));
+                showDeleteFerienDialog(savedInstanceState.getLong("deleteFerienId"), savedInstanceState.getInt("deleteRecyclerIndex"));
             if (savedInstanceState.getBoolean("isNewEventDialog")) newEvent();
         }
 
@@ -89,7 +89,7 @@ public class TerminFragment extends Fragment implements TerminRecyclerAdapter.Ca
             @Override
             public void onClick(View view) {
                 if (mode == MODE_FACH)
-                    startEventActivity(mode == MODE_FACH ? LocalData.getInstance().getFächer().indexOf(fach) : -1, -1);
+                    startNewEventActivity(fach.getId());
                 else
                     newEvent();
             }
@@ -115,21 +115,23 @@ public class TerminFragment extends Fragment implements TerminRecyclerAdapter.Ca
 
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
         builder.setTitle("Termin erstellen");
-        String[] faecher = new String[LocalData.getInstance().getFächer().size() + 2];
-        faecher[0] = "Ferien hinzufügen";
-        faecher[1] = "Event ohne Fach";
-        for (int i = 0; i < LocalData.getInstance().getFächer().size(); i++) {
-            Fach f = LocalData.getInstance().getFächer().get(i);
-            faecher[i + 2] = String.format(Locale.GERMANY, "%s Event", f.getName());
+        final List<Fach> faecher = Fach.getSortedFaecherList();
+        int anzFaecher = faecher.size();
+        String[] entries = new String[anzFaecher + 2];
+        entries[0] = "Ferien hinzufügen";
+        entries[1] = "Event ohne Fach";
+        for (int i = 0; i < anzFaecher; i++) {
+            entries[i + 2] = String.format(Locale.GERMANY, "%s Event", faecher.get(i).getName());
         }
-        builder.setItems(faecher, new DialogInterface.OnClickListener() {
+        builder.setItems(entries, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int pos) {
 
                 isNewEventDialog = false;
 
                 if (pos == 0) showFerienActivity(-1);
-                else startEventActivity(pos - 2, -1);
+                else if (pos == 1) startNewEventActivity(-1);
+                else startNewEventActivity(faecher.get(pos - 2).getId());
             }
         });
         builder.setNeutralButton("Abbrechen", new DialogInterface.OnClickListener() {
@@ -148,21 +150,25 @@ public class TerminFragment extends Fragment implements TerminRecyclerAdapter.Ca
         dialog.show();
     }
 
-    /**
-     * @param eventIndex index des zu bearbeitenden Events; -1 wenn neues
-     */
-    private void startEventActivity(int fachIndex, int eventIndex) {
+    private void startEventActivity(long eventId) {
 
         Intent startEventActivityIntent = new Intent(getActivity(), EventActivity.class);
-        startEventActivityIntent.putExtra("fachInt", fachIndex);
-        startEventActivityIntent.putExtra("eventInt", eventIndex);
+        startEventActivityIntent.putExtra("eventId", eventId);
         getActivity().startActivity(startEventActivityIntent);
     }
 
-    private void showFerienActivity(int ferienInt) {
+    private void startNewEventActivity(long fachId) {
+
+        Intent startEventActivityIntent = new Intent(getActivity(), EventActivity.class);
+        startEventActivityIntent.putExtra("fachId", fachId);
+        startEventActivityIntent.putExtra("eventId", (long) -1);
+        getActivity().startActivity(startEventActivityIntent);
+    }
+
+    private void showFerienActivity(long ferienId) {
 
         Intent newFerienActivityIntent = new Intent(getActivity().getApplicationContext(), FerienActivity.class);
-        newFerienActivityIntent.putExtra("ferienInt", ferienInt);
+        newFerienActivityIntent.putExtra("ferienId", ferienId);
         startActivity(newFerienActivityIntent);
     }
 
@@ -192,49 +198,54 @@ public class TerminFragment extends Fragment implements TerminRecyclerAdapter.Ca
         outState.putBoolean("isDeleteEventDialog", isDeleteEventDialog);
         outState.putBoolean("isDeleteFerienDialog", isDeleteFerienDialog);
         outState.putBoolean("isNewEventDialog", isNewEventDialog);
-        outState.putInt("deleteEventIndex", deleteEventIndex);
-        outState.putInt("deleteFerienIndex", deleteFerienIndex);
-        outState.putInt("deleteFachIndex", deleteFachIndex);
+        outState.putLong("deleteEventId", deleteEventId);
+        outState.putLong("deleteFerienId", deleteFerienId);
         outState.putInt("deleteRecyclerIndex", deleteRecyclerIndex);
 
         super.onSaveInstanceState(outState);
     }
 
     @Override
-    public void onEditEvent(int fachIndex, int eventIndex) {
+    public void onEditEvent(long eventId) {
 
-        startEventActivity(fachIndex, eventIndex);
+        startEventActivity(eventId);
     }
 
     @Override
-    public void onDeleteEvent(int fachIndex, int eventIndex, int recyclerIndex) {
+    public void onDeleteEvent(long eventId, int recyclerIndex) {
 
-        showDeleteEventDialog(fachIndex, eventIndex, recyclerIndex);
+        showDeleteEventDialog(eventId, recyclerIndex);
     }
 
     @Override
-    public void onEditFerien(int ferienIndex) {
+    public void onEditFerien(long ferienId) {
 
-        showFerienActivity(ferienIndex);
+        showFerienActivity(ferienId);
     }
 
     @Override
-    public void onDeleteFerien(int ferienIndex, int recyclerIndex) {
+    public void onDeleteFerien(long ferienId, int recyclerIndex) {
 
-        showDeleteFerienDialog(ferienIndex, recyclerIndex);
+        showDeleteFerienDialog(ferienId, recyclerIndex);
     }
 
     @Subscribe
     public void onEvent(TermineChangedEvent event) {
 
-        ((TerminRecyclerAdapter) terminRecycler.getAdapter()).notifyTermineChanged();
+        ((TerminRecyclerAdapter) terminRecycler.getAdapter()).updateData();
     }
 
-    private void showDeleteEventDialog(final int fachIndex, final int eventIndex, final int recyclerIndex) {
+    @Subscribe
+    public void onEvent(FerienChangedEvent event) {
+
+        if (mode==MODE_ALLGEMEIN || mode==MODE_FERIEN)
+            ((TerminRecyclerAdapter) terminRecycler.getAdapter()).updateData();
+    }
+
+    private void showDeleteEventDialog(final long eventId, final int recyclerIndex) {
 
         isDeleteEventDialog = true;
-        deleteEventIndex = eventIndex;
-        deleteFachIndex = fachIndex;
+        deleteEventId = eventId;
         deleteRecyclerIndex = recyclerIndex;
 
         AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(getActivity());
@@ -246,19 +257,10 @@ public class TerminFragment extends Fragment implements TerminRecyclerAdapter.Ca
 
                 isDeleteEventDialog = false;
 
-                if (fachIndex > -1) {
-                    Event event = LocalData.getInstance().getFächer().get(fachIndex).getEvents().get(eventIndex);
-                    LocalData.removeEventReminder(getActivity().getApplicationContext(), event, fachIndex, eventIndex);
-                    LocalData.getInstance().getFächer().get(fachIndex).getEvents().remove(eventIndex);
-                } else {
-                    Event event = LocalData.getInstance().getNoFachEvents().get(eventIndex);
-                    LocalData.removeEventReminder(getActivity().getApplicationContext(), event, fachIndex, eventIndex);
-                    LocalData.getInstance().getNoFachEvents().remove(eventIndex);
-                }
-
+                Event event = Event.getEvent(eventId);
+                LocalData.removeEventReminder(MyApplication.getAppContext(), event);
+                event.delete();
                 eventBus.post(new EventsChangedEvent());
-
-                LocalData.saveToFile(getActivity().getApplicationContext());
             }
         });
         dialogBuilder.setNegativeButton("Abbrechen", new DialogInterface.OnClickListener() {
@@ -283,24 +285,23 @@ public class TerminFragment extends Fragment implements TerminRecyclerAdapter.Ca
         dialog.show();
     }
 
-    private void showDeleteFerienDialog(final int ferienIndex, final int recyclerIndex) {
+    private void showDeleteFerienDialog(long ferienId, final int recyclerIndex) {
 
         isDeleteFerienDialog = true;
-        deleteFerienIndex = ferienIndex;
+        deleteFerienId = ferienId;
         deleteRecyclerIndex = recyclerIndex;
+        final Ferien f = Ferien.getFerien(ferienId);
 
         AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(getActivity());
         dialogBuilder.setTitle("Löschen bestätigen");
-        dialogBuilder.setMessage("Bist du sicher, dass du '" + LocalData.getInstance().getFerien().get(ferienIndex).getName() + "' löschen willst?");
+        dialogBuilder.setMessage("Bist du sicher, dass du '" + f.getName() + "' löschen willst?");
         dialogBuilder.setPositiveButton("Löschen", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
 
                 isDeleteFerienDialog = false;
 
-                LocalData.getInstance().getFerien().remove(ferienIndex);
-                LocalData.saveToFile(getActivity().getApplicationContext());
-
+                f.delete();
                 eventBus.post(new FerienChangedEvent());
             }
         });

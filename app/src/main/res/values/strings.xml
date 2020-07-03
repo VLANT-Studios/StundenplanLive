@@ -1,23 +1,27 @@
 <resources>
-    <string name="app_name">JKG Stundenplan</string>
+    <string name="app_name">StundenplanLive</string>
+    <string name="app_name_pro">StundenplanLive PRO</string>
     <string name="title_activity_login">Einloggen</string>
     <string name="title_activity_manager">Manager</string>
     <string name="title_activity_kurswahl">Klassen- / Kurswahl</string>
 
     <string name="no_acces_text">Der Server hat die Verbindungsabfrage abgelehnt. Das kann folgende Ursachen haben:\n\n- Es besteht ein Server Problem\n- Es ist derzeit kein Plan verfügbar (z.B. in den Ferien)\n- Das Zugangspasswort hat sich geändert</string>
     <string name="title_settings">Einstellungen</string>
-    <string name="smart_import_desc">Smart Import versucht anhand des online vorhandenen Vertretungsplans deine Stundenliste automatisch auszufüllen. Dies geht nur für die Tage, die gerade online sind und kann zu Fehlern führen, wenn eine Stunde außerplanmäßig stattfindet.\n\nAm besten benutzt du Smart Import nur, wenn du noch keine Fächer eingetragen hast. Für beste Ergebnisse benutze es anfangs mehrmals in der Woche, so dass jeder Tag (A und B Woche) einmal online war.</string>
+    <string name="smart_import_desc">Smart Import versucht anhand des online vorhandenen Plans deine Fächer zu importieren. Gegebenenfalls musst du danach noch Stunden ergänzen oder Smart Import an einem anderen Tag erneut ausführen.\n(funktioniert nicht bei allen Schulen)</string>
     <string name="notenuebersicht_faecher_title">Fächer</string>
     <string name="durchschnitt">Durchschnitt</string>
     <string name="notenuebersicht_lks_double_prompt">Leistungskurse doppelt zählen</string>
     <string name="bearbeiten_button">BEARBEITEN</string>
     <string name="loeschen_button">LÖSCHEN</string>
-    <string name="event_title_hint">Bitte Eventname eingeben...</string>
+    <string name="event_title_hint">Bitte Eventname eingeben…</string>
     <string name="datum_title">Datum:</string>
     <string name="stunde_auswaehlen">(Stunde auswählen)</string>
     <string name="event_delete_switch">Event löschen, wenn vergangen</string>
     <string name="beschreibung_title">Beschreibung:</string>
     <string name="erinnerungen_title">Erinnerungen:</string>
+    <string name="welcome_text">Willkommen in StundenplanLive. Bitte wähle deine Schule aus, und gib (falls nötig) die Benutzerdaten ein.</string>
+    <string name="login_noschool_dialog">Falls deine Schule nicht in der Liste vorhanden ist, sie allerdings Indiware mobil nutzt hast du 2 Möglichkeiten:\n\n- du trägst die URL zu Indiware mobil deiner Schule selbst ein\n- du schreibst mir eine E-Mail und ich füge deine Schule der Liste hinzu\n\nFalls deine Schule Indiware mobil nicht verwendet, kannst du diese App zur Zeit leider nicht nutzen.</string>
+    <string name="donate_text">Das Erstellen und Aufrechterhalten dieser App kostet mich Zeit und Geld. Wenn sie dir gefällt, und du die nervige Werbung loswerden willst kaufe bitte die Werbefreie Version.\nVielen Dank!\n\n(Für den leichten Umstieg mach in den Einstellungen ein Backup!)</string>
 
 
 </resources>

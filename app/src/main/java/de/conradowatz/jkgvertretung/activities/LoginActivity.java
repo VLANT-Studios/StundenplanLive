@@ -1,39 +1,62 @@
 package de.conradowatz.jkgvertretung.activities;
 
+import android.app.Activity;
+import android.app.DatePickerDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
-import android.support.design.widget.TextInputLayout;
-import android.support.v4.app.FragmentManager;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.app.AppCompatActivity;
+import android.os.PersistableBundle;
+import androidx.browser.customtabs.CustomTabsIntent;
+import com.google.android.material.textfield.TextInputLayout;
+import androidx.fragment.app.FragmentManager;
+import androidx.core.content.ContextCompat;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.AppCompatSpinner;
+import android.text.Editable;
+import android.text.InputFilter;
+import android.text.InputType;
+import android.text.TextWatcher;
 import android.util.Log;
+import android.util.Patterns;
 import android.view.KeyEvent;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.DatePicker;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
 import com.pnikosis.materialishprogress.ProgressWheel;
 
-import java.io.File;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
 
+import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.fragments.TaskFragment;
+import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.tools.PreferenceHelper;
-import de.conradowatz.jkgvertretung.tools.VertretungsAPI;
-import de.conradowatz.jkgvertretung.tools.VertretungsData;
+import de.conradowatz.jkgvertretung.variables.Schule;
 
 
-public class LoginActivity extends AppCompatActivity implements TaskFragment.LoginCallbacks {
+public class LoginActivity extends AppCompatActivity implements TaskFragment.TaskFragmentCallbacks {
 
     TextInputLayout usernameInput;
     TextInputLayout passwordInput;
+    TextInputLayout additionalInput;
+    AppCompatSpinner srcSpinner;
+    AppCompatSpinner schulListSpinner;
     Button loginButton;
     ProgressWheel loginProgressWheel;
     TextView loginErrorText;
+    LinearLayout noschoolLayout;
+
+    private boolean isChooseAWocheDialog;
+    private boolean isHasABWocheDialog;
 
     private TaskFragment taskFragment;
 
@@ -52,11 +75,121 @@ public class LoginActivity extends AppCompatActivity implements TaskFragment.Log
         }
 
         setContentView(R.layout.activity_login);
+        srcSpinner = (AppCompatSpinner) findViewById(R.id.srcSpinner);
+        schulListSpinner = (AppCompatSpinner) findViewById(R.id.schulListSpinner);
         usernameInput = (TextInputLayout) findViewById(R.id.usernameInput);
         passwordInput = (TextInputLayout) findViewById(R.id.passwordInput);
+        additionalInput = (TextInputLayout) findViewById(R.id.additionalInput);
         loginButton = (Button) findViewById(R.id.loginButton);
         loginProgressWheel = (ProgressWheel) findViewById(R.id.loginProgressWheel);
         loginErrorText = (TextView) findViewById(R.id.loginErrorText);
+        noschoolLayout = (LinearLayout) findViewById(R.id.noschoolLayout);
+
+        if (savedInstanceState!=null) {
+            if (savedInstanceState.getBoolean("isHasABWocheDialog")) showHasABWocheDialog();
+            if (savedInstanceState.getBoolean("isChooseAWocheDialog")) showChooseAWocheDialog();
+        }
+
+        if (LocalData.isOldLocalData()) {
+            showOldLocalDataDialog();
+        }
+
+        setUp();
+    }
+
+    private void showOldLocalDataDialog() {
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Alte Daten importiern");
+        builder.setMessage("Es wurden Daten aus einer alten Version der App im Speicher gefunden. Sollen diese importiert oder gelöscht werden?");
+        final Activity activity = this;
+        builder.setPositiveButton("Importieren", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                LocalData.importOldLocalData(activity);
+            }
+        });
+        builder.setNegativeButton("Löschen", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                LocalData.deleteOldLocalData();
+            }
+        });
+        AlertDialog dialog = builder.create();
+        dialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
+            @Override
+            public void onCancel(DialogInterface dialog) {
+                showOldLocalDataDialog();
+            }
+        });
+        dialog.show();
+    }
+
+    private void setUp() {
+
+        ArrayAdapter<String> srcSpinnerArrayAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, new String[]{"Schule auf Stundenplan24", "URL selbst eingeben", "Schule aus Liste auswählen"});
+        srcSpinnerArrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        srcSpinner.setAdapter(srcSpinnerArrayAdapter);
+        srcSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+
+                if (position<=1) {
+                    schulListSpinner.setVisibility(View.GONE);
+                    additionalInput.getEditText().setText("");
+                    additionalInput.setVisibility(View.VISIBLE);
+                    usernameInput.setVisibility(View.VISIBLE);
+                    passwordInput.setVisibility(View.VISIBLE);
+                    if (position==0) { //Stundenplan24
+                        additionalInput.setHint("Schulnummer (8-stellig)");
+                        additionalInput.getEditText().setInputType(InputType.TYPE_CLASS_NUMBER);
+                        additionalInput.getEditText().setFilters(new InputFilter[]{new InputFilter.LengthFilter(8)});
+                    } else { //Custom URL
+                        additionalInput.setHint("Indiware mobil URL");
+                        additionalInput.getEditText().setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);
+                        additionalInput.getEditText().setFilters(new InputFilter[]{});
+                    }
+                } else {
+                    schulListSpinner.setVisibility(View.VISIBLE);
+                    loginButton.setEnabled(true);
+                    additionalInput.setVisibility(View.GONE);
+                    additionalInput.getEditText().setText("");
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+
+            }
+        });
+
+        List<String> schulen = new ArrayList<>();
+        for(Schule s : LocalData.getSchulen()) schulen.add(s.name);
+
+        ArrayAdapter<String> schulSpinnerArrayAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, schulen);
+        schulSpinnerArrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        schulListSpinner.setAdapter(schulSpinnerArrayAdapter);
+        schulListSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+
+                Schule schule = LocalData.setSchule(position);
+                if (schule.hasAuth) {
+                    usernameInput.setVisibility(View.VISIBLE);
+                    passwordInput.setVisibility(View.VISIBLE);
+                } else {
+                    usernameInput.getEditText().setText("");
+                    usernameInput.setVisibility(View.GONE);
+                    passwordInput.setVisibility(View.GONE);
+                    passwordInput.getEditText().setText("");
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+
+            }
+        });
 
         //Wenn Button gedrückt -> einlogen
         loginButton.setOnClickListener(new View.OnClickListener() {
@@ -76,6 +209,78 @@ public class LoginActivity extends AppCompatActivity implements TaskFragment.Log
                 return false;
             }
         });
+
+        additionalInput.getEditText().addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+
+                if (srcSpinner.getSelectedItemPosition()==0) {
+                    if (s.length()==8) {
+                        loginButton.setEnabled(true);
+                        additionalInput.setErrorEnabled(false);
+                        LocalData.setStundenplan24(s.toString());
+                    } else {
+                        additionalInput.setError("Keine 8-stellige Nummer");
+                        additionalInput.setErrorEnabled(true);
+                        loginButton.setEnabled(false);
+                    }
+                } else if (srcSpinner.getSelectedItemPosition()==1) {
+                    if (Patterns.WEB_URL.matcher(s.toString()).matches()) {
+                        loginButton.setEnabled(true);
+                        additionalInput.setErrorEnabled(false);
+                        LocalData.setSchulUrl(s.toString());
+                    } else {
+                        additionalInput.setError("Keine gültige URL");
+                        additionalInput.setErrorEnabled(true);
+                        loginButton.setEnabled(false);
+                    }
+                }
+
+            }
+        });
+
+        noschoolLayout.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showNoSchoolDialog();
+            }
+        });
+    }
+
+    private void showNoSchoolDialog() {
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Keine Schule");
+        builder.setMessage(R.string.login_noschool_dialog);
+        builder.setPositiveButton("Okay", null);
+        builder.setNegativeButton("E-Mail senden", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                openFeedback();
+            }
+        });
+        builder.show();
+    }
+
+    private void openFeedback() {
+
+        String url = "https://owatz.net/s/appsupport";
+        CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder();
+        builder.setToolbarColor(ContextCompat.getColor(getApplicationContext(), R.color.primary));
+        builder.setStartAnimations(this, R.anim.slide_in_right, R.anim.slide_out_left);
+        builder.setExitAnimations(this, R.anim.slide_in_left, R.anim.slide_out_right);
+        CustomTabsIntent intent = builder.build();
+        intent.launchUrl(this, Uri.parse(url));
     }
 
 
@@ -83,8 +288,12 @@ public class LoginActivity extends AppCompatActivity implements TaskFragment.Log
      * Überprüft die eingegebenen Benutzerdaten
      */
     private void login() {
-        final String username = usernameInput.getEditText().getText().toString();
-        final String password = passwordInput.getEditText().getText().toString();
+
+        String username = usernameInput.getEditText().getText().toString();
+        String password = passwordInput.getEditText().getText().toString();
+
+        boolean hasAuth = !username.isEmpty();
+        PreferenceHelper.saveBooleanToPrefernces(MyApplication.getAppContext(), "hasAuth", hasAuth);
 
         loginButton.setVisibility(View.INVISIBLE);
         loginProgressWheel.setVisibility(View.VISIBLE);
@@ -92,50 +301,97 @@ public class LoginActivity extends AppCompatActivity implements TaskFragment.Log
         passwordInput.getEditText().setEnabled(false);
         usernameInput.getEditText().setEnabled(false);
 
-        VertretungsAPI.checkLogin(username, password, new Response.Listener<String>() {
-            @Override
-            public void onResponse(String response) {
-                onLoggedIn(username, password);
-            }
-        }, new Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(VolleyError error) {
-                if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
-                    onLoginError("Ungültige Daten!");
-                } else onLoginError("Fehler bei der Verbindung zum Server");
-            }
-        });
+        taskFragment.downloadAllData(0, username, password);
     }
 
     private void onLoggedIn(String username, String password) {
+
 
         PreferenceHelper.saveStringToPreferences(getApplicationContext(), "username", username);
         PreferenceHelper.saveStringToPreferences(getApplicationContext(), "password", password);
 
         Toast.makeText(this, "Login erfolgreich", Toast.LENGTH_SHORT).show();
 
-        loadVertretungsData();
+        showHasABWocheDialog();
 
     }
 
-    /**
-     * Läd die Daten entweder aus dem Speicher oder läd sie runter
-     */
-    private void loadVertretungsData() {
+    private void showHasABWocheDialog() {
 
-        //Schauen on eine SavedSession im Speicher ist
-        File savedSessionFile = new File(getFilesDir(), VertretungsData.SAVE_FILE_NAME);
-        if (savedSessionFile.exists()) {
+        isHasABWocheDialog = true;
 
-            //Saved Session laden
-            taskFragment.createVertretungsDataFromFile();
+        final AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
+        dialogBuilder.setTitle("A / B Woche");
+        dialogBuilder.setMessage("Hat deine Schule A und B Woche? Wenn du nicht weißt, was das ist, wähle 'Nein'.");
+        final Activity activity = this;
+        dialogBuilder.setPositiveButton("Ja", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                isHasABWocheDialog = false;
+                LocalData.setHasABWoche(true);
+                showChooseAWocheDialog();
+            }
+        });
+        dialogBuilder.setNegativeButton("Nein", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                isHasABWocheDialog = false;
+                LocalData.setHasABWoche(false);
+                startMainActiviy();
+            }
+        });
+        final AlertDialog dialog = dialogBuilder.create();
+        dialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
+            @Override
+            public void onCancel(DialogInterface dialogInterface) {
+                dialog.show();
+            }
+        });
+        dialog.show();
+    }
 
-        } else {
+    private void showChooseAWocheDialog() {
 
-            taskFragment.downloadAllData(0);
+        isChooseAWocheDialog = true;
 
-        }
+        final AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
+        dialogBuilder.setTitle("A / B Woche");
+        dialogBuilder.setMessage("Bitte wähle einen Tag aus, bei dem du sicher bist, dass es A-Woche war/ist. Dies kann später in den Einstellungen geändert werden.");
+        final Activity activity = this;
+        dialogBuilder.setNeutralButton("Okay", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
 
+                final Calendar calendar = Calendar.getInstance();
+                DatePickerDialog dialog = new DatePickerDialog(activity, new DatePickerDialog.OnDateSetListener() {
+                    @Override
+                    public void onDateSet(DatePicker datePicker, int year, int month, int dayOfMonth) {
+
+                        isChooseAWocheDialog = false;
+
+                        calendar.set(datePicker.getYear(), datePicker.getMonth(), datePicker.getDayOfMonth());
+                        LocalData.setCompareDate(calendar.getTime());
+                        startMainActiviy();
+
+                    }
+                }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
+                dialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
+                    @Override
+                    public void onCancel(DialogInterface dialogInterface) {
+                        showChooseAWocheDialog();
+                    }
+                });
+                dialog.show();
+            }
+        });
+        final AlertDialog dialog = dialogBuilder.create();
+        dialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
+            @Override
+            public void onCancel(DialogInterface dialogInterface) {
+                dialog.show();
+            }
+        });
+        dialog.show();
     }
 
     private void onLoginError(String error) {
@@ -169,6 +425,7 @@ public class LoginActivity extends AppCompatActivity implements TaskFragment.Log
 
     private void startMainActiviy() {
 
+        LocalData.setLoggedIn(true);
         Intent backToMain = new Intent();
         backToMain.putExtra("ExitCode", "LoggedIn");
         backToMain.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
@@ -179,32 +436,11 @@ public class LoginActivity extends AppCompatActivity implements TaskFragment.Log
     }
 
     @Override
-    public void onVertretungsDataCreated() {
-
-        startMainActiviy();
-
-    }
-
-    @Override
-    public void onVertretungsDataCreateError(Throwable throwable) {
-
-        Log.e("JKGDEBUG", "Fehler beim Laden der VertretungsData aus dem Speicher");
-        throwable.printStackTrace();
-
-        File savedSessionFile = new File(getFilesDir(), VertretungsData.SAVE_FILE_NAME);
-        if (savedSessionFile.delete()) {
-            taskFragment.downloadAllData(0);
-        } else {
-            finish();
-        }
-
-    }
-
-    @Override
     public void onDownloadFinished() {
 
-        taskFragment.saveVertretungsDataToFile();
-        startMainActiviy();
+        String username = usernameInput.getEditText().getText().toString();
+        String password = passwordInput.getEditText().getText().toString();
+        onLoggedIn(username, password);
 
     }
 
@@ -214,36 +450,7 @@ public class LoginActivity extends AppCompatActivity implements TaskFragment.Log
         Log.e("JKGDEBUG", "Unbekannter Fehler beim Download");
         throwable.printStackTrace();
 
-        showDownloadErrorDialog();
-
-    }
-
-    private void showDownloadErrorDialog() {
-
-        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
-        dialogBuilder.setTitle("Download Error");
-        dialogBuilder.setMessage("Beim Download ist ein unbekannter Fehler aufgetreten.");
-        dialogBuilder.setPositiveButton("Erneut versuchen", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
-
-                taskFragment.downloadAllData(0);
-            }
-        });
-        dialogBuilder.setNegativeButton("Beenden", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
-                closeApp();
-            }
-        });
-        AlertDialog dialog = dialogBuilder.create();
-        dialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
-            @Override
-            public void onCancel(DialogInterface dialogInterface) {
-                closeApp();
-            }
-        });
-        dialog.show();
+        onLoginError("Unbekannter Fehler :/");
 
     }
 
@@ -257,34 +464,14 @@ public class LoginActivity extends AppCompatActivity implements TaskFragment.Log
     @Override
     public void onNoConnection() {
 
-        showNoConnectionDialog();
+        onLoginError("Keine Verbindung zum Server :(");
     }
 
-    private void showNoConnectionDialog() {
+    @Override
+    public void onSaveInstanceState(Bundle outState, PersistableBundle outPersistentState) {
 
-        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
-        dialogBuilder.setTitle("Keine Internetverbindung");
-        dialogBuilder.setMessage("Es konnte keine Verbindung zum Server hergestellt werden.");
-        dialogBuilder.setPositiveButton("Erneut versuchen", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
-                taskFragment.downloadAllData(0);
-            }
-        });
-        dialogBuilder.setNegativeButton("Beenden", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
-                closeApp();
-            }
-        });
-        AlertDialog dialog = dialogBuilder.create();
-        dialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
-            @Override
-            public void onCancel(DialogInterface dialogInterface) {
-                closeApp();
-            }
-        });
-        dialog.show();
-
+        outState.putBoolean("isChooseAWocheDialog", isChooseAWocheDialog);
+        outState.putBoolean("isHasABWocheDialog", isHasABWocheDialog);
+        super.onSaveInstanceState(outState, outPersistentState);
     }
 }

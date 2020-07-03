@@ -8,24 +8,23 @@ import android.os.Environment;
 import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.app.AlertDialog;
-import android.util.Log;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.appcompat.app.AlertDialog;
+
 import android.widget.Toast;
 
-import com.google.gson.Gson;
+import com.raizlabs.android.dbflow.config.FlowManager;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.charset.Charset;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -36,32 +35,18 @@ import java.util.List;
 import java.util.Locale;
 
 import de.conradowatz.jkgvertretung.R;
-import de.conradowatz.jkgvertretung.events.EventsChangedEvent;
-import de.conradowatz.jkgvertretung.events.FaecherUpdateEvent;
-import de.conradowatz.jkgvertretung.events.FerienChangedEvent;
-import de.conradowatz.jkgvertretung.events.KlassenlistUpdatedEvent;
-import de.conradowatz.jkgvertretung.events.KursChangedEvent;
-import de.conradowatz.jkgvertretung.events.NotenChangedEvent;
+import de.conradowatz.jkgvertretung.events.ExitAppEvent;
 import de.conradowatz.jkgvertretung.events.PermissionGrantedEvent;
-import de.conradowatz.jkgvertretung.tools.DataVersionCompat;
 import de.conradowatz.jkgvertretung.tools.LocalData;
-import de.conradowatz.jkgvertretung.tools.PreferenceHelper;
-import de.conradowatz.jkgvertretung.tools.Utilities;
-import de.conradowatz.jkgvertretung.tools.VertretungsData;
-import de.conradowatz.jkgvertretung.variables.Backup;
+import de.conradowatz.jkgvertretung.variables.AppDatabase;
 
 public class SettingsFragment extends PreferenceFragment implements Preference.OnPreferenceChangeListener {
 
     public static final int REQUEST_CODE_BACKUP_EXPORT = 1;
     public static final int REQUEST_CODE_BACKUP_IMPORT = 2;
     public static final int REQUEST_CODE_BACKUP_DELETE = 3;
-    private ListPreference startScreen;
-    private ListPreference maxDaysToFetchStart;
-    private ListPreference maxDaysToFetchRefresh;
-    private ListPreference notificationType;
-    private Preference exportBackup;
-    private Preference importBackup;
-    private Preference deleteBackup;
+    public static final String SAVE_FILE_NAME = "backup%s.db";
+    public static final String DATE_FORMAT = "dd-MM-yyyy_HH-mm-ss";
     private boolean isBackupExportDialog;
     private boolean isBackupImportDialog;
     private boolean isBackupDeleteDialog;
@@ -76,13 +61,13 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
 
         addPreferencesFromResource(R.xml.settings);
 
-        startScreen = (ListPreference) findPreference("startScreen");
-        maxDaysToFetchRefresh = (ListPreference) findPreference("maxDaysToFetchRefresh");
-        maxDaysToFetchStart = (ListPreference) findPreference("maxDaysToFetchStart");
-        notificationType = (ListPreference) findPreference("notificationType");
-        exportBackup = findPreference("exportBackup");
-        importBackup = findPreference("importBackup");
-        deleteBackup = findPreference("deleteBackup");
+        ListPreference startScreen = (ListPreference) findPreference("startScreen");
+        ListPreference maxDaysToFetchRefresh = (ListPreference) findPreference("maxDaysToFetchRefresh");
+        ListPreference maxDaysToFetchStart = (ListPreference) findPreference("maxDaysToFetchStart");
+        ListPreference notificationType = (ListPreference) findPreference("notificationType");
+        Preference exportBackup = findPreference("exportBackup");
+        Preference importBackup = findPreference("importBackup");
+        Preference deleteBackup = findPreference("deleteBackup");
 
         startScreen.setSummary(startScreen.getEntry());
         maxDaysToFetchRefresh.setSummary(maxDaysToFetchRefresh.getEntry());
@@ -163,9 +148,9 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
         List<String> displayNames = new ArrayList<>();
         for (File f : allFiles) {
             if (f.isFile()) {
-                String fileDate = f.getName().replaceAll("backup", "").replaceAll(".json", "");
+                String fileDate = f.getName().replaceAll("backup", "").replaceAll(".db", "");
                 try {
-                    Date date = new SimpleDateFormat(Backup.DATE_FORMAT, Locale.GERMANY).parse(fileDate);
+                    Date date = new SimpleDateFormat(DATE_FORMAT, Locale.GERMANY).parse(fileDate);
                     backupFiles.add(f);
                     displayNames.add("Backup vom " + new SimpleDateFormat("dd.MM.yy, HH:mm:ss", Locale.GERMANY).format(date));
                 } catch (ParseException e) {
@@ -221,10 +206,10 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
         final List<File> backupFiles = new ArrayList<>();
         List<String> displayNames = new ArrayList<>();
         for (File f : allFiles) {
-            if (f.isFile()) {
-                String fileDate = f.getName().replaceAll("backup", "").replaceAll(".json", "");
+            if (f.isFile() && f.getName().endsWith(".db")) {
+                String fileDate = f.getName().replaceAll("backup", "").replaceAll(".db", "");
                 try {
-                    Date date = new SimpleDateFormat(Backup.DATE_FORMAT, Locale.GERMANY).parse(fileDate);
+                    Date date = new SimpleDateFormat(DATE_FORMAT, Locale.GERMANY).parse(fileDate);
                     backupFiles.add(f);
                     displayNames.add("Backup vom " + new SimpleDateFormat("dd.MM.yy, HH:mm:ss", Locale.GERMANY).format(date));
                 } catch (ParseException e) {
@@ -241,61 +226,19 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
 
                 isBackupImportDialog = false;
 
-                String json = "";
-                Backup backup;
                 try {
-                    FileInputStream inputStream = new FileInputStream(backupFiles.get(backupIndex));
-                    BufferedReader r = new BufferedReader(new InputStreamReader(inputStream));
-                    StringBuilder total = new StringBuilder(inputStream.available());
-                    String line;
-                    while ((line = r.readLine()) != null) {
-                        total.append(line);
-                    }
-                    json = total.toString();
+                    File backupFile = backupFiles.get(backupIndex);
+                    File database = new File(FlowManager.getContext().getDatabasePath(AppDatabase.NAME).getAbsolutePath()+".db");
+                    copyFile(backupFile, database);
 
-                    Gson gson = Utilities.getDefaultGson();
-                    backup = gson.fromJson(json, Backup.class);
-                    if (backup == null || backup.getSaveFileVersion() != Backup.latestSaveFileVersion) {
-                        backup = DataVersionCompat.createBackupData(json);
-                    }
-                } catch (Exception e) {
-
+                } catch (IOException e) {
                     e.printStackTrace();
-                    backup = DataVersionCompat.createBackupData(json);
                 }
 
-                if (backup == null) {
-                    Toast.makeText(getActivity(), "Backup Datei inkompatibel!", Toast.LENGTH_SHORT).show();
-                    return;
-                }
+                Toast.makeText(getActivity(), "Neustart erforderlich.", Toast.LENGTH_SHORT).show();
 
-                VertretungsData.setInstance(backup.getVertretungsData());
-                //Löscht veraltete Tage
-                Calendar heute = Calendar.getInstance();
-                for (int i = 0; i < VertretungsData.getInstance().getTagList().size(); i++) {
-                    Calendar tagCalendar = Calendar.getInstance();
-                    tagCalendar.setTime(VertretungsData.getInstance().getTagList().get(i).getDatum());
-                    if (Utilities.compareDays(tagCalendar, heute) < 0) {
-                        VertretungsData.getInstance().getTagList().remove(i);
-                        i--;
-                    }
-                }
-                VertretungsData.saveDataToFile(getActivity().getApplicationContext());
-                LocalData.deleteNotificationAlarms(getActivity().getApplicationContext());
-                LocalData.setInstance(backup.getLocalData());
-                LocalData.saveToFile(getActivity().getApplicationContext());
-                LocalData.recreateNotificationAlarms(getActivity().getApplicationContext());
-                PreferenceHelper.setSharedPrefrencesFromBackup(getActivity().getApplicationContext(), backup.getSharedPreferences());
-
-                //Events
-                eventBus.post(new EventsChangedEvent());
-                eventBus.post(new FaecherUpdateEvent());
-                eventBus.post(new FerienChangedEvent());
-                eventBus.post(new KlassenlistUpdatedEvent());
-                eventBus.post(new KursChangedEvent());
-                eventBus.post(new NotenChangedEvent());
-
-                Toast.makeText(getActivity(), "Backup erfolgreich importiert.", Toast.LENGTH_SHORT).show();
+                eventBus.post(new ExitAppEvent());
+                getActivity().finish();
 
 
             }
@@ -323,7 +266,7 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
 
         AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(getActivity());
         dialogBuilder.setTitle("Backup exportieren");
-        dialogBuilder.setMessage("Möchtest du ein Backup deiner Einstellungen speichern?");
+        dialogBuilder.setMessage("Möchtest du ein Backup deiner Fächer und Termine speichern?");
         dialogBuilder.setPositiveButton("Backup erstellen", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
@@ -333,20 +276,15 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
                 if (!isExternalStorageWritable()) return;
 
                 Calendar calendar = Calendar.getInstance();
-                String backUpTitle = String.format(Backup.SAVE_FILE_NAME, new SimpleDateFormat(Backup.DATE_FORMAT, Locale.GERMANY).format(calendar.getTime()));
-
-                Gson gson = Utilities.getDefaultGson();
-                Backup backup = new Backup(getActivity().getApplicationContext());
-                String json = gson.toJson(backup, Backup.class);
+                String backUpTitle = String.format(SAVE_FILE_NAME, new SimpleDateFormat(DATE_FORMAT, Locale.GERMANY).format(calendar.getTime()));
 
                 File path = getBackupPath();
                 if (path == null) return;
                 try {
 
-                    FileOutputStream outputStream = new FileOutputStream(path.getAbsolutePath() + File.separator + backUpTitle);
-                    outputStream.write(json.getBytes(Charset.forName("UTF-8")));
-                    outputStream.flush();
-                    outputStream.close();
+                    File backupDest = new File(path.getAbsolutePath() + File.separator + backUpTitle);
+                    File database = new File(FlowManager.getContext().getDatabasePath(AppDatabase.NAME).getAbsolutePath()+".db");
+                    copyFile(database, backupDest);
 
                     Toast.makeText(getActivity(), "Backup erfolgreich exportiert.", Toast.LENGTH_SHORT).show();
 
@@ -373,9 +311,22 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
 
     }
 
+    private void copyFile(File src, File dest) throws IOException {
+        InputStream in = new FileInputStream(src);
+        OutputStream out = new FileOutputStream(dest);
+
+        // Transfer bytes from in to out
+        byte[] buf = new byte[1024];
+        int len;
+        while ((len = in.read(buf)) > 0) {
+            out.write(buf, 0, len);
+        }
+        in.close();
+        out.close();
+    }
+
     private File getBackupPath() {
 
-        Log.d("JKGDEBUG", Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "JKGStundenplanBackup");
         File path = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "JKGStundenplanBackup");
         path.mkdirs();
         return path;

@@ -8,15 +8,15 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.support.annotation.RequiresApi;
-import android.support.customtabs.CustomTabsIntent;
-import android.support.v4.app.ActivityOptionsCompat;
-import android.support.v4.app.FragmentManager;
-import android.support.v4.app.FragmentTransaction;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
+import androidx.annotation.RequiresApi;
+import androidx.browser.customtabs.CustomTabsIntent;
+import androidx.core.app.ActivityOptionsCompat;
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentTransaction;
+import androidx.core.content.ContextCompat;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import android.text.Html;
 import android.text.method.LinkMovementMethod;
 import android.transition.Slide;
@@ -33,19 +33,23 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.AdView;
 import com.mikepenz.materialdrawer.Drawer;
 import com.mikepenz.materialdrawer.DrawerBuilder;
 import com.mikepenz.materialdrawer.model.DividerDrawerItem;
 import com.mikepenz.materialdrawer.model.PrimaryDrawerItem;
 import com.mikepenz.materialdrawer.model.interfaces.IDrawerItem;
+import com.raizlabs.android.dbflow.sql.language.SQLite;
 
 import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
 
 import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
-import de.conradowatz.jkgvertretung.events.AnalyticsEventEvent;
-import de.conradowatz.jkgvertretung.events.DayUpdatedEvent;
-import de.conradowatz.jkgvertretung.events.EventsChangedEvent;
+import de.conradowatz.jkgvertretung.events.DaysUpdatedEvent;
+import de.conradowatz.jkgvertretung.events.ExitAppEvent;
+import de.conradowatz.jkgvertretung.events.FerienChangedEvent;
 import de.conradowatz.jkgvertretung.events.KlassenlistUpdatedEvent;
 import de.conradowatz.jkgvertretung.fragments.FreieZimmerFragment;
 import de.conradowatz.jkgvertretung.fragments.NotenUebersichtFragment;
@@ -54,7 +58,8 @@ import de.conradowatz.jkgvertretung.fragments.TaskFragment;
 import de.conradowatz.jkgvertretung.fragments.TerminFragment;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.tools.PreferenceHelper;
-import de.conradowatz.jkgvertretung.tools.VertretungsData;
+import de.conradowatz.jkgvertretung.variables.Klasse;
+import de.conradowatz.jkgvertretung.variables.Lehrer;
 
 
 public class MainActivity extends AppCompatActivity implements TaskFragment.MainCallbacks {
@@ -66,10 +71,14 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
     private boolean isRefreshing;
     private boolean isInfoDialog;
     private boolean isNoAccessDialog;
+    private boolean isLogOffDialog;
+    private boolean isDonateDialog;
     private boolean isActive;
     private boolean noactiveStartscreen;
     private TaskFragment taskFragment;
     private EventBus eventBus = EventBus.getDefault();
+
+    private AdView adView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,9 +87,15 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
         setContentView(R.layout.activity_main);
 
         toolbar = (Toolbar) findViewById(R.id.toolbar);
+        adView = (AdView) findViewById(R.id.adView);
         setSupportActionBar(toolbar);
 
         buildDrawer();
+        if (LocalData.isFreeVersion(getApplicationContext()))
+            adView.loadAd(new AdRequest.Builder().build());
+        else
+            adView.setVisibility(View.GONE);
+
         PreferenceManager.setDefaultValues(getApplicationContext(), R.xml.settings, false);
 
         isActive = true;
@@ -95,14 +110,14 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
             fm.beginTransaction().add(taskFragment, TaskFragment.TAG_TASK_FRAGMENT).commit();
         }
 
-        //Falls der SplashScreen einen Login möchte
-        if (savedInstanceState == null && getIntent().getBooleanExtra("startLogin", false)) {
+        //Falls noch kein Login gesetzt wurde
+        if (!LocalData.isLoggedIn()) {
 
             startLoginActivity();
             return;
         }
 
-        if (savedInstanceState != null && VertretungsData.getInstance().isReady() && LocalData.isReady()) {
+        if (savedInstanceState != null) {
 
             //App noch im Speicher, wiederherstellen
 
@@ -125,28 +140,21 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
             }
             isInfoDialog = savedInstanceState.getBoolean("isInfoDialog");
             isNoAccessDialog = savedInstanceState.getBoolean("isNoAccessDialog");
+            isLogOffDialog = savedInstanceState.getBoolean("isLogOffDialog");
+            isDonateDialog = savedInstanceState.getBoolean("isDonateDialog");
 
             if (isInfoDialog) showInfoDialog();
             if (isNoAccessDialog) showNoAccesDialog();
+            if (isLogOffDialog) showLogOffDialog();
+            if (isDonateDialog) showDonateDialog();
 
         } else {
 
-            if (VertretungsData.getInstance().isReady() && LocalData.isReady()) {
-
-                //Falls alles normal -> starten
-                setUp();
-
-            } else {
-
-                //Falls Daten fehlen, SplashScreen zeigen
-                Intent splashScreenIntent = new Intent(this, SplashActivity.class);
-                splashScreenIntent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
-                startActivity(splashScreenIntent);
-                finish();
-                overridePendingTransition(0, 0);
-            }
-
+            //Falls alles normal -> starten
+            setUp();
         }
+
+        eventBus.register(this);
     }
 
     private PrimaryDrawerItem getDefaultDrawerItem() {
@@ -170,9 +178,14 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
                         getDefaultDrawerItem().withName("Klassenplan").withIcon(R.drawable.ic_stuplan).withIdentifier(6),
                         getDefaultDrawerItem().withName("Freie Zimmer").withIcon(R.drawable.ic_door).withIdentifier(7),
                         new DividerDrawerItem(),
-                        getDefaultDrawerItem().withName("Einstellungen").withIcon(R.drawable.ic_settings).withIdentifier(11),
-                        getDefaultDrawerItem().withName("Feedback").withIcon(R.drawable.ic_feedback).withIdentifier(12),
-                        getDefaultDrawerItem().withName("Infos").withIcon(R.drawable.ic_info).withIdentifier(13)
+                        getDefaultDrawerItem().withName("Abmelden").withIcon(R.drawable.ic_exit).withIdentifier(11),
+                        new DividerDrawerItem(),
+                        getDefaultDrawerItem().withName("Werbung entfernen").withIcon(R.drawable.ic_heart).withIdentifier(12),
+                        getDefaultDrawerItem().withName("Einstellungen").withIcon(R.drawable.ic_settings).withIdentifier(13),
+                        getDefaultDrawerItem().withName("Feedback").withIcon(R.drawable.ic_feedback).withIdentifier(14),
+                        getDefaultDrawerItem().withName("Infos").withIcon(R.drawable.ic_info).withIdentifier(15)
+
+
                 )
                 .withOnDrawerItemClickListener(new Drawer.OnDrawerItemClickListener() {
                     @Override
@@ -180,7 +193,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
 
                         long identifier = drawerItem.getIdentifier();
                         if (identifier < 10) {
-                            if (selectedIdentifier != identifier && VertretungsData.getInstance().isReady()) {
+                            if (selectedIdentifier != identifier) {
                                 setFragment(identifier);
                                 selectedIdentifier = identifier;
                                 return false;
@@ -188,30 +201,102 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
                         } else {
                             navigationDrawer.setSelection(selectedIdentifier, false);
                             if (identifier == 11) {
+                                showLogOffDialog();
+                                return false;
+                            }
+                            if (identifier == 12) showDonateDialog();
+                            if (identifier == 13) {
                                 openSettings();
                                 return false;
                             }
-                            if (identifier == 12) {
-                                openFeedbackPage();
-                            }
-                            if (identifier == 13) {
-                                showInfoDialog();
-                            }
+                            if (identifier == 14) openFeedbackPage();
+                            if (identifier == 15) showInfoDialog();
                         }
                         return true;
                     }
                 })
                 .build();
+        if (!LocalData.isFreeVersion(getApplicationContext())) {
+            navigationDrawer.removeItem(12);
+        }
 
+    }
+
+    private void showDonateDialog() {
+
+        isDonateDialog = true;
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Werbung entfernen / Spenden <3");
+        builder.setMessage(R.string.donate_text);
+        final MainActivity context = this;
+        builder.setPositiveButton("Werbefreie Version", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+
+                isDonateDialog = false;
+                Toast.makeText(context, "Danke für die Unterstützung <3", Toast.LENGTH_SHORT).show();
+                try {
+                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=de.conradowatz.jkgvertretung.pro")));
+                } catch (android.content.ActivityNotFoundException e) {
+                    //PlayStore not installed
+                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=de.conradowatz.jkgvertretung.pro")));
+                }
+            }
+        });
+        builder.setNegativeButton("Nein danke", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                isDonateDialog = false;
+            }
+        });
+        AlertDialog dialog = builder.create();
+        dialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
+            @Override
+            public void onCancel(DialogInterface dialogInterface) {
+                isDonateDialog = false;
+            }
+        });
+        dialog.show();
+
+    }
+
+    private void showLogOffDialog() {
+
+        isLogOffDialog = true;
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Abmelden");
+        builder.setMessage("Bist du sicher, dass du dich von deinem Schulserver abmelden möchtest?\nDu wirst zum Anmeldebildschirm weitergeleitet.");
+        builder.setPositiveButton("Abmelden", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                isLogOffDialog = false;
+                LocalData.setLoggedIn(false);
+                SQLite.delete().from(Lehrer.class).async().execute();
+                startLoginActivity();
+            }
+        });
+        builder.setNegativeButton("Abbrechen", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                isLogOffDialog = false;
+            }
+        });
+        AlertDialog dialog = builder.create();
+        dialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
+            @Override
+            public void onCancel(DialogInterface dialog) {
+                isLogOffDialog = false;
+            }
+        });
+        dialog.show();
     }
 
     /**
      * Zeigt den Info Dialog
      */
     private void showInfoDialog() {
-
-        //Analytics
-        eventBus.post(new AnalyticsEventEvent("NavDrawer", "Infos"));
 
         isInfoDialog = true;
 
@@ -253,11 +338,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
      */
     private void openFeedbackPage() {
 
-        //Analytics
-        eventBus.post(new AnalyticsEventEvent("NavDrawer", "Feedback"));
-
-
-        String url = "http://conradowatz.de/wp/jkg-vertretungsplan-support/";
+        String url = "https://owatz.net/s/appsupport";
         CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder();
         builder.setToolbarColor(ContextCompat.getColor(getApplicationContext(), R.color.primary));
         builder.setStartAnimations(this, R.anim.slide_in_right, R.anim.slide_out_left);
@@ -343,17 +424,17 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
      */
     private void setUp() {
 
-        if (isActive) showStartScreen();
-        else noactiveStartscreen = true;
-
         //Wenn keine Klasse ausgewählt, starte KurswahlActivity
-        int klassenIndex = PreferenceHelper.readIntFromPreferences(getApplicationContext(), "meineKlasseInt", -1);
-        if (klassenIndex == -1) {
+        Klasse selectedKlasse = Klasse.getSelectedKlasse();
+        if (selectedKlasse == null) {
 
             Intent startKurswahlIntent = new Intent(this, KurswahlActivity.class);
             startActivity(startKurswahlIntent);
 
         }
+
+        if (isActive) showStartScreen();
+        else noactiveStartscreen = true;
 
         //Refresh wenn in Einstellungen gewollt
         boolean refreshAtStart = PreferenceHelper.readBooleanFromPreferences(getApplicationContext(), "doRefreshAtStart", true);
@@ -363,6 +444,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
             showRefresh();
             taskFragment.downloadAllData(refreshDays);
         }
+        LocalData.deleteElapsedData();
     }
 
     /**
@@ -384,21 +466,14 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
     }
 
     /**
-     * Informiert die Fragments, dass ein Tag hinzugefügt bzw geupdatet wurde
+     * Informiert die Fragments, dass die OnlineTage geupdated wurden
      *
-     * @param position welcher Tag wurde hinzugefügt / geupdatet
      */
     @Override
-    public void onDayAdded(int position) {
+    public void onDaysUpdated() {
 
-        eventBus.post(new DayUpdatedEvent(position));
+        eventBus.post(new DaysUpdatedEvent());
 
-    }
-
-    @Override
-    public void onEventsAdded() {
-
-        eventBus.post(new EventsChangedEvent());
     }
 
     /**
@@ -413,8 +488,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
         Log.e("JKGDEBUG", "Fehler beim Download oder Verarbeiten der Daten");
         if (throwable == null) return;
         Log.e("JKGDEBUG", "Message: " + throwable.getMessage());
-
-        ((MyApplication) getApplication()).fireException(throwable);
+        throwable.printStackTrace();
 
     }
 
@@ -498,14 +572,13 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
 
         if (isRefreshing) return;
 
-        //Analytics
-        eventBus.post(new AnalyticsEventEvent("Toolbar", "Refresh"));
-
         showRefresh();
 
         //Daten im Hintergrund laden
         int dayCount = Integer.parseInt(PreferenceHelper.readStringFromPreferences(getApplicationContext(), "maxDaysToFetchRefresh", "14"));
         taskFragment.downloadAllData(dayCount);
+
+        LocalData.deleteElapsedData();
 
     }
 
@@ -514,9 +587,6 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
      */
     @Override
     public void onDownloadFinished() {
-
-        //LocalData.getInstance().updateCompareDate(); removed due to Server change
-        taskFragment.saveVertretungsDataToFile();
 
         Toast.makeText(getApplicationContext(), "Daten erfolgreich aktualisiert", Toast.LENGTH_SHORT).show();
         stopRefresh();
@@ -540,12 +610,13 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
     @Override
     public void onKlassenListUpdated() {
 
-        //zurücksetzten der Klasse, falls es eine neue Klassenliste gibt
-        if (VertretungsData.getInstance().getKlassenList().size() <= PreferenceHelper.readIntFromPreferences(getApplicationContext(), "meineKlasseInt", 0)) {
-            PreferenceHelper.saveIntToPreferences(getApplicationContext(), "meineKlasseInt", -1);
-        }
-
         eventBus.post(new KlassenlistUpdatedEvent());
+    }
+
+    @Override
+    public void onFreieTageAdded() {
+
+        eventBus.post(new FerienChangedEvent());
     }
 
     /**
@@ -571,6 +642,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
 
                 isNoAccessDialog = false;
 
+                LocalData.setLoggedIn(false);
                 startLoginActivity();
             }
         });
@@ -662,6 +734,8 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
         outState.putCharSequence("title", toolbar.getTitle());
         outState.putBoolean("isInfoDialog", isInfoDialog);
         outState.putBoolean("isNoAccessDialog", isNoAccessDialog);
+        outState.putBoolean("isLogOffDialog", isLogOffDialog);
+        outState.putBoolean("isDonateDialog", isDonateDialog);
         outState.putBoolean("noactiveStartscreen", noactiveStartscreen);
         outState.putBoolean("isRefreshing", isRefreshing);
 
@@ -677,6 +751,7 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
             showStartScreen();
             noactiveStartscreen = false;
         }
+        //if (adView!=null) adView.resume();
     }
 
     @Override
@@ -684,5 +759,18 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
         super.onPause();
 
         isActive = false;
+        //if (adView!=null) adView.pause();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        //if (adView!=null) adView.destroy();
+        eventBus.unregister(this);
+    }
+
+    @Subscribe
+    public void onEvent(ExitAppEvent event) {
+        finish();
     }
 }

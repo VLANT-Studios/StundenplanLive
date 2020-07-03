@@ -3,12 +3,13 @@ package de.conradowatz.jkgvertretung.fragments;
 import android.app.DatePickerDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.os.AsyncTask;
 import android.os.Bundle;
-import android.support.v4.app.Fragment;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
+import androidx.fragment.app.Fragment;
+import androidx.core.content.ContextCompat;
+import androidx.appcompat.app.AlertDialog;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -19,16 +20,19 @@ import android.widget.Button;
 import android.widget.DatePicker;
 import android.widget.LinearLayout;
 
+import com.raizlabs.android.dbflow.sql.language.SQLite;
+
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
+import org.greenrobot.eventbus.ThreadMode;
 
 import java.util.Calendar;
 
+import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.activities.FachActivity;
 import de.conradowatz.jkgvertretung.activities.KurswahlActivity;
 import de.conradowatz.jkgvertretung.adapters.FaecherRecyclerAdapter;
-import de.conradowatz.jkgvertretung.events.AnalyticsEventEvent;
 import de.conradowatz.jkgvertretung.events.FaecherUpdateEvent;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.variables.Fach;
@@ -43,7 +47,7 @@ public class FaecherFragment extends Fragment implements FaecherRecyclerAdapter.
     private Button smartImportButton;
     private Button kurswahlButton;
     private boolean isDeleteDialog;
-    private int deleteDialogIndex;
+    private long deleteDialogFachId;
     private boolean isChooseAWocheDialog;
     private int mode;
     private EventBus eventBus = EventBus.getDefault();
@@ -70,7 +74,7 @@ public class FaecherFragment extends Fragment implements FaecherRecyclerAdapter.
         if (savedInstanceState != null) {
 
             if (savedInstanceState.getBoolean("isDeleteDialog"))
-                showDeleteDialog(savedInstanceState.getInt("deleteDialogIndex"));
+                showDeleteDialog(savedInstanceState.getLong("deleteDialogFachId"));
             if (savedInstanceState.getBoolean("isChooseAWocheDialog"))
                 showChooseAWocheDialog();
             mode = savedInstanceState.getInt("mode");
@@ -81,32 +85,45 @@ public class FaecherFragment extends Fragment implements FaecherRecyclerAdapter.
 
     private void setUp() {
 
-        if (LocalData.getInstance().getFächer().size() == 0) {
+        new AsyncTask<Boolean, Integer, Boolean>() {
 
-            mode = MODE_NOFAECHER;
+            @Override
+            protected Boolean doInBackground(Boolean... params) {
+                return Fach.hasFaecher();
+            }
 
-            recyclerView.setVisibility(View.GONE);
-            nofaecherLayout.setVisibility(View.VISIBLE);
-            smartImportButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    showSmartImportDialog();
+            @Override
+            protected void onPostExecute(Boolean hasFaecher) {
+
+                if (!hasFaecher) {
+
+                    mode = MODE_NOFAECHER;
+
+                    recyclerView.setVisibility(View.GONE);
+                    nofaecherLayout.setVisibility(View.VISIBLE);
+                    smartImportButton.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                            showSmartImportDialog();
+                        }
+                    });
+                    kurswahlButton.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                            startKurswahlActivity();
+                        }
+                    });
+                } else {
+
+                    mode = MODE_NORMAL;
+
+                    recyclerView.setVisibility(View.VISIBLE);
+                    nofaecherLayout.setVisibility(View.GONE);
+                    setUpRecycler();
                 }
-            });
-            kurswahlButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    startKurswahlActivity();
-                }
-            });
-        } else {
 
-            mode = MODE_NORMAL;
-
-            recyclerView.setVisibility(View.VISIBLE);
-            nofaecherLayout.setVisibility(View.GONE);
-            setUpRecycler();
-        }
+            }
+        }.execute();
     }
 
     private void setUpRecycler() {
@@ -119,25 +136,25 @@ public class FaecherFragment extends Fragment implements FaecherRecyclerAdapter.
     }
 
     @Override
-    public void onFachClicked(int fachIndex) {
+    public void onFachClicked(long fachId) {
 
-        startFachActivity(fachIndex);
+        startFachActivity(fachId);
 
     }
 
     @Override
-    public void onFachLongClicked(int fachIndex) {
+    public void onFachLongClicked(long fachId) {
 
-        showDeleteDialog(fachIndex);
+        showDeleteDialog(fachId);
 
     }
 
-    private void showDeleteDialog(final int fachIndex) {
+    private void showDeleteDialog(final long fachId) {
 
         isDeleteDialog = true;
-        deleteDialogIndex = fachIndex;
+        deleteDialogFachId = fachId;
 
-        Fach fach = LocalData.getInstance().getFächer().get(fachIndex);
+        final Fach fach = Fach.getFach(fachId);
 
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
         builder.setTitle("'" + fach.getName() + "' löschen");
@@ -148,9 +165,8 @@ public class FaecherFragment extends Fragment implements FaecherRecyclerAdapter.
 
                 isDeleteDialog = false;
 
-                LocalData.getInstance().getFächer().remove(fachIndex);
+                fach.delete();
                 eventBus.post(new FaecherUpdateEvent());
-                LocalData.saveToFile(getActivity().getApplicationContext());
             }
         });
         builder.setNegativeButton("Abbrechen", new DialogInterface.OnClickListener() {
@@ -176,22 +192,24 @@ public class FaecherFragment extends Fragment implements FaecherRecyclerAdapter.
 
     }
 
-    private void startFachActivity(int fachIndex) {
+    private void startFachActivity(long fachId) {
 
         Intent openFachIntent = new Intent(getContext(), FachActivity.class);
-        openFachIntent.putExtra("fachIndex", fachIndex);
+        openFachIntent.putExtra("fachId", fachId);
         startActivity(openFachIntent);
 
     }
 
-    @Subscribe
+    @Subscribe(threadMode = ThreadMode.MAIN)
     public void onEvent(FaecherUpdateEvent event) {
 
         if (recyclerView != null) {
-            int faecherCount = LocalData.getInstance().getFächer().size();
-            if ((mode == MODE_NORMAL && faecherCount == 0) || (mode == MODE_NOFAECHER && faecherCount > 0))
+            boolean faecherExist = SQLite.select().from(Fach.class).querySingle()!=null;
+            if ((mode == MODE_NORMAL && !faecherExist) || (mode == MODE_NOFAECHER && faecherExist))
                 setUp();
-            else recyclerView.getAdapter().notifyDataSetChanged();
+            else if (recyclerView.getAdapter() != null){
+                ((FaecherRecyclerAdapter)recyclerView.getAdapter()).updateData();
+            }
         }
 
     }
@@ -200,6 +218,7 @@ public class FaecherFragment extends Fragment implements FaecherRecyclerAdapter.
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
 
         inflater.inflate(R.menu.menu_faecher, menu);
+        menu.findItem(R.id.action_abwoche).setVisible(LocalData.hasABWoche());
         super.onCreateOptionsMenu(menu, inflater);
     }
 
@@ -228,7 +247,7 @@ public class FaecherFragment extends Fragment implements FaecherRecyclerAdapter.
 
         final AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(getActivity());
         dialogBuilder.setTitle("A / B Woche");
-        dialogBuilder.setMessage("Bitte wähle einen Tag aus, bei dem du sicher bist, dass es A-Woche war/ist.");
+        dialogBuilder.setMessage("Bitte wähle einen OnlineTag aus, bei dem du sicher bist, dass es A-Woche war/ist.");
         dialogBuilder.setNeutralButton("Okay", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
@@ -241,7 +260,7 @@ public class FaecherFragment extends Fragment implements FaecherRecyclerAdapter.
                         isChooseAWocheDialog = false;
 
                         calendar.set(datePicker.getYear(), datePicker.getMonth(), datePicker.getDayOfMonth());
-                        LocalData.getInstance().setCompareDate(calendar.getTime(), true);
+                        LocalData.setCompareDate(calendar.getTime());
 
                     }
                 }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
@@ -268,10 +287,8 @@ public class FaecherFragment extends Fragment implements FaecherRecyclerAdapter.
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
 
-                eventBus.post(new AnalyticsEventEvent("Manager", "Smart Import"));
-                LocalData.getInstance().smartImport(getActivity());
+                LocalData.smartImport(getActivity());
                 eventBus.post(new FaecherUpdateEvent());
-                LocalData.saveToFile(getActivity().getApplicationContext());
             }
         });
         dialogBuilder.setNegativeButton("Abbrechen", null);
@@ -284,7 +301,7 @@ public class FaecherFragment extends Fragment implements FaecherRecyclerAdapter.
 
         outState.putBoolean("isDeleteDialog", isDeleteDialog);
         outState.putBoolean("isChooseAWocheDialog", isChooseAWocheDialog);
-        outState.putInt("deleteDialogIndex", deleteDialogIndex);
+        outState.putLong("deleteDialogFachId", deleteDialogFachId);
         outState.putInt("mode", mode);
         super.onSaveInstanceState(outState);
     }

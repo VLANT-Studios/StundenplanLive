@@ -2,67 +2,102 @@ package de.conradowatz.jkgvertretung.tools;
 
 
 import android.content.Context;
+import android.os.Looper;
+import android.util.Log;
+import android.widget.Toast;
 
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.StringRequest;
-import com.google.gson.Gson;
+import com.raizlabs.android.dbflow.config.FlowManager;
+import com.raizlabs.android.dbflow.sql.language.Delete;
+import com.raizlabs.android.dbflow.sql.language.SQLite;
+import com.raizlabs.android.dbflow.sql.language.Select;
+import com.raizlabs.android.dbflow.structure.database.DatabaseWrapper;
+import com.raizlabs.android.dbflow.structure.database.transaction.ITransaction;
 
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
-import org.xmlpull.v1.XmlPullParserFactory;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.StringReader;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
-import de.conradowatz.jkgvertretung.variables.Event;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+
+import de.conradowatz.jkgvertretung.MyApplication;
+import de.conradowatz.jkgvertretung.variables.AppDatabase;
+import de.conradowatz.jkgvertretung.variables.Fach;
+import de.conradowatz.jkgvertretung.variables.Fach_Table;
+import de.conradowatz.jkgvertretung.variables.Ferien;
+import de.conradowatz.jkgvertretung.variables.Ferien_Table;
 import de.conradowatz.jkgvertretung.variables.Klasse;
+import de.conradowatz.jkgvertretung.variables.Klasse_Kurs;
+import de.conradowatz.jkgvertretung.variables.Klasse_Kurs_Table;
+import de.conradowatz.jkgvertretung.variables.Klasse_Table;
 import de.conradowatz.jkgvertretung.variables.Kurs;
-import de.conradowatz.jkgvertretung.variables.OnlineEvents;
-import de.conradowatz.jkgvertretung.variables.StuPlaKlasse;
+import de.conradowatz.jkgvertretung.variables.Kurs_Table;
+import de.conradowatz.jkgvertretung.variables.Lehrer;
+import de.conradowatz.jkgvertretung.variables.Lehrer_Table;
+import de.conradowatz.jkgvertretung.variables.OnlineTag;
+import de.conradowatz.jkgvertretung.variables.OnlineTag_Table;
 import de.conradowatz.jkgvertretung.variables.Stunde;
-import de.conradowatz.jkgvertretung.variables.Tag;
+import de.conradowatz.jkgvertretung.variables.Stunde_Table;
 import de.conradowatz.jkgvertretung.variables.Vertretung;
+import de.conradowatz.jkgvertretung.variables.Vertretung_Table;
+import okhttp3.Authenticator;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.Credentials;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.Route;
 
 public class VertretungsAPI {
 
     private Date endDate = null;
     private String username;
     private String password;
-    private Context context;
+    private boolean hasAuth;
     private int pendingDownloads = 0;
+    private OkHttpClient client;
 
-    private boolean onlineEventsFinished;
-    private boolean vertretungsDataFinished;
+    public VertretungsAPI(String username, String password) {
 
-    public VertretungsAPI(String username, String password, Context context) {
-
+        this.hasAuth = true;
         this.username = username;
         this.password = password;
-        this.context = context;
+        client = new OkHttpClient();
     }
 
-    /**
-     * Prüft, ob die Benutzerdaten stimmen
-     *
-     * @param username             der Benutzername
-     * @param password             das Passwort
-     * @param listener             ein Listener um die Antwort zu handhaben
-     * @param errorListener        ein Listener um die Antwort zu handhaben
-     */
-    public static void checkLogin(String username, String password, Response.Listener<String> listener, Response.ErrorListener errorListener) {
+    public VertretungsAPI() {
 
-        String url = "http://kepler-chemnitz.de/stuplanindiware/VmobilS/mobdaten/Klassen.xml";
-        AuthedStringRequest request = new AuthedStringRequest(url, listener, errorListener);
-        request.setBasicAuth(username, password);
-        VolleySingelton.getsInstance().getRequestQueue().add(request);
+        this.hasAuth = false;
+        client = new OkHttpClient.Builder()
+                .connectTimeout(0, TimeUnit.SECONDS)
+                .writeTimeout(0, TimeUnit.SECONDS)
+                .readTimeout(0, TimeUnit.SECONDS)
+                .build();
+    }
+
+    private Request getRequest(String url) {
+
+        if (hasAuth)
+            return new Request.Builder().url(url).header("Authorization", Credentials.basic(username, password)).build();
+        else
+            return new Request.Builder().url(url).build();
+
     }
 
     /**
@@ -97,7 +132,7 @@ public class VertretungsAPI {
 
         int dayOfWeek = Utilities.getDayOfWeek(date);
 
-        return (dayOfWeek >= 6 || LocalData.getInstance().isFerien(date));
+        return (dayOfWeek >= 6 || Ferien.isFerien(date));
     }
 
     public static String getFreieTageDateFormat() {
@@ -108,57 +143,67 @@ public class VertretungsAPI {
     /**
      * Fragt nacheinander alle Informationen ab: klassenList, freieTageList, tagList
      *
-     * @param dayCount                wie viele Tage maximal abgefragt werden, -1 wenn alle verfügbaren
+     * @param dayCount                        wie viele Tage maximal abgefragt werden, -1 wenn alle verfügbaren
      * @param downloadAllDataResponseListener ein Handler um die Antwort zu handhaben
      */
-    public void downloadAllData(final int dayCount, final boolean downloadEvents, final DownloadAllDataResponseListener downloadAllDataResponseListener) {
+    public void downloadAllData(final int dayCount, final DownloadAllDataResponseListener downloadAllDataResponseListener) {
 
         final boolean downloadAllDays = dayCount == -1;
 
-        String url = "http://kepler-chemnitz.de/stuplanindiware/VmobilS/mobdaten/Klassen.xml";
-        AuthedStringRequest request = new AuthedStringRequest(url, new Response.Listener<String>() {
-            @Override
-            public void onResponse(String response) {
+        String url = LocalData.getBaseUrl() + "mobdaten/Klassen.xml";
+        //Log.d("JKGDebug", url);
 
-                VertretungsData vertretungsData = VertretungsData.getInstance();
+        Request request = getRequest(url);
+
+        try {
+            Response response = client.newCall(request).execute();
+            if (response.isSuccessful()) {
+
+                String html = response.body().string();
 
                 //Klassenliste
                 try {
-                    vertretungsData.setKlassenList(makeKlassen(response));
+                    updateKlassen(html);
                 } catch (Exception e) {
                     downloadAllDataResponseListener.onOtherError(e);
                     return;
                 }
+                Thread.yield();
                 downloadAllDataResponseListener.onKlassenListFinished();
 
                 //freie Tage
                 try {
-                    vertretungsData.setFreieTageList(makeFreieTage(response));
-                    LocalData.getInstance().addFreieTageToFerien();
-                    LocalData.saveToFile(context);
+                    updateFreieTageToFerien(html);
                 } catch (Exception e) {
                     downloadAllDataResponseListener.onOtherError(e);
                     return;
                 }
+                downloadAllDataResponseListener.onFreieTageAdded();
+                Thread.yield();
 
                 if (!downloadAllDays)
                     downloadAllDataResponseListener.onProgress(100 / (dayCount * 2 + 1));
 
-                //Tag Liste
+                //alle alten Tage löschen
+                Date heute = Utilities.getToday().getTime();
+                SQLite.delete().from(OnlineTag.class).where(OnlineTag_Table.date.lessThan(heute)).execute();
+
+                //OnlineTag Liste
                 downloadDays(downloadAllDays ? 14 : dayCount, new DownloadDaysListener() {
                     @Override
                     public void onFinished(Date endDate) {
 
                         if (downloadAllDays) {
-                            ArrayList<Tag> tagList = VertretungsData.getInstance().getTagList();
-                            if (tagList.size() > 0 && tagList.get(tagList.size() - 1).getDatum() == endDate) {
+                            OnlineTag lastOnlineTag = OnlineTag.getOnlineTag(endDate);
+                            if (lastOnlineTag != null) {
                                 downloadDays(14, this);
                                 return;
                             }
                         }
-                        vertretungsDataFinished = true;
-                        if (!downloadEvents || onlineEventsFinished)
-                            downloadAllDataResponseListener.onSuccess();
+
+                        downloadAllDataResponseListener.onDaysUpdated();
+
+                        downloadAllDataResponseListener.onSuccess();
                     }
 
                     @Override
@@ -167,8 +212,8 @@ public class VertretungsAPI {
                     }
 
                     @Override
-                    public void onDayAdded(int position) {
-                        downloadAllDataResponseListener.onDayAdded(position);
+                    public void onDaysUpdated() {
+                        Thread.yield();
                     }
 
                     @Override
@@ -180,243 +225,241 @@ public class VertretungsAPI {
                     }
                 });
 
-            }
-        }, new Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(VolleyError error) {
+            } else {
 
-                if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
+                if (response.code() == 401) {
                     downloadAllDataResponseListener.onNoAccess();
                 } else {
                     downloadAllDataResponseListener.onNoConnection();
                 }
+
             }
-        });
-        request.setBasicAuth(username, password);
+        } catch (IOException e) {
 
-        StringRequest onlineEventsRequest = new StringRequest("http://conradowatz.de/apps/jkgstundenplan/onlineevents/onlineevents.json", new Response.Listener<String>() {
+            e.printStackTrace();
+            downloadAllDataResponseListener.onNoConnection();
+        }
+
+    }
+
+    /**
+     * Löscht alle Klassen und Kurse und erstellt sie aus Klassen.xml
+     *
+     * @param xml der XML String
+     */
+    private void updateKlassen(String xml) throws IOException, ParserConfigurationException, SAXException {
+
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        InputSource is = new InputSource();
+        is.setCharacterStream(new StringReader(xml));
+        Document dom = builder.parse(is);
+
+        final NodeList klassen = dom.getElementsByTagName("Kl");
+
+        FlowManager.getDatabase(AppDatabase.class).executeTransaction(new ITransaction() {
             @Override
-            public void onResponse(String response) {
+            public void execute(DatabaseWrapper databaseWrapper) {
 
-                try {
-                    Gson gson = Utilities.getDefaultGson();
-                    OnlineEvents onlineEvents = gson.fromJson(response, OnlineEvents.class);
-                    if (onlineEvents == null || onlineEvents.getFileFormatVersion() != OnlineEvents.compatibleFileFormatVersion) {
-                        throw new Throwable("OnlineEvent fileformat not compatible.");
+                //Klassen werden nicht gelöscht, da dann alle damit verbundenen Stunden gelöscht wären
+                //Stattdessen werden diejenigen am Ende aussortiert die es nicht mehr gibt
+                List<String> klassenNamen = new ArrayList<>();
+                SQLite.delete().from(Kurs.class).execute(databaseWrapper);
+
+                for (int i = 0; i < klassen.getLength(); i++) {
+                    Element kl = (Element) klassen.item(i);
+
+                    String klassenName = kl.getElementsByTagName("Kurz").item(0).getTextContent();
+                    klassenNamen.add(klassenName);
+                    Klasse klasse = SQLite.select().from(Klasse.class).where(Klasse_Table.name.eq(klassenName)).querySingle(databaseWrapper);
+                    if (klasse==null) klasse = new Klasse();
+                    klasse.setName(klassenName);
+                    klasse.save(databaseWrapper);
+
+                    List<String> auswaehllbareKurse = new ArrayList<>();
+                    NodeList kkz = kl.getElementsByTagName("KKz");
+                    for (int j = 0; j < kkz.getLength(); j++) {
+                        Element auswaehlbar = (Element) kkz.item(j);
+                        auswaehllbareKurse.add(auswaehlbar.getTextContent());
                     }
 
-                    List<Integer> localUniqueNumbers = LocalData.getInstance().getUniqueEventNumbers();
-                    //Alte uniqueNumbers löschen
-                    for (int i = 0; i < localUniqueNumbers.size(); i++) {
-                        Integer uniqueNumber = localUniqueNumbers.get(i);
-                        if (!onlineEvents.getUniqueEventNumbers().contains(uniqueNumber)) {
-                            localUniqueNumbers.remove(i);
-                            i--;
-                        }
-                    }
+                    NodeList kurse = kl.getElementsByTagName("UeNr");
+                    if (kurse.getLength() > 0) {
+                        for (int j = 0; j < kurse.getLength(); j++) {
+                            Element ue = (Element) kurse.item(j);
 
-                    //neue Events hinzufügen
-                    Calendar heute = Calendar.getInstance();
-                    for (int i = 0; i < onlineEvents.getUniqueEventNumbers().size(); i++) {
-                        Integer uniqueNumber = onlineEvents.getUniqueEventNumbers().get(i);
-                        if (!localUniqueNumbers.contains(uniqueNumber)) {
-                            localUniqueNumbers.add(uniqueNumber);
+                            int kursNr = Integer.parseInt(ue.getTextContent());
+                            Fach fach = SQLite.select().from(Fach.class).where(Fach_Table.assKursNr.eq(kursNr)).querySingle(databaseWrapper);
+                            Kurs kurs = new Kurs();
+                            kurs.setNr(kursNr);
+                            kurs.setFachName(ue.getAttribute("UeFa"));
+                            kurs.setBezeichnung(ue.getAttribute("UeGr"));
+                            String lehrerName = ue.getAttribute("UeLe");
+                            Lehrer lehrer = SQLite.select().from(Lehrer.class).where(Lehrer_Table.name.eq(lehrerName)).querySingle(databaseWrapper);
+                            if (lehrer != null) kurs.setLehrer(lehrer);
+                            else {
+                                Lehrer newLehrer = new Lehrer(lehrerName);
+                                newLehrer.save(databaseWrapper);
+                                kurs.setLehrer(newLehrer);
+                            }
+                            kurs.setAuswaehlbar(auswaehllbareKurse.contains(kurs.getBezeichnung()));
+                            kurs.save(databaseWrapper);
 
-                            Event event = onlineEvents.getEvents().get(i);
-                            if (Utilities.compareDays(heute.getTime(), event.getDatum()) < 0) {
-                                LocalData.getInstance().getNoFachEvents().add(event);
-                                LocalData.getInstance().sortNoFachEvents();
-                                LocalData.saveToFile(context);
-                                LocalData.addEventReminder(context, event, -1, LocalData.getInstance().getNoFachEvents().indexOf(event));
+                            Klasse_Kurs kk = new Klasse_Kurs();
+                            kk.setKurs(kurs);
+                            kk.setKlasse(klasse);
+                            kk.save(databaseWrapper);
+
+                            if (fach != null) {
+                                fach.setKurs(kurs);
+                                fach.save(databaseWrapper);
                             }
                         }
+
+                    } else { //Compat für alte Systeme ohne KursNr
+
+                        for (int kursNr = 1; kursNr <= kkz.getLength(); kursNr++) {
+
+                            Element aKurs = (Element) kkz.item(kursNr - 1);
+
+                            Kurs kurs = new Kurs();
+                            kurs.setFachName(aKurs.getTextContent());
+                            kurs.setBezeichnung(aKurs.getTextContent());
+                            String lehrerName = aKurs.getAttribute("KLe");
+                            Lehrer lehrer = SQLite.select().from(Lehrer.class).where(Lehrer_Table.name.eq(lehrerName)).querySingle(databaseWrapper);
+                            if (lehrer != null) kurs.setLehrer(lehrer);
+                            else {
+                                Lehrer newLehrer = new Lehrer(lehrerName);
+                                newLehrer.save(databaseWrapper);
+                                kurs.setLehrer(newLehrer);
+                            }
+                            kurs.setNr(kursNr);
+                            Fach fach = SQLite.select().from(Fach.class).where(Fach_Table.assKursNr.eq(kursNr)).querySingle(databaseWrapper);
+                            kurs.setAuswaehlbar(true);
+                            kurs.save(databaseWrapper);
+
+                            Klasse_Kurs kk = new Klasse_Kurs();
+                            kk.setKurs(kurs);
+                            kk.setKlasse(klasse);
+                            kk.save(databaseWrapper);
+
+                            if (fach != null) {
+                                fach.setKurs(kurs);
+                                fach.save(databaseWrapper);
+                            }
+
+                        }
                     }
 
-                    downloadAllDataResponseListener.onEventsAdded();
-                } catch (Throwable e) {
-
-                    e.printStackTrace();
                 }
+                SQLite.delete().from(Klasse.class).where(Klasse_Table.name.notIn(klassenNamen)).execute(databaseWrapper);
 
-                onlineEventsFinished = true;
-                if (vertretungsDataFinished) downloadAllDataResponseListener.onSuccess();
-            }
-        }, new Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(VolleyError error) {
-
-                onlineEventsFinished = true;
-                if (vertretungsDataFinished) downloadAllDataResponseListener.onSuccess();
-
-                error.printStackTrace();
             }
         });
 
-        VolleySingelton.getsInstance().getRequestQueue().add(request);
-        if (downloadEvents)
-            VolleySingelton.getsInstance().getRequestQueue().add(onlineEventsRequest);
     }
 
     /**
-     * Erzeugt aus dem XML String die klassenlist
+     * fügt gegebenenfalls neue Ferien hinzu, aus den freien Tagen von Klassen.xml
      *
      * @param xml der XML String
-     * @return die KlassenList
-     * @throws XmlPullParserException es gab einen Fehler bei der Umwandlung
-     * @throws IOException            der XML String ist Fehlerhaft
      */
-    private ArrayList<Klasse> makeKlassen(String xml) throws XmlPullParserException, IOException {
+    private void updateFreieTageToFerien(String xml) throws ParserConfigurationException, IOException, SAXException, ParseException {
 
-        XmlPullParserFactory xmlPullParserFactory = XmlPullParserFactory.newInstance();
-        XmlPullParser pullParser = xmlPullParserFactory.newPullParser();
-        InputStream is = new ByteArrayInputStream(xml.getBytes("UTF-8"));
-        pullParser.setInput(is, "UTF-8");
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        InputSource is = new InputSource();
+        is.setCharacterStream(new StringReader(xml));
+        Document dom = builder.parse(is);
 
-        ArrayList<Klasse> klassenList = new ArrayList<>();
-        ArrayList<Kurs> currentKursList = new ArrayList<>();
-        Klasse currentKlasse = new Klasse("");
+        NodeList fts = dom.getElementsByTagName("ft");
 
-        int event = pullParser.getEventType();
-        while (event != XmlPullParser.END_DOCUMENT) {
-
-            String name = pullParser.getName();
-            switch (event) {
-                case XmlPullParser.START_TAG:
-                    if (name.equals("Kurz")) {
-                        currentKlasse = new Klasse(pullParser.nextText());
-                        currentKursList = new ArrayList<>();
-                    }
-                    if (name.equals("KKz")) {
-                        String lehrer = pullParser.getAttributeValue(null, "KLe");
-                        currentKursList.add(new Kurs(pullParser.nextText(), lehrer));
-                    }
-                    break;
-                case XmlPullParser.END_TAG:
-                    if (name.equals("Kurse")) {
-                        currentKlasse.setKurse(currentKursList);
-                        klassenList.add(currentKlasse);
-                    }
-                    break;
-            }
-            event = pullParser.next();
-
+        final List<Date> freieTage = new ArrayList<>();
+        for (int i = 0; i < fts.getLength(); i++) {
+            Element ft = (Element) fts.item(i);
+            freieTage.add(new SimpleDateFormat(getFreieTageDateFormat(), Locale.GERMAN).parse(ft.getTextContent()));
         }
 
-        return klassenList;
+        Collections.sort(freieTage);
 
+        FlowManager.getDatabase(AppDatabase.class).executeTransaction(new ITransaction() {
+            @Override
+            public void execute(DatabaseWrapper databaseWrapper) {
+
+                Calendar heute = Utilities.getToday();
+
+                for (Date freierTag : freieTage) {
+
+                    if (Utilities.compareDays(heute.getTime(), freierTag) > 0) continue;
+                    if (Ferien.isFerien(freierTag)) continue;
+
+                    //Berechnet den Tag vor dem freien Tag
+                    Calendar calendar = Calendar.getInstance();
+                    calendar.setTime(freierTag);
+                    if (calendar.get(Calendar.DAY_OF_WEEK) == Calendar.MONDAY)
+                        calendar.add(Calendar.DATE, -3);
+                    else calendar.add(Calendar.DATE, -1);
+                    Date prevDay = calendar.getTime();
+
+                    //Wenn Tag davor Ferien -> freien Tag hinzufügen
+
+                    Ferien prevFerien = SQLite.select().from(Ferien.class).where(Ferien_Table.endDate.eq(prevDay)).querySingle();
+
+                    if (prevFerien != null) prevFerien.setEndDate(freierTag);
+                    else prevFerien = new Ferien(freierTag, freierTag, "Schulfrei");
+                    prevFerien.save(databaseWrapper);
+
+                }
+
+            }
+        });
     }
 
     /**
-     * Erzeugt aus dem XML String eine freieTageList
-     *
-     * @param xml der XML String
-     * @return die freieTageList
-     * @throws XmlPullParserException es gab einen Fehler bei der Umwandlung
-     * @throws IOException            der XML String ist Fehlerhaft
-     */
-    private ArrayList<String> makeFreieTage(String xml) throws XmlPullParserException, IOException {
-
-        XmlPullParserFactory xmlPullParserFactory = XmlPullParserFactory.newInstance();
-        XmlPullParser pullParser = xmlPullParserFactory.newPullParser();
-        InputStream is = new ByteArrayInputStream(xml.getBytes("UTF-8"));
-        pullParser.setInput(is, "UTF-8");
-
-        ArrayList<String> dateList = new ArrayList<>();
-
-        int event = pullParser.getEventType();
-        boolean abbruch = false;
-        while (event != XmlPullParser.END_DOCUMENT && !abbruch) {
-
-            String name = pullParser.getName();
-            switch (event) {
-                case XmlPullParser.START_TAG:
-                    if (name.equals("ft")) {
-                        String dateString = pullParser.nextText();
-                        dateList.add(dateString);
-                    }
-                    break;
-                case XmlPullParser.END_TAG:
-                    if (name.equals("freietage")) {
-                        abbruch = true;
-                    }
-                    break;
-            }
-            event = pullParser.next();
-
-        }
-
-        return dateList;
-
-    }
-
-    /**
-     * Läd eine bestimmte Anzahl Tage heruter und fügt sie der tagList hinzu
+     * Löscht alle Stunden/Vertretung /OnlineTage, und läd eine bestimmte Anzahl Tage neu herunter
      *
      * @param count                wieviele Schultage insgasamm heruntergeladen werden sollen
      * @param downloadDaysListener ein Listener für Sucess / Progress / Error
      */
     private void downloadDays(final int count, final DownloadDaysListener downloadDaysListener) {
 
-        VertretungsData vertretungsData = VertretungsData.getInstance();
-
-        if (vertretungsData.getTagList() == null)
-            vertretungsData.setTagList(new ArrayList<Tag>());
-
         if (count == 0) {
             downloadDaysListener.onFinished(null);
             return;
         }
 
-        Date startDate = Calendar.getInstance().getTime();
+        List<OnlineTag> onlineTagList = SQLite.select().from(OnlineTag.class).queryList();
+
+        Date startDate = Utilities.getToday().getTime();
 
         if (isntSchoolDay(startDate)) startDate = nextSchoolDay(startDate);
-
-        final Tag[] tagArray = new Tag[count];
         Date date = startDate;
-        pendingDownloads = count * 2;
+        //pendingDownloads = count * 2;
+        pendingDownloads = count;
 
         for (int i = 0; i < count; i++) {
 
             if (i == count - 1) endDate = date;
 
             String dateString = new SimpleDateFormat("yyyMMdd", Locale.GERMAN).format(date);
-            String stundenPlanUrl = "http://kepler-chemnitz.de/stuplanindiware/VmobilS/mobdaten/PlanKl" + dateString + ".xml";
-            String vertretungsPlanUrl = "http://kepler-chemnitz.de/stuplanindiware/VplanonlineS/vdaten/VplanKl" + dateString + ".xml";
+            String stundenPlanUrl = LocalData.getBaseUrl() + "mobdaten/PlanKl" + dateString + ".xml";
 
-            //Ruft Stundenplan für den Tag ab
+            //delete old OnlineTag falls vorhanden
+            OnlineTag oldOnlineTag = null;
+            for (OnlineTag o : onlineTagList) if (o.getDate().equals(date)) {
+                oldOnlineTag = o;
+                break;
+            }
+            final OnlineTag onlineTag = oldOnlineTag == null ? new OnlineTag(date) : oldOnlineTag;
 
-            final int finalI = i;
-            final Date finalDate = date;
-            AuthedStringRequest stundenplanRequest = new AuthedStringRequest(stundenPlanUrl, new Response.Listener<String>() {
+            //Ruft Stundenplan für den OnlineTag ab
+            Request stundenplanRequest = getRequest(stundenPlanUrl);
+
+            client.newCall(stundenplanRequest).enqueue(new Callback() {
                 @Override
-                public void onResponse(String response) {
+                public void onFailure(Call call, IOException e) {
 
-                    ArrayList<StuPlaKlasse> stundenList = null;
-                    try {
-                        stundenList = makeStundenPlanList(response);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                    String zeitStempel = response.substring(response.indexOf("<zeitstempel>") + 13, response.indexOf("</zeitstempel>"));
-
-                    boolean finished = true;
-                    if (tagArray[finalI] == null) {
-                        tagArray[finalI] = new Tag();
-                        finished = false;
-                    }
-
-                    tagArray[finalI].setStuplaKlasseList(stundenList);
-                    tagArray[finalI].setZeitStempel(zeitStempel);
-
-                    if (finished) {
-                        if (tagArray[finalI].getVertretungsList() == null) {
-                            tagArray[finalI].setVertretungsList(createFallbackVerterungsList(stundenList));
-                            String datumString = new SimpleDateFormat("EEEE, dd. MMMM yyyy", Locale.GERMAN).format(finalDate);
-                            tagArray[finalI].setDatumString(datumString);
-                        }
-                        tagArray[finalI].setDatum(finalDate);
-                        addTag(tagArray[finalI], downloadDaysListener);
-                    }
+                    downloadDaysListener.onError(e);
 
                     pendingDownloads--;
                     float progress = (count - pendingDownloads) * 100 / count;
@@ -424,112 +467,40 @@ public class VertretungsAPI {
                     if (pendingDownloads == 0) downloadDaysListener.onFinished(endDate);
 
                 }
-            }, new Response.ErrorListener() {
+
                 @Override
-                public void onErrorResponse(VolleyError error) {
+                public void onResponse(Call call, Response response) throws IOException {
 
-                    if (error.networkResponse != null && error.networkResponse.statusCode != 404)
-                        downloadDaysListener.onError(error.getCause());
+                    if (response.isSuccessful()) {
 
-                    boolean finished = true;
-                    if (tagArray[finalI] == null) {
-                        tagArray[finalI] = new Tag();
-                        finished = false;
-                    }
+                        String html = response.body().string();
 
-                    if (finished) {
-                        if (tagArray[finalI].getVertretungsList() != null) {
-                            tagArray[finalI].setDatum(finalDate);
-                            addTag(tagArray[finalI], downloadDaysListener);
-
+                        try {
+                            addStundenToDay(html, onlineTag);
+                            downloadDaysListener.onDaysUpdated();
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
-                    }
 
-                    pendingDownloads--;
-                    float progress = (count - pendingDownloads) * 100 / count;
-                    downloadDaysListener.onProgress(Math.round(progress));
-                    if (pendingDownloads == 0) downloadDaysListener.onFinished(endDate);
-                }
-            });
-            stundenplanRequest.setBasicAuth(username, password);
+                        pendingDownloads--;
+                        float progress = (count - pendingDownloads) * 100 / count;
+                        downloadDaysListener.onProgress(Math.round(progress));
+                        if (pendingDownloads == 0) downloadDaysListener.onFinished(endDate);
 
-            //Ruft Vertretungsplan für den Tag ab
-            AuthedStringRequest vertretungsplanRequest = new AuthedStringRequest(vertretungsPlanUrl, new Response.Listener<String>() {
-                @Override
-                public void onResponse(String response) {
-
-                    ArrayList<Vertretung> vertretungsList = null;
-                    try {
-                        vertretungsList = makeVertretungsList(response);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-
-                    String datumString = response.substring(response.indexOf("<titel>") + 7, response.indexOf("</titel>"));
-
-                    boolean finished = true;
-                    if (tagArray[finalI] == null) {
-                        tagArray[finalI] = new Tag();
-                        finished = false;
-                    }
-
-                    tagArray[finalI].setVertretungsList(vertretungsList);
-                    tagArray[finalI].setDatumString(datumString);
-
-                    if (finished) {
-                        if (tagArray[finalI].getStuplaKlasseList() == null) {
-                            tagArray[finalI].setStuplaKlasseList(new ArrayList<StuPlaKlasse>());
-                            String zeitstempelString = response.substring(response.indexOf("<datum>") + 7, response.indexOf("</datum>"));
-                            tagArray[finalI].setZeitStempel(zeitstempelString);
-                        }
-                        tagArray[finalI].setDatum(finalDate);
-                        addTag(tagArray[finalI], downloadDaysListener);
                     } else {
-                        tagArray[finalI].setStuplaKlasseList(new ArrayList<StuPlaKlasse>());
-                        String zeitstempelString = response.substring(response.indexOf("<datum>") + 7, response.indexOf("</datum>"));
-                        tagArray[finalI].setZeitStempel(zeitstempelString);
+
+                        if (response.code() != 404)
+                            downloadDaysListener.onError(new Throwable(response.message()));
+
+                        pendingDownloads--;
+                        float progress = (count - pendingDownloads) * 100 / count;
+                        downloadDaysListener.onProgress(Math.round(progress));
+                        if (pendingDownloads == 0) downloadDaysListener.onFinished(endDate);
+
                     }
 
-                    pendingDownloads--;
-                    float progress = (count - pendingDownloads) * 100 / count;
-                    downloadDaysListener.onProgress(Math.round(progress));
-                    if (pendingDownloads == 0) downloadDaysListener.onFinished(endDate);
-
-                }
-            }, new Response.ErrorListener() {
-                @Override
-                public void onErrorResponse(VolleyError error) {
-
-                    if (error.networkResponse != null && error.networkResponse.statusCode != 404)
-                        downloadDaysListener.onError(new Throwable(error.getMessage()));
-
-                    boolean finished = true;
-                    if (tagArray[finalI] == null) {
-                        tagArray[finalI] = new Tag();
-                        finished = false;
-                    }
-
-                    if (finished) {
-                        if (tagArray[finalI].getStuplaKlasseList() != null) {
-
-                            tagArray[finalI].setVertretungsList(createFallbackVerterungsList(tagArray[finalI].getStuplaKlasseList()));
-                            String datumString = new SimpleDateFormat("EEEE, dd. MMMM yyyy", Locale.GERMAN).format(finalDate);
-                            tagArray[finalI].setDatumString(datumString);
-                            tagArray[finalI].setDatum(finalDate);
-                            addTag(tagArray[finalI], downloadDaysListener);
-                        }
-                    }
-
-                    pendingDownloads--;
-                    float progress = (count - pendingDownloads) * 100 / count;
-                    downloadDaysListener.onProgress(Math.round(progress));
-                    if (pendingDownloads == 0) downloadDaysListener.onFinished(endDate);
                 }
             });
-            vertretungsplanRequest.setBasicAuth(username, password);
-
-            VolleySingelton.getsInstance().getRequestQueue().add(stundenplanRequest);
-            VolleySingelton.getsInstance().getRequestQueue().add(vertretungsplanRequest);
 
             date = nextSchoolDay(date);
 
@@ -538,210 +509,110 @@ public class VertretungsAPI {
     }
 
     /**
-     * Fügt einen Tag zur Liste hinzu bzw. updated ihn falls schon vorhanden
-     *
-     * @param neuerTag Der hinzu zu fügende Tag
-     */
-    private void addTag(Tag neuerTag, DownloadDaysListener callback) {
-
-        VertretungsData vertretungsData = VertretungsData.getInstance();
-
-        for (int i = 0; i < vertretungsData.getTagList().size(); i++) {
-
-            Tag tag = vertretungsData.getTagList().get(i);
-            //falls Tag schon vorhanden, updaten
-            if (Utilities.compareDays(neuerTag.getDatum(), tag.getDatum()) == 0) {
-
-                vertretungsData.getTagList().remove(i);
-                vertretungsData.getTagList().add(i, neuerTag);
-                callback.onDayAdded(i);
-                return;
-            }
-            //falls nicht, einordnen
-            if (Utilities.compareDays(neuerTag.getDatum(), tag.getDatum()) < 0) {
-
-                vertretungsData.getTagList().add(i, neuerTag);
-                callback.onDayAdded(i);
-                int toUpdate = vertretungsData.getTagList().size() - 1 - i;
-                for (int j = 0; j < toUpdate; j++) {
-                    callback.onDayAdded(vertretungsData.getTagList().size() - 1 - j);
-                }
-                return;
-            }
-        }
-
-        //falls neu, hinzufügen
-        vertretungsData.getTagList().add(neuerTag);
-        callback.onDayAdded(vertretungsData.getTagList().size() - 1);
-
-    }
-
-    /**
-     * Erzeugt aus dem XML String eine stundenPlanList
+     * Fügt zu einem OnlineTag die Stunden und den Zeitstempel aus PlanKl.xml
      *
      * @param xml der XML String
-     * @return die stundenPlanList
-     * @throws XmlPullParserException es gab einen Fehler bei der Umwandlung
-     * @throws IOException            der XML String ist Fehlerhaft
      */
-    private ArrayList<StuPlaKlasse> makeStundenPlanList(String xml) throws XmlPullParserException, IOException {
+    private void addStundenToDay(String xml, final OnlineTag onlineTag) throws ParserConfigurationException, IOException, SAXException {
 
-        XmlPullParserFactory xmlPullParserFactory = XmlPullParserFactory.newInstance();
-        XmlPullParser pullParser = xmlPullParserFactory.newPullParser();
-        InputStream is = new ByteArrayInputStream(xml.getBytes("UTF-8"));
-        pullParser.setInput(is, "UTF-8");
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        InputSource is = new InputSource();
+        is.setCharacterStream(new StringReader(xml));
+        final Document dom = builder.parse(is);
 
-        ArrayList<StuPlaKlasse> stundenPlanList = new ArrayList<>();
-        StuPlaKlasse currentStuPlaKlasse = new StuPlaKlasse();
-        ArrayList<Stunde> currentStundeList = new ArrayList<>();
-        Stunde currentStunde = new Stunde();
 
-        int event = pullParser.getEventType();
-        while (event != XmlPullParser.END_DOCUMENT) {
+        FlowManager.getDatabase(AppDatabase.class).executeTransaction(new ITransaction() {
+            @Override
+            public void execute(DatabaseWrapper databaseWrapper) {
 
-            String name = pullParser.getName();
-            switch (event) {
-                case XmlPullParser.START_TAG:
-                    if (name.equals("Kurz")) {
-                        currentStuPlaKlasse = new StuPlaKlasse();
-                        currentStuPlaKlasse.setName(pullParser.nextText());
-                        currentStundeList = new ArrayList<>();
-                    }
-                    if (name.equals("St")) {
-                        currentStunde = new Stunde();
-                        currentStunde.setStunde(pullParser.nextText());
-                    }
-                    if (name.equals("Fa")) {
-                        currentStunde.setFachg(pullParser.getAttributeCount() > 0);
-                        String fach = pullParser.nextText();
-                        if (fach.startsWith("&nbsp")) {
-                            currentStunde.setFach("");
-                        } else {
-                            currentStunde.setFach(fach);
-                        }
-                    }
-                    if (name.equals("Ku2")) {
-                        currentStunde.setKurs(pullParser.nextText());
-                    }
-                    if (name.equals("Ra")) {
-                        currentStunde.setRaumg(pullParser.getAttributeCount() > 0);
-                        String raum = pullParser.nextText();
-                        if (raum.startsWith("&nbsp")) {
-                            currentStunde.setRaum("");
-                        } else {
-                            currentStunde.setRaum(raum);
-                        }
-                    }
-                    if (name.equals("If")) {
-                        String info = pullParser.nextText();
-                        if (info == null || info.startsWith("&nbsp")) {
-                            currentStunde.setInfo("");
-                        } else {
-                            currentStunde.setInfo(info);
-                        }
-                    }
-                    break;
-                case XmlPullParser.END_TAG:
-                    if (name.equals("Std")) {
-                        currentStundeList.add(currentStunde);
-                    }
-                    if (name.equals("Kl")) {
-                        currentStuPlaKlasse.setStundenList(currentStundeList);
-                        stundenPlanList.add(currentStuPlaKlasse);
-                    }
-                    break;
+                //delete old Stunden
+                new Delete().from(Stunde.class).where(Stunde_Table.onlineTag_id.eq(onlineTag.getId())).execute(databaseWrapper);
+
+                onlineTag.setZeitStempel(dom.getElementsByTagName("zeitstempel").item(0).getTextContent());
+                NodeList infos = dom.getElementsByTagName("ZiZeile");
+                String infoString = "";
+                for (int i=0; i<infos.getLength(); i++) {
+                    infoString += infos.item(i).getTextContent()+"\n";
+                }
+                onlineTag.setInfotext(infoString.trim());
+                onlineTag.save(databaseWrapper);
+
+                NodeList stds = dom.getElementsByTagName("Std");
+                for (int i = 0; i < stds.getLength(); i++) {
+                    Element std = (Element) stds.item(i);
+                    Element kl = (Element) std.getParentNode().getParentNode();
+                    String klassenName = kl.getElementsByTagName("Kurz").item(0).getTextContent();
+                    Klasse klasse = new Select().from(Klasse.class).where(Klasse_Table.name.eq(klassenName)).querySingle();
+                    int nr = std.getElementsByTagName("Nr").getLength() > 0 ? Integer.parseInt(std.getElementsByTagName("Nr").item(0).getTextContent()) : -1;
+                    Kurs kurs = new Select().from(Kurs.class).where(Kurs_Table.nr.eq(nr)).querySingle();
+
+                    Stunde stunde = new Stunde();
+                    stunde.setStunde(Integer.parseInt(std.getElementsByTagName("St").item(0).getTextContent()));
+                    stunde.setKurs(kurs);
+                    stunde.setKlasse(klasse);
+                    stunde.setOnlineTag(onlineTag);
+                    stunde.setFachGeaendert(std.getElementsByTagName("Fa").item(0).hasAttributes());
+                    stunde.setFach(std.getElementsByTagName("Fa").item(0).getTextContent().replaceAll("&nbsp;", ""));
+                    stunde.setLehrerGeaendert(std.getElementsByTagName("Le").item(0).hasAttributes());
+                    stunde.setLehrer(std.getElementsByTagName("Le").item(0).getTextContent().replaceAll("&nbsp;", ""));
+                    stunde.setRaumGeaendert(std.getElementsByTagName("Ra").item(0).hasAttributes());
+                    stunde.setRaum(std.getElementsByTagName("Ra").item(0).getTextContent().replaceAll("&nbsp;", ""));
+                    stunde.setInfo(std.getElementsByTagName("If").item(0).getTextContent().replaceAll("&nbsp;", ""));
+
+                    stunde.save(databaseWrapper);
+
+                }
             }
-            event = pullParser.next();
-
-        }
-
-        return stundenPlanList;
+        });
 
     }
 
     /**
-     * Erzeugt aus dem XML String eine vertretungsPlanList
+     * Fügt zu einem OnlineTag die Vertretung, abwesendeLehrer, aenderungLehrer und aenderungKlassen aus VplanKl.xml
      *
-     * @param xml der XML String
-     * @return die vertretungsplanList
-     * @throws XmlPullParserException es gab einen Fehler bei der Umwandlung
-     * @throws IOException            der XML String ist Fehlerhaft
-     */
-    private ArrayList<Vertretung> makeVertretungsList(String xml) throws XmlPullParserException, IOException {
-
-        XmlPullParserFactory xmlPullParserFactory = XmlPullParserFactory.newInstance();
-        XmlPullParser pullParser = xmlPullParserFactory.newPullParser();
-        InputStream is = new ByteArrayInputStream(xml.getBytes("UTF-8"));
-        pullParser.setInput(is, "UTF-8");
-
-        ArrayList<Vertretung> vertretungsList = new ArrayList<>();
-        Vertretung vertretung = new Vertretung();
-
-        int event = pullParser.getEventType();
-        while (event != XmlPullParser.END_DOCUMENT) {
-
-            String name = pullParser.getName();
-            switch (event) {
-                case XmlPullParser.START_TAG:
-                    if (name.equals("klasse")) {
-                        vertretung = new Vertretung();
-                        vertretung.setKlasse(pullParser.nextText());
-                    }
-                    if (name.equals("stunde")) {
-                        vertretung.setStunde(pullParser.nextText());
-                    }
-                    if (name.equals("fach")) {
-                        vertretung.setFach(pullParser.nextText());
-                    }
-                    if (name.equals("raum")) {
-                        vertretung.setRaum(pullParser.nextText());
-                    }
-                    if (name.equals("info")) {
-                        vertretung.setInfo(pullParser.nextText());
-                    }
-                    break;
-                case XmlPullParser.END_TAG:
-                    if (name.equals("aktion")) {
-                        vertretungsList.add(vertretung);
-                    }
-                    break;
-            }
-            event = pullParser.next();
-
-        }
-
-        return vertretungsList;
-
-    }
-
-    /**
-     * Erstellt selbst einen Vertretungsplan aus dem Stundenplan falls dieser nicht abgerufen werden kann
      *
-     * @param stuPlaKlasseList die stundenplanList mit der verglichen wird
-     * @return der Vertretungsplan
-     */
-    private ArrayList<Vertretung> createFallbackVerterungsList(ArrayList<StuPlaKlasse> stuPlaKlasseList) {
+     *//*
+    private void addVertretungtoDay(String xml, final OnlineTag onlineTag) throws ParserConfigurationException, IOException, SAXException {
 
-        ArrayList<Vertretung> vertretungsList = new ArrayList<>();
+        //delete old Vertretung
+        new Delete().from(Vertretung.class).where(Vertretung_Table.onlineTag_id.eq(onlineTag.getId())).execute();
 
-        for (StuPlaKlasse stuPlaKlasse : stuPlaKlasseList) {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        InputSource is = new InputSource();
+        is.setCharacterStream(new StringReader(xml));
+        final Document dom = builder.parse(is);
 
-            for (Stunde stunde : stuPlaKlasse.getStundenList()) {
+        FlowManager.getDatabase(AppDatabase.class).beginTransactionAsync(new ITransaction() {
+            @Override
+            public void execute(DatabaseWrapper databaseWrapper) {
 
-                if (!(stunde.isFachg() || stunde.isRaumg())) continue;
+                onlineTag.setAbwesendeLehrer(dom.getElementsByTagName("abwesendl").item(0).getTextContent());
+                onlineTag.setAenderungLehrer(dom.getElementsByTagName("aenderungl").item(0).getTextContent());
+                onlineTag.setAenderungKlassen(dom.getElementsByTagName("aenderungk").item(0).getTextContent());
+                onlineTag.save(databaseWrapper);
 
-                String stundenName = stuPlaKlasse.getName();
-                if (stunde.getKurs() != null && !stunde.getKurs().trim().isEmpty()) {
-                    stundenName = stundenName + " / " + stunde.getKurs();
+                NodeList aktionen = dom.getElementsByTagName("aktion");
+                for (int i = 0; i < aktionen.getLength(); i++) {
+                    Element aktion = (Element) aktionen.item(i);
+                    Vertretung vertretung = new Vertretung();
+                    vertretung.setKlasse(aktion.getElementsByTagName("klasse").item(0).getTextContent());
+                    vertretung.setStunde(aktion.getElementsByTagName("stunde").item(0).getTextContent());
+                    vertretung.setFach(aktion.getElementsByTagName("fach").item(0).getTextContent());
+                    vertretung.setLehrer(aktion.getElementsByTagName("lehrer").item(0).getTextContent());
+                    vertretung.setLehrerGeaendert(aktion.getElementsByTagName("lehrer").item(0).getAttributes().getLength() > 0);
+                    vertretung.setRaum(aktion.getElementsByTagName("raum").item(0).getTextContent());
+                    vertretung.setRaumGeaendert(aktion.getElementsByTagName("raum").item(0).getAttributes().getLength() > 0);
+                    vertretung.setInfo(aktion.getElementsByTagName("info").item(0).getTextContent());
+                    vertretung.setOnlineTag(onlineTag);
+
+                    vertretung.save(databaseWrapper);
                 }
 
-                vertretungsList.add(new Vertretung(stundenName, stunde.getStunde(), stunde.getFach(), stunde.getRaum(), stunde.getInfo()));
             }
-
-        }
-
-        return vertretungsList;
-    }
+        }).execute();
+    }*/
 
     public interface DownloadAllDataResponseListener {
 
@@ -757,9 +628,9 @@ public class VertretungsAPI {
 
         void onKlassenListFinished();
 
-        void onDayAdded(int position);
+        void onFreieTageAdded();
 
-        void onEventsAdded();
+        void onDaysUpdated();
     }
 
     private interface DownloadDaysListener {
@@ -770,7 +641,7 @@ public class VertretungsAPI {
 
         void onProgress(int progress);
 
-        void onDayAdded(int position);
+        void onDaysUpdated();
     }
 
 }

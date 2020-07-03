@@ -1,8 +1,9 @@
 package de.conradowatz.jkgvertretung.adapters;
 
 import android.content.Context;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.widget.RecyclerView;
+import android.os.AsyncTask;
+import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -10,9 +11,9 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import java.text.SimpleDateFormat;
+import com.raizlabs.android.dbflow.sql.language.SQLite;
+
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -20,140 +21,76 @@ import java.util.Locale;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.tools.Utilities;
-import de.conradowatz.jkgvertretung.tools.VertretungsAPI;
 import de.conradowatz.jkgvertretung.variables.Event;
+import de.conradowatz.jkgvertretung.variables.Event_Table;
 import de.conradowatz.jkgvertretung.variables.Fach;
 import de.conradowatz.jkgvertretung.variables.Ferien;
-import de.conradowatz.jkgvertretung.variables.StuPlaKlasse;
+import de.conradowatz.jkgvertretung.variables.OnlineTag;
 import de.conradowatz.jkgvertretung.variables.Stunde;
-import de.conradowatz.jkgvertretung.variables.Tag;
-import de.conradowatz.jkgvertretung.variables.Vertretung;
+import de.conradowatz.jkgvertretung.variables.UnterrichtsZeit;
 
 
 public class StundenPlanRecyclerAdapter extends RecyclerView.Adapter<StundenPlanRecyclerAdapter.ViewHolder> {
 
-    private static final int MODE_STUNDENPLAN_OFFLINE = 0;
-    private static final int MODE_STUNDENPLAN = 1;
-    private static final int MODE_KLASSENPLAN = 2;
-    private static final int MODE_VERTRETUNGSPLAN = 3;
-    private static final int MODE_ALLGSTUNDENPLAN = 4;
     private static final int VIEWTYPE_HEADER = 1;
     private static final int VIEWTYPE_STUNDENITEM = 2;
     private static final int VIEWTYPE_SILAST = 3;
-    private static final int VIEWTYPE_TEXT = 4;
-    private static final int VIEWTYPE_NOOFFLINE = 5;
-    private static final int VIEWTYPE_FERIEN = 6;
+    private static final int VIEWTYPE_NOOFFLINE = 4;
+    private static final int VIEWTYPE_FERIEN = 5;
     private Date date;
-    private String datumString;
-    private String zeitStempelString;
-    private List<Stunde> stundenList = null;
-    private List<Vertretung> vertretungsList = null;
-    private int mode;
+    private OnlineTag onlineTag; //can be null
+    private Callback callback;
     private boolean noPlan;
     private boolean isFerien;
-    private Callback callback;
+    private int wochentag;
+    private List<UnterrichtsZeit> unterrichtsZeit;
+    private List<Stunde> stunden;
+    private List<Event> tagEvents = new ArrayList<>();
 
-    //OnlineStundenplan && Vertretungsplan
-    private StundenPlanRecyclerAdapter(Tag tag, List<Stunde> stundenList, ArrayList<Vertretung> vertretungsList, int mode, boolean noPlan, Callback callback) {
+    public StundenPlanRecyclerAdapter(Date date, Callback callback) {
 
-        this.mode = mode;
-        this.stundenList = stundenList;
-        this.vertretungsList = vertretungsList;
-        this.noPlan = noPlan;
-        this.isFerien = VertretungsAPI.isntSchoolDay(tag.getDatum());
         this.callback = callback;
-        this.date = tag.getDatum();
+        this.date = date;
+        wochentag = Utilities.getDayOfWeek(date);
 
-        String wochenString = (LocalData.getInstance().isAWoche(date)) ? "(A-Woche)" : "(B-Woche)";
-        datumString = String.format(Locale.GERMANY, "%s %s", tag.getDatumString(), wochenString);
-        zeitStempelString = tag.getZeitStempel();
+        updateData();
     }
 
-    //OfflineStundenplan
-    private StundenPlanRecyclerAdapter(Date datum, List<Stunde> stundenList, int mode, boolean isFerien, Callback callback) {
+    public void updateData() {
 
-        this.mode = mode;
-        this.stundenList = stundenList;
-        this.isFerien = isFerien;
-        this.noPlan = stundenList.size() == 0;
-        this.callback = callback;
-        this.date = datum;
+        new AsyncTask<Boolean, Integer, Boolean>() {
 
-        String wochenString = (LocalData.getInstance().isAWoche(datum)) ? "(A-Woche)" : "(B-Woche)";
-        SimpleDateFormat dateFormat = new SimpleDateFormat("EEEE, dd. MMMM yyyy", Locale.GERMAN);
-        datumString = String.format(Locale.GERMANY, "%s %s", dateFormat.format(datum), wochenString);
-    }
+            OnlineTag tmpOnlineTag;
+            List<Stunde> tmpStunden;
+            List<UnterrichtsZeit> tmpUnterrichtsZeit;
+            List<Event> tmpTagEvents;
+            boolean tmpNoPlan;
+            boolean tmpIsFerien;
 
-    public static StundenPlanRecyclerAdapter newOnlineStundenplanInstance(Tag tag, int klasseIndex, ArrayList<String> nichtKurse, Callback callback) {
-
-        ArrayList<Stunde> stundenList = new ArrayList<>();
-        if (tag.getStuplaKlasseList().size() > klasseIndex) {
-            StuPlaKlasse stuPlaKlasse = tag.getStuplaKlasseList().get(klasseIndex);
-            for (Stunde stunde : stuPlaKlasse.getStundenList()) {
-
-                if (nichtKurse.contains(stunde.getKurs())
-                        || nichtKurse.contains(stunde.getFach())
-                        || nichtKurse.contains(stunde.getInfo().split(" ")[0]))
-                    continue;
-
-                stundenList.add(stunde);
-            }
-        }
-        return new StundenPlanRecyclerAdapter(tag, stundenList, null, MODE_STUNDENPLAN, stundenList.size() == 0, callback);
-
-    }
-
-    public static StundenPlanRecyclerAdapter newOfflineStundenplanInstance(Date datum, Callback callback) {
-
-        int dayOfWeek = Utilities.getDayOfWeek(datum);
-        List<Stunde> stundenList;
-        boolean isFerien = VertretungsAPI.isntSchoolDay(datum);
-        if (isFerien) stundenList = new ArrayList<>();
-        else
-            stundenList = LocalData.getOfflineStundenList(dayOfWeek, LocalData.getInstance().isAWoche(datum));
-
-        return new StundenPlanRecyclerAdapter(datum, stundenList, MODE_STUNDENPLAN_OFFLINE, isFerien, callback);
-
-    }
-
-    public static StundenPlanRecyclerAdapter newKlassenplanplanInstance(Tag tag, int klasseIndex) {
-
-        ArrayList<Stunde> stundenList = new ArrayList<>();
-        if (tag.getStuplaKlasseList().size() > klasseIndex) {
-            stundenList = tag.getStuplaKlasseList().get(klasseIndex).getStundenList();
-        }
-        return new StundenPlanRecyclerAdapter(tag, stundenList, null, MODE_KLASSENPLAN, stundenList.size() == 0, null);
-
-    }
-
-    public static StundenPlanRecyclerAdapter newVertretungsplanInstance(Tag tag, String klassenString, ArrayList<String> nichtKurse) {
-
-        ArrayList<Vertretung> vertretungsList = new ArrayList<>();
-        for (Vertretung vertretung : tag.getVertretungsList()) {
-
-            if (!vertretung.getKlasse().contains(klassenString))
-                continue;
-
-            boolean goOn = true;
-            for (String nichtKursString : nichtKurse) {
-                if (vertretung.getKlasse().contains(nichtKursString)) {
-                    goOn = false;
-                    break;
+            @Override
+            protected Boolean doInBackground(Boolean... params) {
+                tmpOnlineTag = OnlineTag.getOnlineTag(date);
+                tmpTagEvents = SQLite.select().from(Event.class).where(Event_Table.date.eq(date)).and(Event_Table.fach_id.isNull()).queryList();
+                if (tmpOnlineTag != null) {
+                    tmpStunden = tmpOnlineTag.getSelectedSortedStundenList();
                 }
+                tmpUnterrichtsZeit = UnterrichtsZeit.getSortedUnterrichtList(wochentag, LocalData.isAWoche(date));
+                tmpNoPlan = tmpUnterrichtsZeit.isEmpty() && (tmpOnlineTag==null || tmpStunden.isEmpty());
+                tmpIsFerien = Ferien.isFerien(date);
+                return true;
             }
-            if (!goOn) continue;
 
-            vertretungsList.add(vertretung);
-
-        }
-
-        return new StundenPlanRecyclerAdapter(tag, null, vertretungsList, MODE_VERTRETUNGSPLAN, vertretungsList.size() == 0, null);
-
-    }
-
-    public static StundenPlanRecyclerAdapter newAllgvertretungsplanInstance(Tag tag) {
-
-        return new StundenPlanRecyclerAdapter(tag, null, tag.getVertretungsList(), MODE_ALLGSTUNDENPLAN, tag.getVertretungsList().size() == 0, null);
+            @Override
+            protected void onPostExecute(Boolean aBoolean) {
+                onlineTag = tmpOnlineTag;
+                tagEvents = tmpTagEvents;
+                stunden = tmpStunden;
+                unterrichtsZeit = tmpUnterrichtsZeit;
+                noPlan = tmpNoPlan;
+                isFerien = tmpIsFerien;
+                notifyDataSetChanged();
+            }
+        }.execute();
     }
 
     @Override
@@ -170,9 +107,6 @@ public class StundenPlanRecyclerAdapter extends RecyclerView.Adapter<StundenPlan
         } else if (viewType == VIEWTYPE_SILAST) {
             v = LayoutInflater.from(parent.getContext())
                     .inflate(R.layout.item_stundenplan_stunde_last, parent, false);
-        } else if (viewType == VIEWTYPE_TEXT) {
-            v = LayoutInflater.from(parent.getContext())
-                    .inflate(R.layout.item_stundenplan_text, parent, false);
         } else if (viewType == VIEWTYPE_NOOFFLINE) {
             v = LayoutInflater.from(parent.getContext())
                     .inflate(R.layout.item_stundenplan_nooffline, parent, false);
@@ -189,11 +123,8 @@ public class StundenPlanRecyclerAdapter extends RecyclerView.Adapter<StundenPlan
 
         if (position == 0) return VIEWTYPE_HEADER;
         else {
-            if (noPlan) {
-                if (mode == MODE_STUNDENPLAN_OFFLINE || mode == MODE_STUNDENPLAN) {
-                    return isFerien ? VIEWTYPE_FERIEN : VIEWTYPE_NOOFFLINE;
-                } else return VIEWTYPE_TEXT;
-            }
+            if (isFerien) return VIEWTYPE_FERIEN;
+            if (noPlan) return VIEWTYPE_NOOFFLINE;
             if (position != getItemCount() - 1) return VIEWTYPE_STUNDENITEM;
             else return VIEWTYPE_SILAST;
         }
@@ -206,28 +137,29 @@ public class StundenPlanRecyclerAdapter extends RecyclerView.Adapter<StundenPlan
 
         if (viewType == VIEWTYPE_HEADER) {
 
-            holder.datumText.setText(datumString);
-            if (mode == MODE_STUNDENPLAN_OFFLINE)
+            holder.datumText.setText(LocalData.makeDateHeadingString(date));
+            int tagEventSize = tagEvents.size();
+            if (tagEventSize>0) {
+                holder.tagEventLayout.setVisibility(View.VISIBLE);
+                String eventName = tagEvents.get(0).getName();
+                if (tagEventSize>1) eventName+="...";
+                holder.tagEventText.setText(eventName);
+                holder.tagEventLayout.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        callback.onEventClicked(tagEvents.get(0), date);
+                    }
+                });
+            } else {
+                holder.tagEventLayout.setVisibility(View.GONE);
+                holder.tagEventLayout.setOnClickListener(null);
+            }
+
+            if (onlineTag == null)
                 holder.zeitstempelText.setText("erstellt aus Offlinedaten");
             else
-                holder.zeitstempelText.setText(String.format(Locale.GERMANY, "aktualisiert am %s", zeitStempelString));
+                holder.zeitstempelText.setText(String.format(Locale.GERMANY, "aktualisiert am %s", onlineTag.getZeitStempel()));
 
-        } else if (viewType == VIEWTYPE_TEXT) {
-
-            switch (mode) {
-                case MODE_STUNDENPLAN:
-                    holder.text.setText("Für diesen Tag wurden keine Stunden gefunden.");
-                    break;
-                case MODE_KLASSENPLAN:
-                    holder.text.setText("Für diesen Tag wurden keine Stunden gefunden.");
-                    break;
-                case MODE_VERTRETUNGSPLAN:
-                    holder.text.setText("Für diesen Tag wurde keine Vertretung gefunden. Auf dem allgemeinen Vertretungsplan könnten möglicherweise trotzdem Informationen für dich stehen.");
-                    break;
-                case MODE_ALLGSTUNDENPLAN:
-                    holder.text.setText("Für diesen Tag steht kein Vertretungsplan bereit.");
-                    break;
-            }
         } else if (viewType == VIEWTYPE_NOOFFLINE) {
 
             holder.managerButton.setOnClickListener(new View.OnClickListener() {
@@ -240,34 +172,16 @@ public class StundenPlanRecyclerAdapter extends RecyclerView.Adapter<StundenPlan
         } else if (viewType == VIEWTYPE_FERIEN) {
 
             String ferienName = "Schulfrei";
-            Ferien ferien = null;
-            int ferienIndex = -1;
-            Calendar cDate = Calendar.getInstance();
-            cDate.setTime(date);
-            for (int i = 0; i < LocalData.getInstance().getFerien().size(); i++) {
-                Ferien f = LocalData.getInstance().getFerien().get(i);
-                Calendar cStart = Calendar.getInstance();
-                cStart.setTime(f.getStartDate());
-                Calendar cEnd = Calendar.getInstance();
-                cEnd.setTime(f.getEndDate());
-
-                if (Utilities.compareDays(cDate, cStart) >= 0 && Utilities.compareDays(cDate, cEnd) <= 0) {
-                    ferienName = f.getName();
-                    ferien = f;
-                    ferienIndex = i;
-                    break;
-                }
-            }
+            final Ferien ferien = Ferien.getFerien(date);
 
             holder.feriennameText.setText(ferienName);
             if (ferien != null) {
                 holder.dateText.setVisibility(View.VISIBLE);
                 holder.dateText.setText(ferien.getDateString());
-                final int finalFerienIndex = ferienIndex;
                 holder.linearLayout.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
-                        callback.onFerienClicked(finalFerienIndex);
+                        callback.onFerienClicked(ferien.getId());
                     }
                 });
             } else holder.dateText.setVisibility(View.GONE);
@@ -275,23 +189,22 @@ public class StundenPlanRecyclerAdapter extends RecyclerView.Adapter<StundenPlan
         } else { //VIEWTYPE_STUNDENITEM
 
             final Context context = holder.stundeText.getContext();
+            holder.kursText.setVisibility(View.GONE);
 
-            if (mode == MODE_STUNDENPLAN || mode == MODE_STUNDENPLAN_OFFLINE || mode == MODE_KLASSENPLAN) {
+            UnterrichtsZeit unterricht = null;
 
-                holder.kursText.setVisibility(View.GONE);
-                Stunde stunde = stundenList.get(position - 1);
-                holder.stundeText.setText(stunde.getStunde());
-                holder.fachText.setText(stunde.getFach());
-                if (stunde.getFach().trim().isEmpty())
-                    holder.fachText.setVisibility(View.GONE);
-                else
-                    holder.fachText.setVisibility(View.VISIBLE);
-                if (stunde.isFachg())
+            if (onlineTag != null && !stunden.isEmpty()) {
+
+                final Stunde stunde = stunden.get(position - 1);
+                holder.stundeText.setText(String.valueOf(stunde.getStunde()));
+                final String fachName = stunde.isFachGeaendert()||(stunde.getKurs()==null || stunde.getKurs().getFach()==null) ? stunde.getFach() : stunde.getKurs().getFach().getName();
+                holder.fachText.setText(fachName);
+                if (stunde.isFachGeaendert())
                     holder.fachText.setTextColor(ContextCompat.getColor(context, R.color.warn_text));
                 else
                     holder.fachText.setTextColor(ContextCompat.getColor(context, R.color.primary_text));
                 holder.raumText.setText(stunde.getRaum());
-                if (stunde.isRaumg())
+                if (stunde.isRaumGeaendert())
                     holder.raumText.setTextColor(ContextCompat.getColor(context, R.color.warn_text));
                 else
                     holder.raumText.setTextColor(ContextCompat.getColor(context, R.color.primary_text));
@@ -301,86 +214,91 @@ public class StundenPlanRecyclerAdapter extends RecyclerView.Adapter<StundenPlan
                     holder.infoText.setVisibility(View.VISIBLE);
                     holder.infoText.setText(stunde.getInfo());
                 }
+                holder.lehrerText.setVisibility(View.VISIBLE);
+                String lehrerName = stunde.isLehrerGeaendert() || stunde.getKurs() == null ? stunde.getLehrer() : stunde.getKurs().getLehrer().getName();
+                holder.lehrerText.setText(lehrerName);
+                if (fachName.trim().isEmpty() && lehrerName.trim().isEmpty()) {
+                    holder.fachText.setVisibility(View.GONE);
+                    holder.lehrerText.setVisibility(View.GONE);
+                } else {
+                    holder.fachText.setVisibility(View.VISIBLE);
+                    holder.lehrerText.setVisibility(View.VISIBLE);
+                }
+
+                if (viewType == VIEWTYPE_SILAST && !onlineTag.getInfotext().isEmpty()) {
+                    holder.tagInfoLayout.setVisibility(View.VISIBLE);
+                    holder.tagInfoText.setText(onlineTag.getInfotext());
+                }
 
                 holder.linearLayout.setOnClickListener(null);
                 holder.eventText.setVisibility(View.GONE);
 
-                if (mode == MODE_STUNDENPLAN || mode == MODE_STUNDENPLAN_OFFLINE) {
-                    try {
-                        final int stundenInt = Integer.valueOf(stunde.getStunde()); //1-9 erwartet
-                        final String stundenName = stunde.getKurs() != null ? stunde.getKurs() : stunde.getFach();
-                        final boolean isAWoche = LocalData.getInstance().isAWoche(date);
-                        final int wochenTagInt = Utilities.getDayOfWeek(date); //1-5
-                        Fach fach = null;
-                        for (Fach f : LocalData.getInstance().getFächer()) {
-                            if (f.getStunden(isAWoche)[wochenTagInt - 1][stundenInt - 1]) {
-                                fach = f;
-                                break;
-                            }
-                        }
-
-                        Event event = null;
-                        if (fach != null) {
-                            for (Event e : fach.getEvents()) {
-                                if (Utilities.compareDays(date, e.getDatum()) == 0) {
-                                    event = e;
-                                    holder.eventText.setText(e.getTitle());
-                                    break;
-                                }
-                            }
-                        }
-                        if (event != null) holder.eventText.setVisibility(View.VISIBLE);
-
-                        final Fach finalFach = fach;
-                        final Event finalEvent = event;
-                        holder.linearLayout.setOnClickListener(new View.OnClickListener() {
-                            @Override
-                            public void onClick(View view) {
-                                if (finalFach != null) {
-                                    if (finalEvent != null)
-                                        callback.onEventClicked(finalFach, finalEvent, date);
-                                    else callback.onFachClicked(finalFach, date);
-                                } else
-                                    callback.onNewStundeClicked(stundenName, isAWoche, wochenTagInt - 1, stundenInt - 1);
-                            }
-                        });
-                    } catch (NumberFormatException e) {
-                        e.printStackTrace();
-                    }
+                for (UnterrichtsZeit u : unterrichtsZeit) if (u.getStunde()==stunde.getStunde()) {
+                    unterricht = u;
+                    break;
                 }
 
+                if (unterricht==null) {
+                    holder.linearLayout.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            callback.onNewStundeClicked(fachName);
+                        }
+                    });
+                    return;
+                }
 
             } else {
 
-                Vertretung vertretung = vertretungsList.get(position - 1);
-                holder.stundeText.setText(vertretung.getStunde());
-                holder.fachText.setText(vertretung.getFach());
-                if (vertretung.getFach().trim().isEmpty())
-                    holder.fachText.setVisibility(View.GONE);
-                else
-                    holder.fachText.setVisibility(View.VISIBLE);
-                holder.raumText.setText(vertretung.getRaum());
-                if (vertretung.getInfo().isEmpty())
-                    holder.infoText.setVisibility(View.GONE);
-                else
-                    holder.infoText.setVisibility(View.VISIBLE);
-                holder.infoText.setText(vertretung.getInfo());
-                holder.kursText.setText(String.format(Locale.GERMANY, "%s:", vertretung.getKlasse()));
-
-                holder.linearLayout.setOnClickListener(null);
-                holder.eventText.setVisibility(View.GONE);
-
+                unterricht = unterrichtsZeit.get(position-1);
+                holder.stundeText.setText(String.valueOf(unterricht.getStunde()));
+                holder.fachText.setTextColor(ContextCompat.getColor(context, R.color.primary_text));
+                holder.fachText.setText(unterricht.getFach().getName());
+                holder.infoText.setVisibility(View.GONE);
+                holder.raumText.setText("");
+                if (unterricht.getFach().getKurs() != null) {
+                    holder.lehrerText.setVisibility(View.VISIBLE);
+                    holder.lehrerText.setText(unterricht.getFach().getKurs().getLehrer().getName());
+                } else
+                    holder.lehrerText.setVisibility(View.GONE);
             }
+
+            final List<Event> events = unterricht.getFach().getEventList(date);
+            if (!events.isEmpty()) {
+                String eventText = events.get(0).getName();
+                if (events.size()>1) eventText += "...";
+                holder.eventText.setVisibility(View.VISIBLE);
+                holder.eventText.setText(eventText);
+            } else holder.eventText.setVisibility(View.GONE);
+
+            if (events.isEmpty()) {
+                final UnterrichtsZeit finalUnterricht = unterricht;
+                holder.linearLayout.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        callback.onFachClicked(finalUnterricht.getFach(), date);
+                    }
+                });
+            } else {
+                holder.linearLayout.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        callback.onEventClicked(events.get(0), date);
+                    }
+                });
+            }
+
         }
     }
 
     @Override
     public int getItemCount() {
 
-        int itemCount;
-        if (mode == MODE_STUNDENPLAN || mode == MODE_STUNDENPLAN_OFFLINE || mode == MODE_KLASSENPLAN)
-            itemCount = stundenList.size();
-        else itemCount = vertretungsList.size();
+        if (unterrichtsZeit==null) return 0;
+        int itemCount = 0;
+        if (onlineTag!=null && !stunden.isEmpty())
+            itemCount = stunden.size();
+        else if (!isFerien) itemCount = unterrichtsZeit.size();
         itemCount++;
         if (itemCount == 1) itemCount++;
         return itemCount;
@@ -390,13 +308,13 @@ public class StundenPlanRecyclerAdapter extends RecyclerView.Adapter<StundenPlan
 
         void onFachClicked(Fach fach, Date date);
 
-        void onNewStundeClicked(String kursName, boolean aWoche, int tagIndex, int stundeIndex);
+        void onNewStundeClicked(String fachName);
 
         void onManagerClicked();
 
-        void onFerienClicked(int ferienIndex);
+        void onFerienClicked(long ferienId);
 
-        void onEventClicked(Fach fach, Event event, Date date);
+        void onEventClicked(Event event, Date date);
     }
 
     public class ViewHolder extends RecyclerView.ViewHolder {
@@ -405,8 +323,8 @@ public class StundenPlanRecyclerAdapter extends RecyclerView.Adapter<StundenPlan
 
         TextView datumText;
         TextView zeitstempelText;
-
-        TextView text;
+        LinearLayout tagEventLayout;
+        TextView tagEventText;
 
         Button managerButton;
 
@@ -414,13 +332,16 @@ public class StundenPlanRecyclerAdapter extends RecyclerView.Adapter<StundenPlan
         TextView dateText;
 
         LinearLayout linearLayout;
+        LinearLayout tagInfoLayout;
 
         TextView kursText;
         TextView stundeText;
         TextView fachText;
+        TextView lehrerText;
         TextView raumText;
         TextView infoText;
         TextView eventText;
+        TextView tagInfoText;
 
         public ViewHolder(View itemView, int viewType) {
 
@@ -431,10 +352,8 @@ public class StundenPlanRecyclerAdapter extends RecyclerView.Adapter<StundenPlan
 
                 datumText = (TextView) itemView.findViewById(R.id.datumText);
                 zeitstempelText = (TextView) itemView.findViewById(R.id.zeitstempelText);
-
-            } else if (viewType == VIEWTYPE_TEXT) {
-
-                text = (TextView) itemView.findViewById(R.id.text);
+                tagEventLayout = (LinearLayout) itemView.findViewById(R.id.tagEventLayout);
+                tagEventText = (TextView) itemView.findViewById(R.id.tagEventText);
 
             } else if (viewType == VIEWTYPE_NOOFFLINE) {
 
@@ -452,9 +371,15 @@ public class StundenPlanRecyclerAdapter extends RecyclerView.Adapter<StundenPlan
                 kursText = (TextView) itemView.findViewById(R.id.kursText);
                 stundeText = (TextView) itemView.findViewById(R.id.stundeText);
                 fachText = (TextView) itemView.findViewById(R.id.fachText);
+                lehrerText = (TextView) itemView.findViewById(R.id.lehrerText);
                 raumText = (TextView) itemView.findViewById(R.id.raumText);
                 infoText = (TextView) itemView.findViewById(R.id.infoText);
                 eventText = (TextView) itemView.findViewById(R.id.eventText);
+
+                if (viewType == VIEWTYPE_SILAST) {
+                    tagInfoLayout = (LinearLayout) itemView.findViewById(R.id.tagInfoLayout);
+                    tagInfoText = (TextView) itemView.findViewById(R.id.tagInfoText);
+                }
             }
         }
     }

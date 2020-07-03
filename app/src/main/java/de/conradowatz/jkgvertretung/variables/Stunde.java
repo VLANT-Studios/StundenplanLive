@@ -1,20 +1,62 @@
 package de.conradowatz.jkgvertretung.variables;
 
-public class Stunde {
+import com.raizlabs.android.dbflow.annotation.Column;
+import com.raizlabs.android.dbflow.annotation.ForeignKey;
+import com.raizlabs.android.dbflow.annotation.ForeignKeyAction;
+import com.raizlabs.android.dbflow.annotation.PrimaryKey;
+import com.raizlabs.android.dbflow.annotation.Table;
+import com.raizlabs.android.dbflow.sql.language.SQLite;
+import com.raizlabs.android.dbflow.structure.BaseModel;
 
-    private String stunde;
+import java.util.ArrayList;
+import java.util.List;
+
+@Table(database = AppDatabase.class)
+public class Stunde extends BaseModel {
+
+    public Stunde() {
+
+    }
+
+    @PrimaryKey(autoincrement = true)
+    long id;
+
+    @Column
+    private int stunde;
+    @Column
     private String fach;
-    private String kurs;
-    private boolean fachg;
+    @Column
+    private String lehrer;
+    @Column
+    private boolean isFachGeaendert;
+    @Column
+    private boolean isLehrerGeaendert;
+    @Column
     private String raum;
-    private boolean raumg;
+    @Column
+    private boolean isRaumGeaendert;
+    @Column
     private String info;
+    @ForeignKey(onDelete = ForeignKeyAction.CASCADE)
+    private Klasse klasse;
+    @ForeignKey(onDelete = ForeignKeyAction.SET_NULL)
+    private Kurs kurs;
+    @ForeignKey(onDelete = ForeignKeyAction.CASCADE)
+    private OnlineTag onlineTag;
 
-    public String getStunde() {
+    public OnlineTag getOnlineTag() {
+        return onlineTag;
+    }
+
+    public void setOnlineTag(OnlineTag onlineTag) {
+        this.onlineTag = onlineTag;
+    }
+
+    public int getStunde() {
         return stunde;
     }
 
-    public void setStunde(String stunde) {
+    public void setStunde(int stunde) {
         this.stunde = stunde;
     }
 
@@ -26,20 +68,28 @@ public class Stunde {
         this.fach = fach;
     }
 
-    public String getKurs() {
-        return kurs;
+    public String getLehrer() {
+        return lehrer;
     }
 
-    public void setKurs(String kurs) {
-        this.kurs = kurs;
+    public void setLehrer(String lehrer) {
+        this.lehrer = lehrer;
     }
 
-    public boolean isFachg() {
-        return fachg;
+    public boolean isFachGeaendert() {
+        return isFachGeaendert;
     }
 
-    public void setFachg(boolean fachg) {
-        this.fachg = fachg;
+    public void setFachGeaendert(boolean fachGeaendert) {
+        isFachGeaendert = fachGeaendert;
+    }
+
+    public boolean isLehrerGeaendert() {
+        return isLehrerGeaendert;
+    }
+
+    public void setLehrerGeaendert(boolean lehrerGeaendert) {
+        isLehrerGeaendert = lehrerGeaendert;
     }
 
     public String getRaum() {
@@ -50,12 +100,12 @@ public class Stunde {
         this.raum = raum;
     }
 
-    public boolean isRaumg() {
-        return raumg;
+    public boolean isRaumGeaendert() {
+        return isRaumGeaendert;
     }
 
-    public void setRaumg(boolean raumg) {
-        this.raumg = raumg;
+    public void setRaumGeaendert(boolean raumGeaendert) {
+        isRaumGeaendert = raumGeaendert;
     }
 
     public String getInfo() {
@@ -66,19 +116,37 @@ public class Stunde {
         this.info = info;
     }
 
-    public Stunde(String stunde, String fach, String kurs, boolean fachg, String raum, boolean raumg, String info) {
+    public Klasse getKlasse() {
+        return klasse;
+    }
 
-        this.stunde = stunde;
-        this.fach = fach;
+    public void setKlasse(Klasse klasse) {
+        this.klasse = klasse;
+    }
+
+    public Kurs getKurs() {
+        return kurs;
+    }
+
+    public void setKurs(Kurs kurs) {
         this.kurs = kurs;
-        this.fachg = fachg;
-        this.raum = raum;
-        this.raumg = raumg;
-        this.info = info;
     }
 
-    public Stunde() {
+    public static List<String> getAllRooms() {
 
+        List<Stunde> stunden = SQLite.select(Stunde_Table.raum).from(Stunde.class).groupBy(Stunde_Table.raum).orderBy(Stunde_Table.raum, true).queryList();
+        List<String> rooms = new ArrayList<>();
+        for (Stunde s : stunden) rooms.add(s.getRaum());
+
+        return rooms;
     }
 
+    public static List<Stunde> getAllSelectedStunden() {
+
+        Klasse selectedKlasse = Klasse.getSelectedKlasse();
+        List<Integer> notSelectedKurse = Kurs.getNotSelectedKursNrn();
+        return SQLite.select().from(Stunde.class).where(Stunde_Table.klasse_id.eq(selectedKlasse.getId())).and(Stunde_Table.kurs_nr.notIn(
+                notSelectedKurse
+        )).queryList();
+    }
 }

@@ -1,6 +1,7 @@
 package de.conradowatz.jkgvertretung.adapters;
 
-import android.support.v7.widget.RecyclerView;
+import android.os.AsyncTask;
+import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -9,7 +10,6 @@ import android.widget.TextView;
 
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.fragments.FachStundenFragment;
-import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.variables.Fach;
 
 public class FachStundenRecyclerAdapter extends RecyclerView.Adapter<FachStundenRecyclerAdapter.ViewHolder> {
@@ -25,34 +25,53 @@ public class FachStundenRecyclerAdapter extends RecyclerView.Adapter<FachStunden
     private boolean[][] belegt;
     private Callback callback;
 
-    public FachStundenRecyclerAdapter(Fach fach, int state, Callback callback) {
+    public FachStundenRecyclerAdapter(int state, Fach fach, Callback callback) {
 
         this.state = state;
-        if (state != FachStundenFragment.STATE_IMMER) {
-            stunden = fach.getStunden(state == FachStundenFragment.STATE_AWOCHE);
-            belegt = LocalData.getBelegteStunden(fach, state == FachStundenFragment.STATE_AWOCHE);
-        } else {
-            this.fach = fach;
-            calculateStateImmer();
-        }
-
+        this.fach = fach;
+        updateData(null);
         this.callback = callback;
     }
 
-    public void calculateStateImmer() {
+    public void updateData(final Integer pos) {
 
-        stunden = new boolean[5][9];
-        stundenB = new boolean[5][9];
-        belegt = new boolean[5][9];
-        boolean[][] belegtCalcA = LocalData.getBelegteStunden(fach, true);
-        boolean[][] belegtCalcB = LocalData.getBelegteStunden(fach, false);
-        for (int i = 0; i < 5; i++) {
-            for (int j = 0; j < 9; j++) {
-                stunden[i][j] = fach.getaStunden()[i][j];
-                stundenB[i][j] = fach.getbStunden()[i][j];
-                belegt[i][j] = belegtCalcA[i][j] || belegtCalcB[i][j];
+        new AsyncTask<Boolean, Integer, Boolean>() {
+
+            boolean[][] tmpStunden;
+            boolean[][] tmpStundenB; //nur bei state==IMMER genutzt
+            boolean[][] tmpBelegt;
+
+            @Override
+            protected Boolean doInBackground(Boolean... params) {
+
+                switch (state) {
+                    case FachStundenFragment.STATE_AWOCHE:
+                        tmpStunden = fach.getAStunden();
+                        tmpBelegt = fach.getBelegteAStunden();
+                        break;
+                    case FachStundenFragment.STATE_BWOCHE:
+                        tmpStunden = fach.getBStunden();
+                        tmpBelegt = fach.getBelegteBStunden();
+                        break;
+                    case FachStundenFragment.STATE_IMMER:
+                        tmpStunden = fach.getAStunden();
+                        tmpStundenB = fach.getBStunden();
+                        tmpBelegt = fach.getBelegteStunden();
+                }
+                return true;
             }
-        }
+
+            @Override
+            protected void onPostExecute(Boolean aBoolean) {
+
+                stunden = tmpStunden;
+                stundenB = tmpStundenB;
+                belegt = tmpBelegt;
+                if (pos==null) notifyDataSetChanged();
+                else notifyItemChanged(pos);
+            }
+        }.execute();
+
     }
 
     @Override
@@ -87,7 +106,7 @@ public class FachStundenRecyclerAdapter extends RecyclerView.Adapter<FachStunden
                 holder.imageView.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
-                        callback.onRemoveStunde(i[0], i[1], holder.getAdapterPosition());
+                        callback.onRemoveStunde(i[0]+1, i[1], holder.getAdapterPosition());
                     }
                 });
             } else if (belegt[i[0]][i[1]]) {
@@ -96,7 +115,7 @@ public class FachStundenRecyclerAdapter extends RecyclerView.Adapter<FachStunden
                 holder.imageView.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
-                        callback.onReplaceStunde(i[0], i[1], holder.getAdapterPosition());
+                        callback.onReplaceStunde(i[0]+1, i[1], holder.getAdapterPosition());
                     }
                 });
             } else {
@@ -105,7 +124,7 @@ public class FachStundenRecyclerAdapter extends RecyclerView.Adapter<FachStunden
                 holder.imageView.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
-                        callback.onNewStunde(i[0], i[1], holder.getAdapterPosition());
+                        callback.onNewStunde(i[0]+1, i[1], holder.getAdapterPosition());
                     }
                 });
                 if (state == FachStundenFragment.STATE_IMMER) {
@@ -117,8 +136,8 @@ public class FachStundenRecyclerAdapter extends RecyclerView.Adapter<FachStunden
         } else if (viewType == TYPE_LEFT)
 
         {
-            int stunde = (int) Math.floor(holder.getAdapterPosition() / 6);
-            if (stunde > 0) holder.textView.setText(String.valueOf(stunde));
+            int stunde = (int) Math.floor(holder.getAdapterPosition() / 6)-1;
+            if (stunde > -1) holder.textView.setText(String.valueOf(stunde));
             else holder.textView.setText("");
         } else if (viewType == TYPE_TOP)
 
@@ -157,7 +176,9 @@ public class FachStundenRecyclerAdapter extends RecyclerView.Adapter<FachStunden
 
     @Override
     public int getItemCount() {
-        return 6 * 10;
+
+        if (stunden==null) return 0;
+        return 6 * 14;
     }
 
     private int[] getItemPosition(int position) {
