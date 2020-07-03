@@ -1,16 +1,18 @@
-# JKGVertretung-App
-Eine Android App für den digitalen Stundenplan erstellt für das Johannes-Kepler Gymnasium Chemnitz.
+# StundenplanLive App
+Eine Android App für den digitalen Stundenplan und als Hausaufgaben und Prüfungs-Manager.
 Entstanden im Rahmen einer Besonderen Lernleistung.
 
-#Entwickler
+Derzeit nicht mehr in aktiver Entwicklung. Deshalb habe ich mich entschieden den Source-Code zu veröffenltichen. Wer möchte kann ihn nutzen, weiterentwickeln oder verändern. Viel Spaß :)
 
-* Conrad Schmidt 
- * [conradowatz.de](http://conradowatz.de/) - <conrad@conradowatz.de>
+# Entwickler
+
+* Conrad Schmidt
+ * [owatz.ne](https://owatz.net/) - <conrad@owatz.de>
 
 
-#License
+# License
 
-    Copyright 2016 Conrad Schmidt
+    Copyright 2020 Conrad Schmidt
 
     Licensed under GNU General Public License v3.0
     See LICENSE for more information.
