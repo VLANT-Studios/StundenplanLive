@@ -4,7 +4,7 @@
         <h2>Infos</h2>
         <b>StundenplanLive Version %s</b>
         <br>
-        <br>Diese App wird entwickelt von <b>Conrad Schmidt</b>. Um an die erforderlichen Daten zu gelangen, greift die App auf den Online-Stundenplan Indiware mobil von Uwe Kannenberg zu.
+        <br>Diese App wird entwickelt von <b>Conrad Schmidt</b> (die Designeinstellungen von <a href="https://vlant.de">VLANT</a> Studios). Um an die erforderlichen Daten zu gelangen, greift die App auf den Online-Stundenplan Indiware mobil von Uwe Kannenberg zu.
         <br>Bei Problemen mit der App, oder bei anderen Anfragen zu der App, wendet euch bitte an meine E-Mail Adresse: <a href="mailto:conrad@owatz.net">conrad@owatz.de</a>.
         <br>
         <h2>Lizenzen</h2>
@@ -17,7 +17,7 @@
         <br> • DBFLow (Copyright © Raizlabs)
         <br>
         <br>Diese App verwendet sowohl in der App, als auch im Icon Material Design Icons von Google, die teilweise verändert wurden. Diese, und die ersten 5 Libarys sind lizensiert unter der Apache License, Version 2.0.
-        <br>DBFlow ist lizensiert unter The MIT License (MIT)
+        <br>DBFlow ist lizensiert unter The MIT License (MIT).
         <br>
         <br>Diese App verwendet in der kostenlosen Version AdMob um Werbeanzeigen zu schalten.
         <br><a href="http://www.google.de/policies/privacy/partners/">Datenschutzerklärungen von Google</a>

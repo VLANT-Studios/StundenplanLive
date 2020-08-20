@@ -1,5 +1,7 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
@@ -11,18 +13,31 @@
         android:layout_height="wrap_content"
         android:background="@color/primary" />
 
+    <ImageView
+        android:id="@+id/background_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/materialTabs"
+        android:layout_marginTop="0dp"
+        android:scaleType="centerCrop"
+        app:srcCompat="@drawable/dialog_button_background"
+        tools:ignore="ContentDescription" />
+
     <androidx.viewpager.widget.ViewPager
         android:id="@+id/viewPager"
-        android:layout_below="@id/materialTabs"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"
+        android:layout_below="@id/materialTabs"
+        android:layout_marginTop="3dp">
+
+    </androidx.viewpager.widget.ViewPager>
 
     <ImageView
         android:layout_width="match_parent"
         android:layout_height="6dp"
         android:layout_below="@id/materialTabs"
-        android:src="@drawable/shadow_down"/>
-
+        android:src="@drawable/shadow_down"
+        tools:ignore="ContentDescription" />
 
 
 </RelativeLayout>

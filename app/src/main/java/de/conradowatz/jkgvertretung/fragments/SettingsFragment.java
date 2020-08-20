@@ -65,6 +65,7 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
         ListPreference maxDaysToFetchRefresh = (ListPreference) findPreference("maxDaysToFetchRefresh");
         ListPreference maxDaysToFetchStart = (ListPreference) findPreference("maxDaysToFetchStart");
         ListPreference notificationType = (ListPreference) findPreference("notificationType");
+        ListPreference backgroundStuPlan = (ListPreference) findPreference("background");
         Preference exportBackup = findPreference("exportBackup");
         Preference importBackup = findPreference("importBackup");
         Preference deleteBackup = findPreference("deleteBackup");
@@ -73,11 +74,13 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
         maxDaysToFetchRefresh.setSummary(maxDaysToFetchRefresh.getEntry());
         maxDaysToFetchStart.setSummary(maxDaysToFetchStart.getEntry());
         notificationType.setSummary(notificationType.getEntry());
+        backgroundStuPlan.setSummary(backgroundStuPlan.getEntry());
 
         startScreen.setOnPreferenceChangeListener(this);
         maxDaysToFetchRefresh.setOnPreferenceChangeListener(this);
         maxDaysToFetchStart.setOnPreferenceChangeListener(this);
         notificationType.setOnPreferenceChangeListener(this);
+        backgroundStuPlan.setOnPreferenceChangeListener(this);
 
         exportBackup.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
             @Override
@@ -110,7 +113,6 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
 
     @Subscribe
     public void onEvent(PermissionGrantedEvent event) {
-
         int requestCode = event.getRequestCode();
         switch (requestCode) {
             case REQUEST_CODE_BACKUP_EXPORT:

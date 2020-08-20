@@ -49,10 +49,22 @@
             android:entries="@array/settings_notifications_titles"
             android:entryValues="@array/settings_notifications_values"
             android:key="notificationType"
-            android:title="Benachrichtiguns Art" />
+            android:title="Benachrichtigungsart" />
 
     </PreferenceCategory>
 
+    <PreferenceCategory android:title="Design">
+
+        <ListPreference
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:defaultValue="-1"
+            android:dialogTitle="Hintergrund"
+            android:entries="@array/backgrounds_titles"
+            android:entryValues="@array/backgrounds_values"
+            android:key="background"
+            android:title="Hintergrund" />
+    </PreferenceCategory>
     <PreferenceCategory android:title="Backup">
 
         <Preference

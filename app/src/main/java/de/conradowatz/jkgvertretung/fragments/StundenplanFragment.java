@@ -2,6 +2,7 @@ package de.conradowatz.jkgvertretung.fragments;
 
 
 import android.app.Activity;
+import android.graphics.Bitmap;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import com.google.android.material.tabs.TabLayout;
@@ -14,6 +15,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.ImageView;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -26,6 +28,7 @@ import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.adapters.StundenplanPagerAdapter;
 import de.conradowatz.jkgvertretung.events.DaysUpdatedEvent;
 import de.conradowatz.jkgvertretung.events.KursChangedEvent;
+import de.conradowatz.jkgvertretung.tools.PreferenceHelper;
 import de.conradowatz.jkgvertretung.variables.Klasse;
 
 public class StundenplanFragment extends Fragment {
@@ -43,6 +46,7 @@ public class StundenplanFragment extends Fragment {
     private int viewpagerCount;
     private String klassenName;
     private EventBus eventBus = EventBus.getDefault();
+    private ImageView backgroundView;
 
     public StundenplanFragment() {
         // Required empty public constructor
@@ -79,6 +83,9 @@ public class StundenplanFragment extends Fragment {
         else contentView = inflater.inflate(R.layout.fragment_stundenplan, container, false);
         viewPager = (ViewPager) contentView.findViewById(R.id.viewPager);
         tabs = (TabLayout) contentView.findViewById(R.id.materialTabs);
+        backgroundView = (ImageView) contentView.findViewById(R.id.background_image);
+
+        getAndSetBackground();
 
         eventBus.register(this);
 
@@ -92,6 +99,23 @@ public class StundenplanFragment extends Fragment {
         showData();
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+        contentView.findViewById(R.id.layout).invalidate();
+        getAndSetBackground();
+    }
+
+    private void getAndSetBackground() {
+        int[] backgrounds = {R.drawable.background1, R.drawable.background2, R.drawable.background3};
+
+        int background = Integer.parseInt(PreferenceHelper.readStringFromPreferences(getContext(), "background", "-1"));
+        if (background != -1) {
+            backgroundView.setImageResource(backgrounds[background-1]);
+        } else {
+            backgroundView.setImageBitmap(Bitmap.createBitmap(1,1,Bitmap.Config.ARGB_8888));
+        }
+    }
 
     private void showData() {
 
