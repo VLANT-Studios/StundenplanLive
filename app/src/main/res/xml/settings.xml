@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<PreferenceScreen xmlns:tools="http://schemas.android.com/tools"
-    xmlns:android="http://schemas.android.com/apk/res/android">
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
     <PreferenceCategory
         android:title="App Start">
@@ -61,7 +60,7 @@
         <ListPreference
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:defaultValue="-1"
+            android:defaultValue="4"
             android:dialogTitle="Hintergrund"
             android:entries="@array/backgrounds_titles"
             android:entryValues="@array/backgrounds_values"
@@ -70,12 +69,21 @@
 
         <Preference
             android:key="color1"
-            android:title="Farbe oben"
-            android:visibility="gone" />
+            android:title="Farbe oben" />
         <Preference
             android:key="color2"
-            android:title="Farbe unten"
-            android:visibility="invisible" />
+            android:title="Farbe unten" />
+        <Preference
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:key="pickFile"
+            android:title="Bild auswählen" />
+        <ListPreference
+            android:defaultValue="1"
+            android:entries="@array/picture_fit_modes_titles"
+            android:entryValues="@array/picture_fit_modes_values"
+            android:key="pictureFitMode"
+            android:title="Bild anpassen" />
 
     </PreferenceCategory>
 

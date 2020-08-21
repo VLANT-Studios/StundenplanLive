@@ -56,13 +56,28 @@
         <item>Hintergrund 2</item>
         <item>Hintergrund 3</item>
         <item>Farbverlauf</item>
-        <item>Kein Hintergrund</item>
+        <item>Eigenes Bild</item>
+        <item>Schwarz</item>
+        <item>Weiß</item>
     </string-array>
     <string-array name="backgrounds_values">
         <item>1</item>
         <item>2</item>
         <item>3</item>
         <item>4</item>
+        <item>5</item>
+        <item>0</item>
         <item>-1</item>
+    </string-array>
+
+    <string-array name="picture_fit_modes_titles">
+        <item>An die Mitte anpassen (empfohlen)</item>
+        <item>An die Fläche anpassen</item>
+        <item>Ohne Veränderung</item>
+    </string-array>
+    <string-array name="picture_fit_modes_values">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
     </string-array>
 </resources>

@@ -2,20 +2,21 @@ package de.conradowatz.jkgvertretung.fragments;
 
 import android.Manifest;
 import android.content.DialogInterface;
-import android.content.SharedPreferences;
+import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceCategory;
 import android.preference.PreferenceFragment;
+import android.widget.Toast;
+
+import androidx.appcompat.app.AlertDialog;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.appcompat.app.AlertDialog;
-
-import android.widget.Toast;
 
 import com.raizlabs.android.dbflow.config.FlowManager;
 
@@ -45,11 +46,15 @@ import de.conradowatz.jkgvertretung.tools.PreferenceHelper;
 import de.conradowatz.jkgvertretung.variables.AppDatabase;
 import petrov.kristiyan.colorpicker.ColorPicker;
 
+import static android.app.Activity.RESULT_OK;
+
 public class SettingsFragment extends PreferenceFragment implements Preference.OnPreferenceChangeListener {
 
     public static final int REQUEST_CODE_BACKUP_EXPORT = 1;
     public static final int REQUEST_CODE_BACKUP_IMPORT = 2;
     public static final int REQUEST_CODE_BACKUP_DELETE = 3;
+    private static final int REQUEST_CODE_SELECT_IMAGE = 4;
+    public static final int REQUEST_CODE_GET_PICTURE = 5;
     public static final String SAVE_FILE_NAME = "backup%s.db";
     public static final String DATE_FORMAT = "dd-MM-yyyy_HH-mm-ss";
     private boolean isBackupExportDialog;
@@ -72,8 +77,10 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
         ListPreference maxDaysToFetchStart = (ListPreference) findPreference("maxDaysToFetchStart");
         ListPreference notificationType = (ListPreference) findPreference("notificationType");
         ListPreference background = (ListPreference) findPreference("background");
+        ListPreference pictureFitMode = (ListPreference) findPreference("pictureFitMode");
         Preference color1 = findPreference("color1");
         Preference color2 = findPreference("color2");
+        Preference pickFile = findPreference("pickFile");
         Preference exportBackup = findPreference("exportBackup");
         Preference importBackup = findPreference("importBackup");
         Preference deleteBackup = findPreference("deleteBackup");
@@ -83,27 +90,37 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
         maxDaysToFetchStart.setSummary(maxDaysToFetchStart.getEntry());
         notificationType.setSummary(notificationType.getEntry());
         background.setSummary(background.getEntry());
+        pictureFitMode.setSummary(pictureFitMode.getEntry());
 
         startScreen.setOnPreferenceChangeListener(this);
         maxDaysToFetchRefresh.setOnPreferenceChangeListener(this);
         maxDaysToFetchStart.setOnPreferenceChangeListener(this);
         notificationType.setOnPreferenceChangeListener(this);
+        pictureFitMode.setOnPreferenceChangeListener(this);
 
         if (!background.getValue().equals("4")) {
             designCategory.removePreference(color1);
             designCategory.removePreference(color2);
+        }
+        if (!background.getValue().equals("5")) {
+            designCategory.removePreference(pickFile);
+            designCategory.removePreference(pictureFitMode);
         }
 
         background.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
             @SuppressWarnings("SuspiciousMethodCalls")
             @Override
             public boolean onPreferenceChange(Preference preference, Object o) {
+                designCategory.removePreference(color1);
+                designCategory.removePreference(color2);
+                designCategory.removePreference(pickFile);
+                designCategory.removePreference(pictureFitMode);
                 if (o.equals("4")) {
                     designCategory.addPreference(color1);
                     designCategory.addPreference(color2);
-                } else {
-                    designCategory.removePreference(color1);
-                    designCategory.removePreference(color2);
+                } else if (o.equals("5")) {
+                    designCategory.addPreference(pickFile);
+                    designCategory.addPreference(pictureFitMode);
                 }
                 ListPreference listPreference = (ListPreference) preference;
                 int position = Arrays.asList(listPreference.getEntryValues()).indexOf(o);
@@ -148,6 +165,21 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
             return true;
         });
 
+        pickFile.setOnPreferenceClickListener(preference -> {
+            if (getWritePermission(REQUEST_CODE_GET_PICTURE)) {
+                String action;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                    action = Intent.ACTION_OPEN_DOCUMENT;
+                } else {
+                    action = Intent.ACTION_PICK;
+                }
+                Intent intent = new Intent(action);
+                intent.setType("image/*");
+                startActivityForResult(intent, REQUEST_CODE_SELECT_IMAGE);
+            }
+            return true;
+        });
+
         exportBackup.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
             @Override
             public boolean onPreferenceClick(Preference preference) {
@@ -177,6 +209,21 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
         }
     }
 
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CODE_SELECT_IMAGE && resultCode == RESULT_OK) {
+            Uri selectedMediaUri = data.getData();
+            if (selectedMediaUri == null) {
+                Toast.makeText(getActivity(), "Kein Bild ausgewählt!", Toast.LENGTH_SHORT).show();
+            } else if (selectedMediaUri.toString().endsWith(".jpg") || selectedMediaUri.toString().endsWith(".png")) {
+                PreferenceHelper.saveStringToPreferences(getActivity(), "backgroundPictureURI", selectedMediaUri.toString());
+            } else {
+                Toast.makeText(getActivity(), "Kein gültiges Bild ausgewählt! (Nur .png oder .jpg!)", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
     @Subscribe
     public void onEvent(PermissionGrantedEvent event) {
         int requestCode = event.getRequestCode();
@@ -189,6 +236,17 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
                 break;
             case REQUEST_CODE_BACKUP_DELETE:
                 showDeleteBackupDialog();
+                break;
+            case REQUEST_CODE_GET_PICTURE:
+                String action;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                    action = Intent.ACTION_OPEN_DOCUMENT;
+                } else {
+                    action = Intent.ACTION_PICK;
+                }
+                Intent intent = new Intent(action);
+                intent.setType("image/*");
+                startActivityForResult(intent, REQUEST_CODE_SELECT_IMAGE);
                 break;
         }
     }
@@ -421,6 +479,8 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
         if (preference.getKey().equals("notificationType")) {
             LocalData.deleteNotificationAlarms(getActivity().getApplicationContext());
             LocalData.recreateNotificationAlarms(getActivity().getApplicationContext());
+        } else if (listPreference.getKey().equals("pictureFitMode")) {
+            PreferenceHelper.saveStringToPreferences(getActivity(), "pictureFitMode", listPreference.getValue());
         }
         return true;
     }
