@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+<PreferenceScreen xmlns:tools="http://schemas.android.com/tools"
+    xmlns:android="http://schemas.android.com/apk/res/android">
 
     <PreferenceCategory
         android:title="App Start">
@@ -29,7 +30,7 @@
     </PreferenceCategory>
 
     <PreferenceCategory
-        android:title="Aktualisieren Knopf">
+        android:title="Aktualisieren-Knopf">
 
         <ListPreference
             android:defaultValue="14"
@@ -53,7 +54,9 @@
 
     </PreferenceCategory>
 
-    <PreferenceCategory android:title="Design">
+    <PreferenceCategory
+        android:key="designCategory"
+        android:title="Design">
 
         <ListPreference
             android:layout_width="wrap_content"
@@ -64,7 +67,18 @@
             android:entryValues="@array/backgrounds_values"
             android:key="background"
             android:title="Hintergrund" />
+
+        <Preference
+            android:key="color1"
+            android:title="Farbe oben"
+            android:visibility="gone" />
+        <Preference
+            android:key="color2"
+            android:title="Farbe unten"
+            android:visibility="invisible" />
+
     </PreferenceCategory>
+
     <PreferenceCategory android:title="Backup">
 
         <Preference

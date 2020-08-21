@@ -2,11 +2,14 @@ package de.conradowatz.jkgvertretung.fragments;
 
 import android.Manifest;
 import android.content.DialogInterface;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Environment;
 import android.preference.ListPreference;
 import android.preference.Preference;
+import android.preference.PreferenceCategory;
 import android.preference.PreferenceFragment;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -38,7 +41,9 @@ import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.events.ExitAppEvent;
 import de.conradowatz.jkgvertretung.events.PermissionGrantedEvent;
 import de.conradowatz.jkgvertretung.tools.LocalData;
+import de.conradowatz.jkgvertretung.tools.PreferenceHelper;
 import de.conradowatz.jkgvertretung.variables.AppDatabase;
+import petrov.kristiyan.colorpicker.ColorPicker;
 
 public class SettingsFragment extends PreferenceFragment implements Preference.OnPreferenceChangeListener {
 
@@ -61,11 +66,14 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
 
         addPreferencesFromResource(R.xml.settings);
 
+        PreferenceCategory designCategory = (PreferenceCategory) findPreference("designCategory");
         ListPreference startScreen = (ListPreference) findPreference("startScreen");
         ListPreference maxDaysToFetchRefresh = (ListPreference) findPreference("maxDaysToFetchRefresh");
         ListPreference maxDaysToFetchStart = (ListPreference) findPreference("maxDaysToFetchStart");
         ListPreference notificationType = (ListPreference) findPreference("notificationType");
-        ListPreference backgroundStuPlan = (ListPreference) findPreference("background");
+        ListPreference background = (ListPreference) findPreference("background");
+        Preference color1 = findPreference("color1");
+        Preference color2 = findPreference("color2");
         Preference exportBackup = findPreference("exportBackup");
         Preference importBackup = findPreference("importBackup");
         Preference deleteBackup = findPreference("deleteBackup");
@@ -74,13 +82,71 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
         maxDaysToFetchRefresh.setSummary(maxDaysToFetchRefresh.getEntry());
         maxDaysToFetchStart.setSummary(maxDaysToFetchStart.getEntry());
         notificationType.setSummary(notificationType.getEntry());
-        backgroundStuPlan.setSummary(backgroundStuPlan.getEntry());
+        background.setSummary(background.getEntry());
 
         startScreen.setOnPreferenceChangeListener(this);
         maxDaysToFetchRefresh.setOnPreferenceChangeListener(this);
         maxDaysToFetchStart.setOnPreferenceChangeListener(this);
         notificationType.setOnPreferenceChangeListener(this);
-        backgroundStuPlan.setOnPreferenceChangeListener(this);
+
+        if (!background.getValue().equals("4")) {
+            designCategory.removePreference(color1);
+            designCategory.removePreference(color2);
+        }
+
+        background.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
+            @SuppressWarnings("SuspiciousMethodCalls")
+            @Override
+            public boolean onPreferenceChange(Preference preference, Object o) {
+                if (o.equals("4")) {
+                    designCategory.addPreference(color1);
+                    designCategory.addPreference(color2);
+                } else {
+                    designCategory.removePreference(color1);
+                    designCategory.removePreference(color2);
+                }
+                ListPreference listPreference = (ListPreference) preference;
+                int position = Arrays.asList(listPreference.getEntryValues()).indexOf(o);
+                listPreference.setSummary(listPreference.getEntries()[position]);
+                return true;
+            }
+        });
+
+        color1.setOnPreferenceClickListener(preference -> {
+            ColorPicker colorPicker = new ColorPicker(getActivity());
+            colorPicker.setTitle("Farbe wählen");
+            colorPicker.setOnFastChooseColorListener(new ColorPicker.OnFastChooseColorListener() {
+                @Override
+                public void setOnFastChooseColorListener(int position, int color) {
+                    preference.setSummary(String.format("%x", color));
+                    PreferenceHelper.saveIntToPreferences(getActivity().getApplicationContext(), "color1", color);
+                }
+
+                @Override
+                public void onCancel(){
+                }
+            });
+            colorPicker.show();
+            return true;
+        });
+
+        color2.setOnPreferenceClickListener(preference -> {
+            ColorPicker colorPicker = new ColorPicker(getActivity());
+            colorPicker.setTitle("Farbe wählen");
+            colorPicker.setOnFastChooseColorListener(new ColorPicker.OnFastChooseColorListener() {
+                @Override
+                public void setOnFastChooseColorListener(int position, int color) {
+                    preference.setSummary(String.format("%x", color));
+                    PreferenceHelper.saveIntToPreferences(getActivity().getApplicationContext(), "color2", color);
+                }
+
+                @Override
+                public void onCancel(){
+                }
+            });
+            colorPicker.show();
+            return true;
+        });
 
         exportBackup.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
             @Override

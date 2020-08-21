@@ -1,8 +1,11 @@
 package de.conradowatz.jkgvertretung.fragments;
 
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.graphics.Bitmap;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import com.google.android.material.tabs.TabLayout;
@@ -110,13 +113,22 @@ public class StundenplanFragment extends Fragment {
         int[] backgrounds = {R.drawable.background1, R.drawable.background2, R.drawable.background3};
 
         int background = Integer.parseInt(PreferenceHelper.readStringFromPreferences(getContext(), "background", "-1"));
-        if (background != -1) {
+        if (background > 0 && background < 4) {
             backgroundView.setImageResource(backgrounds[background-1]);
         } else {
             backgroundView.setImageBitmap(Bitmap.createBitmap(1,1,Bitmap.Config.ARGB_8888));
+            if (background == 4) {
+                int startColor = PreferenceHelper.readIntFromPreferences(getContext(), "color1", Color.WHITE);
+                int endColor = PreferenceHelper.readIntFromPreferences(getContext(), "color2", Color.WHITE);
+                GradientDrawable gradientDrawable = new GradientDrawable(
+                        GradientDrawable.Orientation.TOP_BOTTOM,
+                        new int[] {startColor, endColor});
+                backgroundView.setBackground(gradientDrawable);
+            }
         }
     }
 
+    @SuppressLint("StaticFieldLeak")
     private void showData() {
 
         new AsyncTask<Boolean, Integer, Klasse>() {
