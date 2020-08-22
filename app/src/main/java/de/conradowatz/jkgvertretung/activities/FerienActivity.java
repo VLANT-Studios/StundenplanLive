@@ -64,6 +64,7 @@ public class FerienActivity extends AppCompatActivity {
         toolbar.setNavigationIcon(R.drawable.ic_close_white_24dp);
 
         nameEdit = (EditText) findViewById(R.id.nameEdit);
+        nameEdit.setBackgroundColor(new ColorAPI(this).getActionBarColor());
         startText = (TextView) findViewById(R.id.startText);
         endText = (TextView) findViewById(R.id.endText);
 

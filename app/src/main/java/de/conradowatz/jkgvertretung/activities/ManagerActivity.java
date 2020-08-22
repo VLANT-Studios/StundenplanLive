@@ -55,6 +55,7 @@ public class ManagerActivity extends AppCompatActivity {
 
         toolbar = (Toolbar) findViewById(R.id.toolbar);
         materialTabs = (TabLayout) findViewById(R.id.materialTabs);
+        materialTabs.setBackgroundColor(new ColorAPI(this).getActionBarColor());
         viewPager = (ViewPager) findViewById(R.id.viewPager);
         fab = (FloatingActionButton) findViewById(R.id.fab);
 

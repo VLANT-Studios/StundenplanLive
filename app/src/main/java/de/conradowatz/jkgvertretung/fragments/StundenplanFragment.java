@@ -91,9 +91,10 @@ public class StundenplanFragment extends Fragment {
         }
 
 
-        if (mode == MODE_KLASSENPLAN)
+        if (mode == MODE_KLASSENPLAN) {
             contentView = inflater.inflate(R.layout.fragment_klassenplan, container, false);
-        else contentView = inflater.inflate(R.layout.fragment_stundenplan, container, false);
+            contentView.findViewById(R.id.relativeLayout).setBackgroundColor(new ColorAPI(getActivity()).getActionBarColor());
+        } else contentView = inflater.inflate(R.layout.fragment_stundenplan, container, false);
         viewPager = (ViewPager) contentView.findViewById(R.id.viewPager);
         tabs = (TabLayout) contentView.findViewById(R.id.materialTabs);
         backgroundView = (ImageView) contentView.findViewById(R.id.background_image);

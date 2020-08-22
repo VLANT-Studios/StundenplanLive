@@ -29,6 +29,7 @@ import java.net.URI;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.adapters.FreieZimmerPagerAdapter;
 import de.conradowatz.jkgvertretung.events.DaysUpdatedEvent;
+import de.conradowatz.jkgvertretung.tools.ColorAPI;
 import de.conradowatz.jkgvertretung.tools.PreferenceHelper;
 
 import static de.conradowatz.jkgvertretung.fragments.StundenplanFragment.getPowerOfTwoForSampleRatio;
@@ -73,6 +74,7 @@ public class FreieZimmerFragment extends Fragment {
 
         if (firstStart) {
             tabs.setTabTextColors(ContextCompat.getColor(getContext(), R.color.tabs_unselected), ContextCompat.getColor(getContext(), R.color.white));
+            tabs.setBackgroundColor(new ColorAPI(getActivity()).getActionBarColor());
             tabs.setTabMode(TabLayout.MODE_SCROLLABLE);
             tabs.setupWithViewPager(viewPager);
         }

@@ -69,6 +69,7 @@ public class FachActivity extends AppCompatActivity {
 
         toolbar = (Toolbar) findViewById(R.id.toolbar);
         materialTabs = (TabLayout) findViewById(R.id.materialTabs);
+        materialTabs.setBackgroundColor(new ColorAPI(this).getActionBarColor());
         viewPager = (ViewPager) findViewById(R.id.viewPager);
 
         toolbar.setTitle(fach.getName());

@@ -77,16 +77,21 @@ public class EventActivity extends AppCompatActivity implements ReminderRecycler
 
         setContentView(R.layout.activity_event);
 
+        ColorAPI api = new ColorAPI(this);
+
         toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setDisplayShowTitleEnabled(false);
-        getSupportActionBar().setBackgroundDrawable(new ColorDrawable(new ColorAPI(this).getActionBarColor()));
+        getSupportActionBar().setBackgroundDrawable(new ColorDrawable(api.getActionBarColor()));
         toolbar.setNavigationIcon(R.drawable.ic_close_white_24dp);
 
+        findViewById(R.id.event_linear_layout).setBackgroundColor(api.getActionBarColor());
         nameEdit = (EditText) findViewById(R.id.nameEdit);
+        nameEdit.setBackgroundColor(api.getActionBarColor());
         datumText = (TextView) findViewById(R.id.datumText);
         fachText = (TextView) findViewById(R.id.fachText);
+        fachText.setBackgroundColor(api.getActionBarColor());
         stundenAuswahlText = (TextView) findViewById(R.id.stundenAuswahlText);
         descEdit = (EditText) findViewById(R.id.descEdit);
         deleteSwitch = (SwitchCompat) findViewById(R.id.deleteSwitch);
