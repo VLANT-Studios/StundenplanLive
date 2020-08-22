@@ -199,6 +199,8 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
             for (int col : getActivity().getResources().getIntArray(petrov.kristiyan.colorpicker.R.array.default_colors)) {
                 if (col == -14654801)
                     col = Color.rgb(0x4a, 0x8a, 0xba);
+                if (col == -740056)
+                    col = Color.rgb(0xfd, 0xb7, 0x09);
                 colorsHexList.add(String.format("#%x", col).toUpperCase());
             }
             colorPicker.setColors(colorsHexList);
@@ -225,6 +227,8 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
             colorPicker.setTitle("Farbe wählen");
             ArrayList<String> colorsHexList = new ArrayList<>();
             for (int col : getActivity().getResources().getIntArray(petrov.kristiyan.colorpicker.R.array.default_colors)) {
+                if (col == -14654801)
+                    col = Color.rgb(0x4a, 0x8a, 0xba);
                 if (col == -740056)
                     col = Color.rgb(0xfd, 0xb7, 0x09);
                 colorsHexList.add(String.format("#%x", col).toUpperCase());

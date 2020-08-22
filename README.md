@@ -1,5 +1,5 @@
 # StundenplanLive App
-Eine Android App für den digitalen Stundenplan und als Hausaufgaben und Prüfungs-Manager.
+Eine Android-App für den digitalen Stundenplan und als Hausaufgaben und Prüfungs-Manager.
 Entstanden im Rahmen einer Besonderen Lernleistung.
 
 Derzeit nicht mehr in aktiver Entwicklung. Deshalb habe ich mich entschieden den Source-Code zu veröffenltichen. Wer möchte kann ihn nutzen, weiterentwickeln oder verändern. Viel Spaß :)
@@ -7,7 +7,9 @@ Derzeit nicht mehr in aktiver Entwicklung. Deshalb habe ich mich entschieden den
 # Entwickler
 
 * Conrad Schmidt
- * [owatz.ne](https://owatz.net/) - <conrad@owatz.de>
+* [owatz.net](https://owatz.net/) - <conrad@owatz.de>
+
+* [VLANT Studios](https://vlant.de) - <vlant.studios@gmail.com>
 
 
 # License
