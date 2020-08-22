@@ -2,6 +2,7 @@ package de.conradowatz.jkgvertretung.activities;
 
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
 import android.os.Bundle;
@@ -53,11 +54,15 @@ public class ManagerActivity extends AppCompatActivity {
             getWindow().setEnterTransition(new Fade());
         }
 
+        ColorAPI api = new ColorAPI(this);
+
         toolbar = (Toolbar) findViewById(R.id.toolbar);
         materialTabs = (TabLayout) findViewById(R.id.materialTabs);
-        materialTabs.setBackgroundColor(new ColorAPI(this).getActionBarColor());
+        materialTabs.setBackgroundColor(api.getActionBarColor());
+        materialTabs.setSelectedTabIndicatorColor(api.getTabAccentColor());
         viewPager = (ViewPager) findViewById(R.id.viewPager);
         fab = (FloatingActionButton) findViewById(R.id.fab);
+        fab.setBackgroundTintList(ColorStateList.valueOf(api.getAccentColor()));
 
         setSupportActionBar(toolbar);
 

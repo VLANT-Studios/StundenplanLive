@@ -5,11 +5,6 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import androidx.fragment.app.Fragment;
-import androidx.core.content.ContextCompat;
-import androidx.appcompat.app.AlertDialog;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -20,6 +15,12 @@ import android.widget.Button;
 import android.widget.DatePicker;
 import android.widget.LinearLayout;
 
+import androidx.appcompat.app.AlertDialog;
+import androidx.core.content.ContextCompat;
+import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
 import com.raizlabs.android.dbflow.sql.language.SQLite;
 
 import org.greenrobot.eventbus.EventBus;
@@ -28,12 +29,12 @@ import org.greenrobot.eventbus.ThreadMode;
 
 import java.util.Calendar;
 
-import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.activities.FachActivity;
 import de.conradowatz.jkgvertretung.activities.KurswahlActivity;
 import de.conradowatz.jkgvertretung.adapters.FaecherRecyclerAdapter;
 import de.conradowatz.jkgvertretung.events.FaecherUpdateEvent;
+import de.conradowatz.jkgvertretung.tools.ColorAPI;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.variables.Fach;
 
@@ -59,11 +60,15 @@ public class FaecherFragment extends Fragment implements FaecherRecyclerAdapter.
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 
+        ColorAPI api = new ColorAPI(getActivity());
+
         contentView = inflater.inflate(R.layout.fragment_faecher, container, false);
         recyclerView = (RecyclerView) contentView.findViewById(R.id.recyclerView);
         nofaecherLayout = (LinearLayout) contentView.findViewById(R.id.nofaecherLayout);
         smartImportButton = (Button) contentView.findViewById(R.id.smartImportButton);
+        smartImportButton.setBackgroundColor(api.getAccentColor());
         kurswahlButton = (Button) contentView.findViewById(R.id.kurswahlButton);
+        kurswahlButton.setBackgroundColor(api.getAccentColor());
 
         setHasOptionsMenu(true);
 

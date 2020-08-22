@@ -12,7 +12,7 @@ public class ColorAPI {
 
     public void setUp() {
         defaultColors.put("actionBar", Color.rgb(0x4a, 0x8a, 0xba));
-        defaultColors.put("accent", Color.rgb(0xfd, 0xb7, 0x09));
+        defaultColors.put("accent", Color.rgb(0x4a, 0x8a, 0xba));
     }
 
     public ColorAPI(Context context) {
@@ -36,7 +36,11 @@ public class ColorAPI {
         PreferenceHelper.saveIntToPreferences(context, "actionBar_color", color);
     }
 
-//    public int getTheme(String id) {
-//
-//    }
+    public int getTabAccentColor() {
+        int acc = getActionBarColor();
+        int r = Math.round(Color.red(acc) * 0.8f);
+        int g = Math.round(Color.green(acc) * 0.8f);
+        int b = Math.round(Color.blue(acc) * 0.8f);
+        return Color.rgb(r, g, b);
+    }
 }

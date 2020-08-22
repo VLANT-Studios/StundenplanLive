@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <PreferenceCategory
+    <de.conradowatz.jkgvertretung.xml.CustomColorPreferenceCategory
         android:title="App Start">
 
         <ListPreference
@@ -12,7 +12,7 @@
             android:key="startScreen"
             android:title="Startbildschirm" />
 
-        <SwitchPreference
+        <de.conradowatz.jkgvertretung.xml.CustomColorSwitchPreference
             android:defaultValue="true"
             android:key="doRefreshAtStart"
             android:title="Beim Start aktualisieren" />
@@ -26,9 +26,9 @@
             android:key="maxDaysToFetchStart"
             android:title="max. herunterzuladende Tage" />
 
-    </PreferenceCategory>
+    </de.conradowatz.jkgvertretung.xml.CustomColorPreferenceCategory>
 
-    <PreferenceCategory
+    <de.conradowatz.jkgvertretung.xml.CustomColorPreferenceCategory
         android:title="Aktualisieren-Knopf">
 
         <ListPreference
@@ -39,9 +39,9 @@
             android:key="maxDaysToFetchRefresh"
             android:title="max. herunterzuladende Tage" />
 
-    </PreferenceCategory>
+    </de.conradowatz.jkgvertretung.xml.CustomColorPreferenceCategory>
 
-    <PreferenceCategory android:title="Erinnerungen">
+    <de.conradowatz.jkgvertretung.xml.CustomColorPreferenceCategory android:title="Erinnerungen">
 
         <ListPreference
             android:defaultValue="1"
@@ -51,9 +51,9 @@
             android:key="notificationType"
             android:title="Benachrichtigungsart" />
 
-    </PreferenceCategory>
+    </de.conradowatz.jkgvertretung.xml.CustomColorPreferenceCategory>
 
-    <PreferenceCategory
+    <de.conradowatz.jkgvertretung.xml.CustomColorPreferenceCategory
         android:key="designCategory"
         android:title="Design">
 
@@ -93,11 +93,11 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:key="accentColor"
-            android:title="Farbe der Datumsleiste" />
+            android:title="Akzentfarbe" />
 
-    </PreferenceCategory>
+    </de.conradowatz.jkgvertretung.xml.CustomColorPreferenceCategory>
 
-    <PreferenceCategory android:title="Backup">
+    <de.conradowatz.jkgvertretung.xml.CustomColorPreferenceCategory android:title="Backup">
 
         <Preference
             android:key="exportBackup"
@@ -110,6 +110,6 @@
         <Preference
             android:key="deleteBackup"
             android:title="Backup löschen" />
-    </PreferenceCategory>
+    </de.conradowatz.jkgvertretung.xml.CustomColorPreferenceCategory>
 
 </PreferenceScreen>

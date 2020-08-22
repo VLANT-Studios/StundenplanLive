@@ -55,6 +55,7 @@ public class FreieZimmerFragment extends Fragment {
         contentView = inflater.inflate(R.layout.fragment_stundenplan, container, false);
         viewPager = (ViewPager) contentView.findViewById(R.id.viewPager);
         tabs = (TabLayout) contentView.findViewById(R.id.materialTabs);
+        tabs.setSelectedTabIndicatorColor((new ColorAPI(getActivity())).getTabAccentColor());
         backgroundView = (ImageView) contentView.findViewById(R.id.background_image);
 
         eventBus.register(this);
