@@ -351,6 +351,8 @@ public class StundenPlanRecyclerAdapter extends RecyclerView.Adapter<StundenPlan
             super(itemView);
             this.itemView = itemView;
 
+            ColorAPI api = new ColorAPI(MyApplication.getAppContext());
+
 
             if (viewType == VIEWTYPE_HEADER) {
 
@@ -358,11 +360,12 @@ public class StundenPlanRecyclerAdapter extends RecyclerView.Adapter<StundenPlan
                 zeitstempelText = (TextView) itemView.findViewById(R.id.zeitstempelText);
                 tagEventLayout = (LinearLayout) itemView.findViewById(R.id.tagEventLayout);
                 tagEventText = (TextView) itemView.findViewById(R.id.tagEventText);
-                itemView.findViewById(R.id.stupla_header_view).setBackgroundColor(new ColorAPI(MyApplication.getAppContext()).getAccentColor());
+                itemView.findViewById(R.id.stupla_header_view).setBackgroundColor(api.getAccentColor());
 
             } else if (viewType == VIEWTYPE_NOOFFLINE) {
 
                 managerButton = (Button) itemView.findViewById(R.id.managerButton);
+                managerButton.setBackgroundColor(api.getAccentColor());
 
             } else if (viewType == VIEWTYPE_FERIEN) {
 
