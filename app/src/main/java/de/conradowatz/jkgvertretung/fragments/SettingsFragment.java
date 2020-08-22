@@ -1,6 +1,7 @@
 package de.conradowatz.jkgvertretung.fragments;
 
 import android.Manifest;
+import android.content.ContentResolver;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -216,7 +217,7 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
             Uri selectedMediaUri = data.getData();
             if (selectedMediaUri == null) {
                 Toast.makeText(getActivity(), "Kein Bild ausgewählt!", Toast.LENGTH_SHORT).show();
-            } else if (selectedMediaUri.toString().endsWith(".jpg") || selectedMediaUri.toString().endsWith(".png")) {
+            } else if (ContentResolver.SCHEME_CONTENT.equals(selectedMediaUri.getScheme())) {
                 PreferenceHelper.saveStringToPreferences(getActivity(), "backgroundPictureURI", selectedMediaUri.toString());
             } else {
                 Toast.makeText(getActivity(), "Kein gültiges Bild ausgewählt! (Nur .png oder .jpg!)", Toast.LENGTH_SHORT).show();
