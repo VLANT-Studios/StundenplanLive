@@ -2,16 +2,9 @@ package de.conradowatz.jkgvertretung.activities;
 
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
 import android.os.Bundle;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.google.android.material.tabs.TabLayout;
-import com.google.android.material.textfield.TextInputLayout;
-import androidx.core.content.ContextCompat;
-import androidx.viewpager.widget.ViewPager;
-import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.Toolbar;
 import android.transition.Fade;
 import android.view.KeyEvent;
 import android.view.MenuItem;
@@ -19,12 +12,23 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.TextView;
+
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.content.ContextCompat;
+import androidx.viewpager.widget.ViewPager;
+
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.tabs.TabLayout;
+import com.google.android.material.textfield.TextInputLayout;
+
 import org.greenrobot.eventbus.EventBus;
 
-import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.adapters.ManagerPagerAdapter;
 import de.conradowatz.jkgvertretung.events.FaecherUpdateEvent;
+import de.conradowatz.jkgvertretung.tools.ColorAPI;
 import de.conradowatz.jkgvertretung.variables.Fach;
 
 public class ManagerActivity extends AppCompatActivity {
@@ -63,6 +67,7 @@ public class ManagerActivity extends AppCompatActivity {
         }
 
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        getSupportActionBar().setBackgroundDrawable(new ColorDrawable(new ColorAPI(this).getActionBarColor()));
 
         setupViewPager();
 

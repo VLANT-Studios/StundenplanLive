@@ -4,19 +4,11 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import androidx.annotation.RequiresApi;
-import androidx.browser.customtabs.CustomTabsIntent;
-import androidx.core.app.ActivityOptionsCompat;
-import androidx.fragment.app.FragmentManager;
-import androidx.fragment.app.FragmentTransaction;
-import androidx.core.content.ContextCompat;
-import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.Toolbar;
 import android.text.Html;
 import android.text.method.LinkMovementMethod;
 import android.transition.Slide;
@@ -33,6 +25,16 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.RequiresApi;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.browser.customtabs.CustomTabsIntent;
+import androidx.core.app.ActivityOptionsCompat;
+import androidx.core.content.ContextCompat;
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentTransaction;
+
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
 import com.mikepenz.materialdrawer.Drawer;
@@ -45,7 +47,6 @@ import com.raizlabs.android.dbflow.sql.language.SQLite;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
-import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.events.DaysUpdatedEvent;
 import de.conradowatz.jkgvertretung.events.ExitAppEvent;
@@ -56,6 +57,7 @@ import de.conradowatz.jkgvertretung.fragments.NotenUebersichtFragment;
 import de.conradowatz.jkgvertretung.fragments.StundenplanFragment;
 import de.conradowatz.jkgvertretung.fragments.TaskFragment;
 import de.conradowatz.jkgvertretung.fragments.TerminFragment;
+import de.conradowatz.jkgvertretung.tools.ColorAPI;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.tools.PreferenceHelper;
 import de.conradowatz.jkgvertretung.variables.Klasse;
@@ -122,7 +124,10 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
             //App noch im Speicher, wiederherstellen
 
             CharSequence title = savedInstanceState.getCharSequence("title");
-            if (getSupportActionBar() != null) getSupportActionBar().setTitle(title);
+            if (getSupportActionBar() != null) {
+                getSupportActionBar().setTitle(title);
+                getSupportActionBar().setBackgroundDrawable(new ColorDrawable(new ColorAPI(this).getActionBarColor()));
+            }
             selectedIdentifier = savedInstanceState.getLong("selectedIdentifier");
             if (selectedIdentifier >= 0) navigationDrawer.setSelection(selectedIdentifier);
             isRefreshing = savedInstanceState.getBoolean("isRefreshing");
@@ -151,6 +156,8 @@ public class MainActivity extends AppCompatActivity implements TaskFragment.Main
         } else {
 
             //Falls alles normal -> starten
+            if (getSupportActionBar() != null)
+                getSupportActionBar().setBackgroundDrawable(new ColorDrawable(new ColorAPI(this).getActionBarColor()));
             setUp();
         }
 

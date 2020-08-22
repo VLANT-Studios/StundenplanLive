@@ -17,6 +17,7 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ImageView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.widget.AppCompatSpinner;
@@ -32,7 +33,6 @@ import org.greenrobot.eventbus.Subscribe;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -40,6 +40,7 @@ import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.adapters.StundenplanPagerAdapter;
 import de.conradowatz.jkgvertretung.events.DaysUpdatedEvent;
 import de.conradowatz.jkgvertretung.events.KursChangedEvent;
+import de.conradowatz.jkgvertretung.tools.ColorAPI;
 import de.conradowatz.jkgvertretung.tools.PreferenceHelper;
 import de.conradowatz.jkgvertretung.variables.Klasse;
 
@@ -161,7 +162,8 @@ public class StundenplanFragment extends Fragment {
                             backgroundView.setScaleType(ImageView.ScaleType.CENTER_CROP);
                             break;
                     }
-                } catch (IOException | URISyntaxException ignored) {
+                } catch (Throwable t) {
+                    Toast.makeText(getActivity(), "Fehler beim Laden des Hintergrundbildes...", Toast.LENGTH_SHORT).show();
                 }
             }
         }
@@ -196,7 +198,7 @@ public class StundenplanFragment extends Fragment {
         return bitmap;
     }
 
-    private static int getPowerOfTwoForSampleRatio(double ratio){
+    public static int getPowerOfTwoForSampleRatio(double ratio){
         int k = Integer.highestOneBit((int)Math.floor(ratio));
         if(k==0) return 1;
         else return k;
@@ -290,9 +292,11 @@ public class StundenplanFragment extends Fragment {
         if (!isAdded()) return;
         final StundenplanPagerAdapter adapter = new StundenplanPagerAdapter(getChildFragmentManager(), mode, klassenName);
         viewPager.setAdapter(adapter);
+        ColorAPI api = new ColorAPI(getActivity());
 
         if (firstStart) {
             tabs.setTabTextColors(ContextCompat.getColor(getContext(), R.color.tabs_unselected), ContextCompat.getColor(getContext(), R.color.white));
+            tabs.setBackgroundColor(api.getActionBarColor());
             if (mode != MODE_STUNDENPLAN) {
                 tabs.setTabMode(TabLayout.MODE_SCROLLABLE);
                 tabs.setupWithViewPager(viewPager);

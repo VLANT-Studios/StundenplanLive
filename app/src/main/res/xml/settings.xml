@@ -84,6 +84,16 @@
             android:entryValues="@array/picture_fit_modes_values"
             android:key="pictureFitMode"
             android:title="Bild anpassen" />
+        <Preference
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:key="actionBarColor"
+            android:title="Farbe der oberen Leiste" />
+        <Preference
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:key="accentColor"
+            android:title="Farbe der Datumsleiste" />
 
     </PreferenceCategory>
 

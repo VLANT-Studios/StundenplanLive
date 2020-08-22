@@ -2,14 +2,15 @@ package de.conradowatz.jkgvertretung.adapters;
 
 import android.content.Context;
 import android.os.AsyncTask;
-import androidx.core.content.ContextCompat;
-import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+
+import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.raizlabs.android.dbflow.sql.language.SQLite;
 
@@ -18,7 +19,9 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
+import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
+import de.conradowatz.jkgvertretung.tools.ColorAPI;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.tools.Utilities;
 import de.conradowatz.jkgvertretung.variables.Event;
@@ -348,12 +351,14 @@ public class StundenPlanRecyclerAdapter extends RecyclerView.Adapter<StundenPlan
             super(itemView);
             this.itemView = itemView;
 
+
             if (viewType == VIEWTYPE_HEADER) {
 
                 datumText = (TextView) itemView.findViewById(R.id.datumText);
                 zeitstempelText = (TextView) itemView.findViewById(R.id.zeitstempelText);
                 tagEventLayout = (LinearLayout) itemView.findViewById(R.id.tagEventLayout);
                 tagEventText = (TextView) itemView.findViewById(R.id.tagEventText);
+                itemView.findViewById(R.id.stupla_header_view).setBackgroundColor(new ColorAPI(MyApplication.getAppContext()).getAccentColor());
 
             } else if (viewType == VIEWTYPE_NOOFFLINE) {
 

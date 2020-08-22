@@ -1,18 +1,20 @@
 package de.conradowatz.jkgvertretung.adapters;
 
-import androidx.core.util.Pair;
-import androidx.recyclerview.widget.RecyclerView;
-
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import androidx.core.util.Pair;
+import androidx.recyclerview.widget.RecyclerView;
+
 import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.Locale;
 
+import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
+import de.conradowatz.jkgvertretung.tools.ColorAPI;
 import de.conradowatz.jkgvertretung.variables.OnlineTag;
 
 public class FreieZimmerRecyclerAdapter extends RecyclerView.Adapter<FreieZimmerRecyclerAdapter.ViewHolder> {
@@ -116,6 +118,7 @@ public class FreieZimmerRecyclerAdapter extends RecyclerView.Adapter<FreieZimmer
 
                 datumText = (TextView) itemView.findViewById(R.id.datumText);
                 zeitstempelText = (TextView) itemView.findViewById(R.id.zeitstempelText);
+                itemView.findViewById(R.id.stupla_header_view).setBackgroundColor(new ColorAPI(MyApplication.getAppContext()).getAccentColor());
             } else if (viewType == VIEWTYPE_TEXT) {
 
                 infoText = (TextView) itemView.findViewById(R.id.text);

@@ -2,14 +2,8 @@ package de.conradowatz.jkgvertretung.activities;
 
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
-import com.google.android.material.tabs.TabLayout;
-import com.google.android.material.textfield.TextInputLayout;
-import androidx.core.content.ContextCompat;
-import androidx.viewpager.widget.ViewPager;
-import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.Toolbar;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -18,13 +12,22 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
 
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.content.ContextCompat;
+import androidx.viewpager.widget.ViewPager;
+
+import com.google.android.material.tabs.TabLayout;
+import com.google.android.material.textfield.TextInputLayout;
+
 import org.greenrobot.eventbus.EventBus;
 
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.adapters.FachPagerAdapter;
 import de.conradowatz.jkgvertretung.events.FaecherUpdateEvent;
+import de.conradowatz.jkgvertretung.tools.ColorAPI;
 import de.conradowatz.jkgvertretung.variables.Fach;
-import de.conradowatz.jkgvertretung.variables.UnterrichtsZeit_Table;
 
 public class FachActivity extends AppCompatActivity {
 
@@ -72,6 +75,7 @@ public class FachActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
 
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        getSupportActionBar().setBackgroundDrawable(new ColorDrawable(new ColorAPI(this).getActionBarColor()));
 
         if (tab!=null) setupViewPager(tab);
 

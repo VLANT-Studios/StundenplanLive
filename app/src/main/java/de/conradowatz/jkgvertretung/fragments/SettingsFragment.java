@@ -1,10 +1,14 @@
 package de.conradowatz.jkgvertretung.fragments;
 
 import android.Manifest;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.content.ContentResolver;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -42,6 +46,7 @@ import java.util.Locale;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.events.ExitAppEvent;
 import de.conradowatz.jkgvertretung.events.PermissionGrantedEvent;
+import de.conradowatz.jkgvertretung.tools.ColorAPI;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.tools.PreferenceHelper;
 import de.conradowatz.jkgvertretung.variables.AppDatabase;
@@ -82,6 +87,8 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
         Preference color1 = findPreference("color1");
         Preference color2 = findPreference("color2");
         Preference pickFile = findPreference("pickFile");
+        Preference actionBarColor = findPreference("actionBarColor");
+        Preference accentColor = findPreference("accentColor");
         Preference exportBackup = findPreference("exportBackup");
         Preference importBackup = findPreference("importBackup");
         Preference deleteBackup = findPreference("deleteBackup");
@@ -92,6 +99,10 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
         notificationType.setSummary(notificationType.getEntry());
         background.setSummary(background.getEntry());
         pictureFitMode.setSummary(pictureFitMode.getEntry());
+
+        ColorAPI api = new ColorAPI(getActivity());
+        actionBarColor.setSummary(String.format("#%x", api.getActionBarColor()));
+        accentColor.setSummary(String.format("#%x", api.getAccentColor()));
 
         startScreen.setOnPreferenceChangeListener(this);
         maxDaysToFetchRefresh.setOnPreferenceChangeListener(this);
@@ -136,7 +147,7 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
             colorPicker.setOnFastChooseColorListener(new ColorPicker.OnFastChooseColorListener() {
                 @Override
                 public void setOnFastChooseColorListener(int position, int color) {
-                    preference.setSummary(String.format("%x", color));
+                    preference.setSummary(String.format("#%x", color));
                     PreferenceHelper.saveIntToPreferences(getActivity().getApplicationContext(), "color1", color);
                 }
 
@@ -154,7 +165,7 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
             colorPicker.setOnFastChooseColorListener(new ColorPicker.OnFastChooseColorListener() {
                 @Override
                 public void setOnFastChooseColorListener(int position, int color) {
-                    preference.setSummary(String.format("%x", color));
+                    preference.setSummary(String.format("#%x", color));
                     PreferenceHelper.saveIntToPreferences(getActivity().getApplicationContext(), "color2", color);
                 }
 
@@ -178,6 +189,62 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
                 intent.setType("image/*");
                 startActivityForResult(intent, REQUEST_CODE_SELECT_IMAGE);
             }
+            return true;
+        });
+
+        actionBarColor.setOnPreferenceClickListener(preference -> {
+            ColorPicker colorPicker = new ColorPicker(getActivity());
+            colorPicker.setTitle("Farbe wählen");
+            ArrayList<String> colorsHexList = new ArrayList<>();
+            for (int col : getActivity().getResources().getIntArray(petrov.kristiyan.colorpicker.R.array.default_colors)) {
+                if (col == -14654801)
+                    col = Color.rgb(0x4a, 0x8a, 0xba);
+                colorsHexList.add(String.format("#%x", col).toUpperCase());
+            }
+            colorPicker.setColors(colorsHexList);
+            colorPicker.setOnChooseColorListener(new ColorPicker.OnChooseColorListener() {
+                @Override
+                public void onChooseColor(int position, int color) {
+                    if (color != 0) {
+                        preference.setSummary(String.format("#%x", color));
+                        new ColorAPI(getActivity()).setActionBarColor(color);
+                        requestRestart();
+                    }
+                }
+
+                @Override
+                public void onCancel(){
+                }
+            });
+            colorPicker.show();
+            return true;
+        });
+
+        accentColor.setOnPreferenceClickListener(preference -> {
+            ColorPicker colorPicker = new ColorPicker(getActivity());
+            colorPicker.setTitle("Farbe wählen");
+            ArrayList<String> colorsHexList = new ArrayList<>();
+            for (int col : getActivity().getResources().getIntArray(petrov.kristiyan.colorpicker.R.array.default_colors)) {
+                if (col == -740056)
+                    col = Color.rgb(0xfd, 0xb7, 0x09);
+                colorsHexList.add(String.format("#%x", col).toUpperCase());
+            }
+            colorPicker.setColors(colorsHexList);
+            colorPicker.setOnChooseColorListener(new ColorPicker.OnChooseColorListener() {
+                @Override
+                public void onChooseColor(int position, int color) {
+                    if (color != 0) {
+                        preference.setSummary(String.format("#%x", color));
+                        new ColorAPI(getActivity()).setAccentColor(color);
+                        requestRestart();
+                    }
+                }
+
+                @Override
+                public void onCancel() {
+                }
+            });
+            colorPicker.show();
             return true;
         });
 
@@ -210,6 +277,24 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
         }
     }
 
+    private void requestRestart() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+        builder.setMessage("Um die Farbe zu ändern ist ein Neustart der App erforderlich.\nJetzt App neustarten?")
+                .setTitle("Neustart erforderlich")
+                .setPositiveButton("Ja", (dialogInterface, i) -> {
+                    Intent intent = getActivity().getPackageManager().getLaunchIntentForPackage(getActivity().getPackageName());
+                    int mPendingIntentId = 1530153;
+                    PendingIntent mPendingIntent = PendingIntent.getActivity(getActivity(), mPendingIntentId, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+                    AlarmManager mgr = (AlarmManager) getActivity().getSystemService(Context.ALARM_SERVICE);
+                    mgr.set(AlarmManager.RTC, System.currentTimeMillis() + 100, mPendingIntent);
+                    System.exit(0);
+                })
+                .setNegativeButton("Nein", (dialogInterface, i) -> {
+                    dialogInterface.dismiss();
+                });
+        builder.create().show();
+    }
+
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -219,6 +304,7 @@ public class SettingsFragment extends PreferenceFragment implements Preference.O
                 Toast.makeText(getActivity(), "Kein Bild ausgewählt!", Toast.LENGTH_SHORT).show();
             } else if (ContentResolver.SCHEME_CONTENT.equals(selectedMediaUri.getScheme())) {
                 PreferenceHelper.saveStringToPreferences(getActivity(), "backgroundPictureURI", selectedMediaUri.toString());
+                Toast.makeText(getActivity(), "Bild gespeichert!", Toast.LENGTH_SHORT).show();
             } else {
                 Toast.makeText(getActivity(), "Kein gültiges Bild ausgewählt! (Nur .png oder .jpg!)", Toast.LENGTH_SHORT).show();
             }

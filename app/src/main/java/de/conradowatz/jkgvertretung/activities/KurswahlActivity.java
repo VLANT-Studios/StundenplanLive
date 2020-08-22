@@ -2,14 +2,10 @@ package de.conradowatz.jkgvertretung.activities;
 
 import android.app.Activity;
 import android.content.DialogInterface;
+import android.graphics.drawable.ColorDrawable;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Parcelable;
-import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.AppCompatSpinner;
-import androidx.appcompat.widget.SwitchCompat;
-import androidx.appcompat.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -20,6 +16,12 @@ import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.LinearLayout;
 
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.AppCompatSpinner;
+import androidx.appcompat.widget.SwitchCompat;
+import androidx.appcompat.widget.Toolbar;
+
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
@@ -29,6 +31,7 @@ import java.util.List;
 import de.conradowatz.jkgvertretung.R;
 import de.conradowatz.jkgvertretung.events.KlassenlistUpdatedEvent;
 import de.conradowatz.jkgvertretung.events.KursChangedEvent;
+import de.conradowatz.jkgvertretung.tools.ColorAPI;
 import de.conradowatz.jkgvertretung.variables.Klasse;
 import de.conradowatz.jkgvertretung.variables.Kurs;
 
@@ -58,6 +61,7 @@ public class KurswahlActivity extends AppCompatActivity {
         toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        getSupportActionBar().setBackgroundDrawable(new ColorDrawable(new ColorAPI(this).getActionBarColor()));
         toolbar.setNavigationIcon(R.drawable.ic_close_white_24dp);
 
         eventBus.register(this);

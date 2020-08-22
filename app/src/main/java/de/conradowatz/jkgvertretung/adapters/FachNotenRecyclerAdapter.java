@@ -1,17 +1,19 @@
 package de.conradowatz.jkgvertretung.adapters;
 
 import android.content.Context;
-import androidx.core.content.ContextCompat;
-import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 
+import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.RecyclerView;
+
 import java.util.List;
 
 import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
+import de.conradowatz.jkgvertretung.tools.ColorAPI;
 import de.conradowatz.jkgvertretung.variables.Fach;
 import de.conradowatz.jkgvertretung.variables.Zensur;
 
@@ -54,7 +56,7 @@ public class FachNotenRecyclerAdapter extends RecyclerView.Adapter<FachNotenRecy
 
         if (getItemViewType(position) == ITEM_TYPE_NORMAL) {
             holder.button.setText(String.valueOf(notenListe.get(position).getZensur()));
-            holder.button.setBackgroundColor(ContextCompat.getColor(context, R.color.accent));
+            holder.button.setBackgroundColor(new ColorAPI(context).getAccentColor());
             holder.button.setOnClickListener(null);
             holder.button.setOnClickListener(new View.OnClickListener() {
                 @Override

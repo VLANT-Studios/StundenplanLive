@@ -2,18 +2,22 @@ package de.conradowatz.jkgvertretung.adapters;
 
 import android.content.Context;
 import android.os.AsyncTask;
-import androidx.core.content.ContextCompat;
-import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+
+import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.RecyclerView;
+
 import com.raizlabs.android.dbflow.sql.language.SQLite;
 
 import java.util.List;
 import java.util.Locale;
 
+import de.conradowatz.jkgvertretung.MyApplication;
 import de.conradowatz.jkgvertretung.R;
+import de.conradowatz.jkgvertretung.tools.ColorAPI;
 import de.conradowatz.jkgvertretung.tools.LocalData;
 import de.conradowatz.jkgvertretung.variables.Klasse;
 import de.conradowatz.jkgvertretung.variables.OnlineTag;
@@ -184,6 +188,7 @@ public class KlassenplanRecyclerAdapter extends RecyclerView.Adapter<Klassenplan
 
                 datumText = (TextView) itemView.findViewById(R.id.datumText);
                 zeitstempelText = (TextView) itemView.findViewById(R.id.zeitstempelText);
+                itemView.findViewById(R.id.stupla_header_view).setBackgroundColor(new ColorAPI(MyApplication.getAppContext()).getAccentColor());
 
             } else if (viewType == VIEWTYPE_TEXT) {
 
